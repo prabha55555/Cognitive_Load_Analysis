@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { AdminDashboard } from './components/AdminDashboard';
+import { LandingPage } from './components/LandingPage';
 import { Login } from './components/Login';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
-import { AdminDashboard } from './components/AdminDashboard';
 import { mockParticipants, researchTopics } from './data/mockData';
 import { Participant } from './types';
 
@@ -14,6 +15,12 @@ function App() {
     participant?: Participant;
   } | null>(null);
 
+  const [showLanding, setShowLanding] = useState(true);
+
+  const handleJoinStudy = () => {
+    setShowLanding(false);
+  };
+
   const handleLogin = (email: string, name: string, userType: 'participant' | 'admin') => {
     if (userType === 'participant') {
       // For demo purposes, create a new participant or use existing one
@@ -21,7 +28,7 @@ function App() {
       
       if (!participant) {
         // Create new participant with random assignment
-        const platforms: ('chatgpt' | 'google')[] = ['chatgpt', 'google'];
+        const platforms: ('chatgpt' | 'grok' | 'google')[] = ['chatgpt', 'grok', 'google'];
         const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
         const randomTopic = researchTopics[Math.floor(Math.random() * researchTopics.length)];
         
@@ -71,8 +78,15 @@ function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setShowLanding(true);
   };
 
+  // Show landing page if no user is logged in and landing should be shown
+  if (showLanding && !currentUser) {
+    return <LandingPage onJoinStudy={handleJoinStudy} />;
+  }
+
+  // Show login if no user is logged in
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
@@ -120,10 +134,10 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        {/* Logout Button (Fixed Position) */}
+        {/* Enhanced Logout Button */}
         <button
           onClick={handleLogout}
-          className="fixed bottom-4 right-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-lg transition-colors z-50"
+          className="fixed bottom-6 right-6 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 z-50 font-medium"
         >
           Logout
         </button>

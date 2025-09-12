@@ -1,35 +1,46 @@
-import React, { useState } from 'react';
-import { Participant } from '../types';
+import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User } from 'lucide-react';
+import { useState } from 'react';
+import { creativityTests } from '../data/mockData';
 import { useEEGStream } from '../hooks/useEEGStream';
+import { Participant } from '../types';
+import { CreativityTest } from './CreativityTest';
 import { EEGVisualization } from './EEGVisualization';
 import { ResearchInterface } from './ResearchInterface';
-import { CreativityTest } from './CreativityTest';
-import { creativityTests } from '../data/mockData';
-import { User, Clock, Brain, Target } from 'lucide-react';
 
 interface ParticipantDashboardProps {
   participant: Participant;
   onPhaseComplete: (phase: string) => void;
 }
 
-export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
+export const ParticipantDashboard = ({
   participant,
   onPhaseComplete
-}) => {
+}: ParticipantDashboardProps) => {
   const { eegData, currentReading } = useEEGStream(participant.id, participant.isActive);
   const [currentTestIndex, setCurrentTestIndex] = useState(0);
 
   const getPhaseColor = (phase: string) => {
     switch (phase) {
-      case 'research': return 'text-blue-600 bg-blue-100';
-      case 'creativity_test': return 'text-purple-600 bg-purple-100';
-      case 'completed': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'research': return 'text-blue-600 bg-blue-100 border-blue-200';
+      case 'creativity_test': return 'text-purple-600 bg-purple-100 border-purple-200';
+      case 'completed': return 'text-green-600 bg-green-100 border-green-200';
+      default: return 'text-gray-600 bg-gray-100 border-gray-200';
     }
   };
 
   const getPlatformColor = (platform: string) => {
-    return platform === 'chatgpt' ? 'text-green-600 bg-green-100' : 'text-blue-600 bg-blue-100';
+    return platform === 'chatgpt' 
+      ? 'text-green-600 bg-green-100 border-green-200' 
+      : 'text-blue-600 bg-blue-100 border-blue-200';
+  };
+
+  const getPhaseIcon = (phase: string) => {
+    switch (phase) {
+      case 'research': return <PlayCircle className="h-4 w-4" />;
+      case 'creativity_test': return <Brain className="h-4 w-4" />;
+      case 'completed': return <CheckCircle className="h-4 w-4" />;
+      default: return <PauseCircle className="h-4 w-4" />;
+    }
   };
 
   const sessionDuration = Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000);
@@ -62,20 +73,56 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
       case 'completed':
         return (
           <div className="max-w-4xl mx-auto p-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-              <Target className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-green-800 mb-2">Session Complete!</h2>
-              <p className="text-green-700 mb-4">
-                Thank you for participating in this research study.
-              </p>
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <div className="p-4 bg-white rounded-lg">
-                  <p className="text-sm text-gray-600">Final Cognitive Load Score</p>
-                  <p className="text-2xl font-bold text-blue-600">{participant.cognitiveLoadScore}%</p>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur-xl opacity-30 animate-pulse"></div>
+                  <Target className="h-16 w-16 text-green-600 relative z-10" />
                 </div>
-                <div className="p-4 bg-white rounded-lg">
-                  <p className="text-sm text-gray-600">Creativity Score</p>
-                  <p className="text-2xl font-bold text-purple-600">{participant.creativityScore}</p>
+              </div>
+              <h2 className="text-3xl font-bold text-green-800 mb-4">Session Complete!</h2>
+              <p className="text-green-700 mb-8 text-lg">
+                Thank you for participating in this research study. Your data has been recorded successfully.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200">
+                  <div className="flex items-center justify-center mb-4">
+                    <Brain className="h-8 w-8 text-blue-600 mr-3" />
+                    <h3 className="text-xl font-semibold text-gray-800">Cognitive Load Score</h3>
+                  </div>
+                  <p className="text-4xl font-bold text-blue-600">{participant.cognitiveLoadScore}%</p>
+                  <p className="text-sm text-gray-500 mt-2">Average cognitive load during session</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200">
+                  <div className="flex items-center justify-center mb-4">
+                    <Target className="h-8 w-8 text-purple-600 mr-3" />
+                    <h3 className="text-xl font-semibold text-gray-800">Creativity Score</h3>
+                  </div>
+                  <p className="text-4xl font-bold text-purple-600">{participant.creativityScore}</p>
+                  <p className="text-sm text-gray-500 mt-2">Overall creativity assessment</p>
+                </div>
+              </div>
+              <div className="mt-8 p-6 bg-white rounded-xl shadow-lg border border-green-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Study Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-800">{sessionDuration}</p>
+                    <p className="text-sm text-gray-500">Minutes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-800">
+                      {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google'}
+                    </p>
+                    <p className="text-sm text-gray-500">Platform Used</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-800">{creativityTests.length}</p>
+                    <p className="text-sm text-gray-500">Tests Completed</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-800">100%</p>
+                    <p className="text-sm text-gray-500">Data Quality</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -87,31 +134,51 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Enhanced Header */}
+      <div className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <User className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-xl font-semibold text-gray-800">{participant.name}</h1>
-                <p className="text-sm text-gray-500">{participant.email}</p>
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-lg opacity-30 animate-pulse"></div>
+                  <User className="h-8 w-8 text-blue-600 relative z-10" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-800">{participant.name}</h1>
+                  <p className="text-sm text-gray-500">{participant.email}</p>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600">{sessionDuration} min</span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full">
+                <Clock className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">{sessionDuration} min</span>
               </div>
               
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${getPlatformColor(participant.assignedPlatform)}`}>
-                {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google Search'}
+              <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getPlatformColor(participant.assignedPlatform)}`}>
+                <div className="flex items-center space-x-2">
+                  {participant.assignedPlatform === 'chatgpt' ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>ChatGPT</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span>Google Search</span>
+                    </>
+                  )}
+                </div>
               </div>
               
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${getPhaseColor(participant.currentPhase)}`}>
-                {participant.currentPhase.replace('_', ' ').toUpperCase()}
+              <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getPhaseColor(participant.currentPhase)}`}>
+                <div className="flex items-center space-x-2">
+                  {getPhaseIcon(participant.currentPhase)}
+                  <span>{participant.currentPhase.replace('_', ' ').toUpperCase()}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -120,15 +187,17 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
           {/* Main Task Area */}
-          <div className="lg:col-span-2">
-            {renderCurrentPhase()}
+          <div className="xl:col-span-3">
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {renderCurrentPhase()}
+            </div>
           </div>
 
-          {/* EEG Monitoring Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
+          {/* Enhanced EEG Monitoring Sidebar */}
+          <div className="xl:col-span-2">
+            <div className="sticky top-8 space-y-8">
               <EEGVisualization
                 eegData={eegData}
                 currentReading={currentReading}
@@ -136,24 +205,70 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               />
               
               {/* Topic Information */}
-              <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Brain className="h-5 w-5 text-indigo-600" />
-                  <h3 className="text-lg font-semibold text-gray-800">Research Topic</h3>
-                </div>
-                <p className="text-2xl font-bold text-indigo-600 mb-2">{participant.researchTopic}</p>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-500">Current Score</p>
-                    <p className="text-lg font-semibold text-gray-800">{participant.cognitiveLoadScore}%</p>
+              <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full blur-lg opacity-30 animate-pulse"></div>
+                    <Brain className="h-8 w-8 text-indigo-600 relative z-10" />
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-500">Test Progress</p>
-                    <p className="text-lg font-semibold text-gray-800">
+                  <h3 className="text-xl font-bold text-gray-800">Research Topic</h3>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200 mb-6">
+                  <p className="text-2xl font-bold text-indigo-600">{participant.researchTopic}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                    <p className="text-sm text-gray-600 mb-2">Current Score</p>
+                    <p className="text-3xl font-bold text-blue-600">{participant.cognitiveLoadScore}%</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                    <p className="text-sm text-gray-600 mb-2">Test Progress</p>
+                    <p className="text-3xl font-bold text-purple-600">
                       {participant.currentPhase === 'creativity_test' ? `${currentTestIndex + 1}/${creativityTests.length}` : 
                        participant.currentPhase === 'completed' ? 'Done' : 'Starting'}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Progress Indicator */}
+              <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <h3 className="text-xl font-bold text-gray-800 mb-6">Study Progress</h3>
+                <div className="space-y-4">
+                  {['research', 'creativity_test', 'completed'].map((phase, index) => (
+                    <div key={phase} className="flex items-center space-x-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        participant.currentPhase === phase 
+                          ? 'bg-blue-600 text-white' 
+                          : participant.currentPhase === 'completed' || 
+                            (phase === 'research' && participant.currentPhase !== 'login') ||
+                            (phase === 'creativity_test' && participant.currentPhase === 'creativity_test')
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {participant.currentPhase === phase ? (
+                          <PlayCircle className="h-5 w-5" />
+                        ) : participant.currentPhase === 'completed' || 
+                           (phase === 'research' && participant.currentPhase !== 'login') ||
+                           (phase === 'creativity_test' && participant.currentPhase === 'creativity_test') ? (
+                          <CheckCircle className="h-5 w-5" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+                        )}
+                      </div>
+                      <span className={`text-base font-medium ${
+                        participant.currentPhase === phase 
+                          ? 'text-blue-600' 
+                          : participant.currentPhase === 'completed' || 
+                            (phase === 'research' && participant.currentPhase !== 'login') ||
+                            (phase === 'creativity_test' && participant.currentPhase === 'creativity_test')
+                          ? 'text-green-600'
+                          : 'text-gray-500'
+                      }`}>
+                        {phase.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

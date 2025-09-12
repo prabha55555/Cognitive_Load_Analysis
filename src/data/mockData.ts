@@ -1,4 +1,4 @@
-import { Participant, CreativityTest, ResearchTopic } from '../types';
+import { CreativityTest, Participant, ResearchTopic } from '../types';
 
 export const mockParticipants: Participant[] = [
   {
@@ -17,7 +17,7 @@ export const mockParticipants: Participant[] = [
     id: 'p002', 
     name: 'Bob Chen',
     email: 'bob.c@university.edu',
-    assignedPlatform: 'google',
+    assignedPlatform: 'grok',
     currentPhase: 'creativity_test',
     sessionStart: new Date(Date.now() - 2400000), // 40 minutes ago
     researchTopic: 'Renewable Energy Innovation',
@@ -29,7 +29,7 @@ export const mockParticipants: Participant[] = [
     id: 'p003',
     name: 'Carol Davis',
     email: 'carol.d@university.edu', 
-    assignedPlatform: 'chatgpt',
+    assignedPlatform: 'google',
     currentPhase: 'completed',
     sessionStart: new Date(Date.now() - 3600000), // 1 hour ago
     researchTopic: 'Sustainable Transportation',
@@ -41,7 +41,7 @@ export const mockParticipants: Participant[] = [
     id: 'p004',
     name: 'David Wilson',
     email: 'david.w@university.edu',
-    assignedPlatform: 'google',
+    assignedPlatform: 'grok',
     currentPhase: 'research',
     sessionStart: new Date(Date.now() - 900000), // 15 minutes ago  
     researchTopic: 'Future of Work',
