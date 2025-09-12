@@ -29,7 +29,7 @@ export const GrokInterface: React.FC<GrokInterfaceProps> = ({
   ]);
   const [currentInput, setCurrentInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [realTimeMode, setRealTimeMode] = useState(true);
+  const [realTimeMode] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {

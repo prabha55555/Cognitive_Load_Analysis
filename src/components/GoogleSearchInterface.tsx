@@ -191,9 +191,25 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search Header - Desktop Optimized */}
-      <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
-        <div className="flex items-center space-x-3 lg:space-x-4 mb-3 lg:mb-4">
+      {/* Google Search Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-white/20 rounded-full blur-lg animate-pulse"></div>
+              <Globe className="h-6 w-6 relative z-10" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Google Search Interface</h3>
+              <p className="text-sm opacity-90">Research {participant.researchTopic}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="p-6 border-b border-gray-200 bg-white">
+        <div className="flex items-center space-x-4 mb-4">
           <div className="flex-1 relative">
             <input
               type="text"
@@ -201,33 +217,33 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
               onChange={(e) => setCurrentQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               placeholder={`Search for ${participant.researchTopic}...`}
-              className="w-full px-3 py-2 lg:px-4 lg:py-3 pl-10 lg:pl-12 border-2 border-gray-200 rounded-lg lg:rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base"
+              className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
           <button
             onClick={handleSearch}
             disabled={!currentQuery.trim() || isSearching}
-            className="px-4 py-2 lg:px-6 lg:py-3 bg-blue-600 text-white font-semibold rounded-lg lg:rounded-2xl hover:bg-blue-700 disabled:bg-gray-300 transition-colors text-sm lg:text-base"
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-2xl hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
           >
             {isSearching ? 'Searching...' : 'Search'}
           </button>
           <button
             onClick={handleGoogleSearch}
-            className="px-4 py-2 lg:px-6 lg:py-3 bg-green-600 text-white font-semibold rounded-lg lg:rounded-2xl hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm lg:text-base"
+            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-2xl hover:bg-green-700 transition-colors flex items-center space-x-2"
           >
-            <ExternalLink className="h-3 w-3 lg:h-4 lg:w-4" />
+            <ExternalLink className="h-4 w-4" />
             <span>Google</span>
           </button>
         </div>
 
-        {/* Search Suggestions - Compact */}
-        <div className="flex flex-wrap gap-1 lg:gap-2">
+        {/* Search Suggestions */}
+        <div className="flex flex-wrap gap-2">
           {getSearchSuggestions(participant.researchTopic).map((suggestion, index) => (
             <button
               key={index}
               onClick={() => setCurrentQuery(suggestion)}
-              className="px-2 lg:px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs lg:text-sm rounded-full transition-colors"
+              className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-full transition-colors"
             >
               {suggestion}
             </button>
@@ -235,21 +251,21 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Search Results - Desktop Optimized */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+      {/* Search Results */}
+      <div className="flex-1 overflow-y-auto p-6">
         {isSearching ? (
-          <div className="text-center py-8 lg:py-12">
-            <div className="animate-spin rounded-full h-8 w-8 lg:h-12 lg:w-12 border-b-2 border-blue-600 mx-auto mb-3 lg:mb-4"></div>
-            <p className="text-gray-600 text-sm lg:text-base">Searching for "{currentQuery}"...</p>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Searching for "{currentQuery}"...</p>
           </div>
         ) : searchResults.length > 0 ? (
-          <div className="space-y-3 lg:space-y-4">
-            <div className="flex items-center justify-between mb-3 lg:mb-4">
-              <p className="text-xs lg:text-sm text-gray-600">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-600">
                 About {searchResults.length} results for "{currentQuery}"
               </p>
-              <div className="flex items-center space-x-1 lg:space-x-2 text-xs lg:text-sm text-gray-500">
-                <Clock className="h-3 w-3 lg:h-4 lg:w-4" />
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <Clock className="h-4 w-4" />
                 <span>Search time: ~1.2s</span>
               </div>
             </div>
@@ -257,35 +273,35 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
             {searchResults.map((result) => (
               <div
                 key={result.id}
-                className="bg-white border border-gray-200 rounded-lg lg:rounded-xl p-3 lg:p-4 hover:shadow-lg transition-shadow cursor-pointer"
+                className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => handleResultClick(result)}
               >
-                <div className="flex items-start space-x-2 lg:space-x-3">
-                  <div className={`p-1 lg:p-2 rounded-full ${getResultColor(result.type)}`}>
+                <div className="flex items-start space-x-3">
+                  <div className={`p-2 rounded-full ${getResultColor(result.type)}`}>
                     {getResultIcon(result.type)}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center space-x-1 lg:space-x-2 mb-1">
+                    <div className="flex items-center space-x-2 mb-1">
                       <a
                         href={result.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm lg:text-lg"
+                        className="text-blue-600 hover:text-blue-800 font-medium text-lg"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {result.title}
                       </a>
-                      <ExternalLink className="h-2 w-2 lg:h-3 lg:w-3 text-gray-400" />
+                      <ExternalLink className="h-3 w-3 text-gray-400" />
                     </div>
-                    <p className="text-green-700 text-xs lg:text-sm mb-1 lg:mb-2">{result.url}</p>
-                    <p className="text-gray-600 text-xs lg:text-sm leading-relaxed">{result.snippet}</p>
-                    <div className="flex items-center space-x-3 lg:space-x-4 mt-2 lg:mt-3">
+                    <p className="text-green-700 text-sm mb-2">{result.url}</p>
+                    <p className="text-gray-600 text-sm leading-relaxed">{result.snippet}</p>
+                    <div className="flex items-center space-x-4 mt-3">
                       <div className="flex items-center space-x-1">
-                        <TrendingUp className="h-2 w-2 lg:h-3 lg:w-3 text-gray-400" />
+                        <TrendingUp className="h-3 w-3 text-gray-400" />
                         <span className="text-xs text-gray-500">{result.relevance}% relevant</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <MapPin className="h-2 w-2 lg:h-3 lg:w-3 text-gray-400" />
+                        <MapPin className="h-3 w-3 text-gray-400" />
                         <span className="text-xs text-gray-500">{result.type}</span>
                       </div>
                     </div>
@@ -295,30 +311,54 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
             ))}
           </div>
         ) : currentQuery && !isSearching ? (
-          <div className="text-center py-8 lg:py-12">
-            <Search className="h-8 w-8 lg:h-12 lg:w-12 text-gray-400 mx-auto mb-3 lg:mb-4" />
-            <p className="text-gray-600 text-sm lg:text-base">No results found for "{currentQuery}"</p>
-            <p className="text-xs lg:text-sm text-gray-500 mt-1 lg:mt-2">Try different keywords or check your spelling</p>
+          <div className="text-center py-12">
+            <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No results found for "{currentQuery}"</p>
+            <p className="text-sm text-gray-500 mt-2">Try different keywords or check your spelling</p>
           </div>
         ) : (
-          <div className="text-center py-8 lg:py-12">
-            <Globe className="h-8 w-8 lg:h-12 lg:w-12 text-gray-400 mx-auto mb-3 lg:mb-4" />
-            <p className="text-gray-600 text-sm lg:text-base">Start searching for information about {participant.researchTopic}</p>
-            <p className="text-xs lg:text-sm text-gray-500 mt-1 lg:mt-2">Use the search bar above or click on suggestions</p>
+          <div className="text-center py-12">
+            <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Start searching for information about {participant.researchTopic}</p>
+            <p className="text-sm text-gray-500 mt-2">Use the search bar above or click on suggestions</p>
           </div>
         )}
       </div>
 
-      {/* Search History - Compact Desktop */}
+      {/* Quick Actions */}
+      <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setCurrentQuery(`${participant.researchTopic} research papers`)}
+            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Research Papers
+          </button>
+          <button
+            onClick={() => setCurrentQuery(`${participant.researchTopic} applications`)}
+            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Applications
+          </button>
+          <button
+            onClick={() => setCurrentQuery(`${participant.researchTopic} latest developments`)}
+            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Latest News
+          </button>
+        </div>
+      </div>
+
+      {/* Search History */}
       {searchHistory.length > 0 && (
-        <div className="p-4 lg:p-6 border-t border-gray-200 bg-gray-50">
-          <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2 lg:mb-3">Recent Searches</h3>
-          <div className="flex flex-wrap gap-1 lg:gap-2">
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Searches</h3>
+          <div className="flex flex-wrap gap-2">
             {searchHistory.slice(-5).map((query, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentQuery(query)}
-                className="px-2 lg:px-3 py-1 bg-white border border-gray-200 text-gray-700 text-xs lg:text-sm rounded-full hover:bg-gray-50 transition-colors"
+                className="px-3 py-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-full hover:bg-gray-50 transition-colors"
               >
                 {query}
               </button>
