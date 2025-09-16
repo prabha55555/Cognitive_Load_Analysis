@@ -20,6 +20,14 @@ export const API_CONFIG = {
     API_VERSION: '2024-01-01'
   },
 
+  // Google Gemini API
+  GEMINI: {
+    API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    MAX_TOKENS: 500,
+    TEMPERATURE: 0.7
+  },
+
   // Google Search API (Optional)
   GOOGLE: {
     SEARCH_API_KEY: import.meta.env.VITE_GOOGLE_SEARCH_API_KEY || '',
@@ -54,12 +62,14 @@ export const validateApiKeys = () => {
 };
 
 // Get API key for specific service
-export const getApiKey = (service: 'openai' | 'grok' | 'google') => {
+export const getApiKey = (service: 'openai' | 'grok' | 'google' | 'gemini') => {
   switch (service) {
     case 'openai':
       return API_CONFIG.OPENAI.API_KEY;
     case 'grok':
       return API_CONFIG.GROK.API_KEY;
+    case 'gemini':
+      return API_CONFIG.GEMINI.API_KEY;
     case 'google':
       return API_CONFIG.GOOGLE.SEARCH_API_KEY;
     default:
@@ -68,7 +78,28 @@ export const getApiKey = (service: 'openai' | 'grok' | 'google') => {
 };
 
 // Check if API key is available
-export const isApiKeyAvailable = (service: 'openai' | 'grok' | 'google') => {
+export const isApiKeyAvailable = (service: 'openai' | 'grok' | 'google' | 'gemini') => {
   const key = getApiKey(service);
-  return key && key !== 'your_api_key_here' && key.length > 0;
+  
+  // For grok, check if we have the actual API key (not placeholder)
+  if (service === 'grok') {
+    return key && key.startsWith('xai-') && key.length > 10;
+  }
+  
+  // For gemini, check if we have actual Google API key
+  if (service === 'gemini') {
+    return key && key.startsWith('AIza') && key.length > 20;
+  }
+  
+  // For openai, check if we have actual key (not placeholder)
+  if (service === 'openai') {
+    return key && key !== 'your_openai_api_key_here' && key.length > 10;
+  }
+  
+  // For google, it's optional
+  if (service === 'google') {
+    return key && key !== 'your_google_search_api_key_here' && key.length > 10;
+  }
+  
+  return false;
 };

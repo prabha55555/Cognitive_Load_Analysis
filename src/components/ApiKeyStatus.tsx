@@ -1,6 +1,6 @@
-import { AlertCircle, CheckCircle, Copy, ExternalLink, Key, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle, Copy, ExternalLink, Key, Settings, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { isApiKeyAvailable } from '../config/api';
+import { API_CONFIG } from '../config/apiConfig';
 
 interface ApiKeyStatusProps {
   onClose?: () => void;
@@ -9,9 +9,10 @@ interface ApiKeyStatusProps {
 export const ApiKeyStatus: React.FC<ApiKeyStatusProps> = ({ onClose }) => {
   const [showSetup, setShowSetup] = useState(false);
 
-  const openaiAvailable = isApiKeyAvailable('openai');
-  const grokAvailable = isApiKeyAvailable('grok');
-  const googleAvailable = isApiKeyAvailable('google');
+  // Check if API keys are available
+  const openaiAvailable = !!API_CONFIG.OPENAI.API_KEY;
+  const grokAvailable = !!API_CONFIG.GROK.API_KEY;
+  const geminiAvailable = !!API_CONFIG.GEMINI?.API_KEY;
 
   const copyEnvTemplate = () => {
     const envTemplate = `# API Keys for Cognitive Load Analysis Platform
@@ -102,23 +103,23 @@ VITE_GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here`;
         </div>
 
         <div className={`flex items-center justify-between p-4 rounded-xl border ${
-          googleAvailable ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+          geminiAvailable ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
         }`}>
           <div className="flex items-center space-x-3">
-            {googleAvailable ? (
+            {geminiAvailable ? (
               <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
               <Settings className="h-5 w-5 text-gray-600" />
             )}
             <div>
-              <h4 className="font-semibold text-gray-800">Google Search (Optional)</h4>
-              <p className="text-sm text-gray-600">VITE_GOOGLE_SEARCH_API_KEY</p>
+              <h4 className="font-semibold text-gray-800">Google Gemini (ChatGPT Interface)</h4>
+              <p className="text-sm text-gray-600">VITE_GEMINI_API_KEY</p>
             </div>
           </div>
           <span className={`text-sm font-medium ${
-            googleAvailable ? 'text-green-700' : 'text-gray-700'
+            geminiAvailable ? 'text-green-700' : 'text-gray-700'
           }`}>
-            {googleAvailable ? 'Configured' : 'Optional'}
+            {geminiAvailable ? 'Configured' : 'Required'}
           </span>
         </div>
       </div>

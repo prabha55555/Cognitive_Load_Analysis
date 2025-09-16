@@ -1,6 +1,6 @@
-import { Bot, Send, TrendingUp, User } from 'lucide-react';
+import { Bot, Send, TrendingUp, User, AlertTriangle, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { grokService } from '../services/grokService';
+import llmService, { ChatMessage } from '../services/llmService';
 import { Participant } from '../types';
 
 interface Message {
@@ -8,7 +8,80 @@ interface Message {
   role: 'user' | 'assistant';
   content: string; 
   timestamp: Date;
+  queryType?: 'research' | 'clarification' | 'analysis' | 'synthesis';
+  relevanceScore?: number;
+  isStreaming?: boolean;
 }
+
+// Topic relevance validation function
+const validateTopicRelevance = (query: string, topic: string): { isRelevant: boolean; confidence: number; reason: string } => {
+  const queryLower = query.toLowerCase();
+  const topicLower = topic.toLowerCase();
+  const topicWords = topicLower.split(' ');
+  
+  // Check if query contains topic keywords
+  const directMatch = topicWords.some(word => word.length > 2 && queryLower.includes(word));
+  
+  // Check for related research terms
+  const relatedTerms = [
+    'research', 'study', 'analysis', 'data', 'findings', 'results',
+    'applications', 'benefits', 'challenges', 'methods', 'approach',
+    'development', 'technology', 'innovation', 'trends', 'future',
+    'impact', 'effect', 'influence', 'mechanism', 'process', 'theory',
+    'practice', 'implementation', 'evaluation', 'assessment', 'review'
+  ];
+  
+  const hasRelatedTerms = relatedTerms.some(term => queryLower.includes(term));
+  
+  // Check for completely off-topic queries
+  const offTopicIndicators = [
+    'weather', 'sports', 'entertainment', 'movies', 'music', 'food',
+    'travel', 'politics', 'news', 'celebrities', 'games', 'jokes',
+    'personal life', 'dating', 'shopping', 'cooking', 'fashion',
+    'help me with homework', 'write my essay', 'do my assignment'
+  ];
+  
+  const isOffTopic = offTopicIndicators.some(indicator => queryLower.includes(indicator));
+  
+  if (isOffTopic) {
+    return {
+      isRelevant: false,
+      confidence: 0.1,
+      reason: 'Query appears to be off-topic from the research subject'
+    };
+  }
+  
+  if (directMatch) {
+    return {
+      isRelevant: true,
+      confidence: 0.9,
+      reason: 'Query directly relates to the research topic'
+    };
+  }
+  
+  if (hasRelatedTerms && queryLower.length > 10) {
+    return {
+      isRelevant: true,
+      confidence: 0.7,
+      reason: 'Query contains research-related terms'
+    };
+  }
+  
+  // For short or unclear queries, give benefit of doubt but lower confidence
+  if (queryLower.length < 10) {
+    return {
+      isRelevant: true,
+      confidence: 0.5,
+      reason: 'Query is too short to determine relevance accurately'
+    };
+  }
+  
+  return {
+    isRelevant: false,
+    confidence: 0.3,
+    reason: 'Query does not appear to be related to the research topic'
+  };
+};
 
 interface GrokInterfaceProps {
   participant: Participant;
@@ -24,7 +97,9 @@ export const GrokInterface: React.FC<GrokInterfaceProps> = ({
       id: '1',
       role: 'assistant',
       content: `Hello! I'm Cognitive Load Analyser, your AI research assistant with real-time knowledge. I'm here to help you research "${participant.researchTopic}" with the most current information available. Ask me anything about this topic!`,
-      timestamp: new Date()
+      timestamp: new Date(),
+      queryType: 'research',
+      relevanceScore: 1.0
     }
   ]);
   const [currentInput, setCurrentInput] = useState('');
@@ -43,47 +118,132 @@ export const GrokInterface: React.FC<GrokInterfaceProps> = ({
   const handleSendMessage = async () => {
     if (!currentInput.trim() || isLoading) return;
 
+    // Validate topic relevance before processing
+    const relevanceCheck = validateTopicRelevance(currentInput.trim(), participant.researchTopic);
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: currentInput.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      queryType: relevanceCheck.isRelevant ? 'research' : 'clarification',
+      relevanceScore: relevanceCheck.confidence
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const queryText = currentInput.trim();
     setCurrentInput('');
     setIsLoading(true);
-    onQuerySubmit(currentInput.trim());
+    onQuerySubmit(queryText);
+
+    // If query is not relevant, provide immediate feedback with Grok's witty style
+    if (!relevanceCheck.isRelevant) {
+      const systemMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `🚫 **Off-Topic Query Detected** (Classic human behavior, really!)
+
+Your question "${queryText}" doesn't appear to be related to your assigned research topic: **${participant.researchTopic}**.
+
+${relevanceCheck.reason}
+
+Look, I get it - the human mind wanders. But let's focus on what matters here: **${participant.researchTopic}**. Try asking:
+• What is ${participant.researchTopic} and why should I care?
+• How does ${participant.researchTopic} actually work in practice?
+• What are the real-world applications of ${participant.researchTopic}?
+• What challenges exist in ${participant.researchTopic} research?
+
+This helps maintain the integrity of the cognitive load research study (and keeps the scientists happy). 🧠`,
+        timestamp: new Date(),
+        queryType: 'clarification',
+        relevanceScore: 0
+      };
+      
+      setMessages(prev => [...prev, systemMessage]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Create a placeholder assistant message for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const placeholderMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '🧠 *Processing with real-time intelligence...*',
+      timestamp: new Date(),
+      queryType: 'research',
+      relevanceScore: 0,
+      isStreaming: true
+    };
+    
+    setMessages(prev => [...prev, placeholderMessage]);
 
     try {
-      // Use actual Grok API
-      const response = await grokService.sendMessage(
-        currentInput.trim(),
+      // Build conversation history for context
+      const conversationHistory: ChatMessage[] = messages.slice(-6).map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }));
+
+      // Enhanced context for better responses
+      const enhancedQuery = `Research Topic: ${participant.researchTopic}
+      
+User Question: ${queryText}
+
+Please provide a comprehensive, witty response about ${participant.researchTopic} that directly addresses the user's question. Use Grok's characteristic style - be informative but engaging, with occasional humor and real-world insights.`;
+
+      // Stream response from Grok API
+      const streamGenerator = llmService.streamGrokResponse(
+        enhancedQuery,
         participant.researchTopic,
-        messages.map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        }))
+        conversationHistory
       );
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      for await (const chunk of streamGenerator) {
+        // Update the message content in real-time
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === assistantMessageId) {
+            // Determine query type and relevance from validation result
+            let finalRelevanceScore = relevanceCheck.confidence;
+            let finalQueryType: 'research' | 'clarification' = 'research';
+            
+            if (chunk.validationResult) {
+              finalRelevanceScore = chunk.validationResult.confidence || relevanceCheck.confidence;
+              finalQueryType = chunk.validationResult.isRelevant ? 'research' : 'clarification';
+            }
+
+            return {
+              ...msg,
+              content: chunk.text,
+              queryType: finalQueryType,
+              relevanceScore: finalRelevanceScore,
+              isStreaming: !chunk.isComplete
+            };
+          }
+          return msg;
+        }));
+
+        // If streaming is complete, break
+        if (chunk.isComplete) {
+          break;
+        }
+      }
       
     } catch (error) {
-      console.error('Error calling Grok API:', error);
-      // Fallback to simulated response
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: generateGrokResponse(currentInput.trim(), participant.researchTopic),
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      console.error('Error streaming Grok response:', error);
+      // Update with error message
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === assistantMessageId) {
+          return {
+            ...msg,
+            content: `❌ **Grok Error**: ${error instanceof Error ? error.message : 'Unknown error occurred'}\n\n**Fallback**: ${generateGrokResponse(queryText, participant.researchTopic)}`,
+            queryType: 'research',
+            relevanceScore: relevanceCheck.confidence,
+            isStreaming: false
+          };
+        }
+        return msg;
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -112,17 +272,58 @@ export const GrokInterface: React.FC<GrokInterfaceProps> = ({
     if (isLoading) return;
     
     setIsLoading(true);
+    
+    // Create a streaming message for real-time info
+    const messageId = Date.now().toString();
+    const streamingMessage: Message = {
+      id: messageId,
+      role: 'assistant',
+      content: '🔥 **Getting latest updates...**',
+      timestamp: new Date(),
+      queryType: 'research',
+      relevanceScore: 0,
+      isStreaming: true
+    };
+    
+    setMessages(prev => [...prev, streamingMessage]);
+    
     try {
-      const response = await grokService.getRealTimeInfo(participant.researchTopic);
-      const message: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, message]);
+      // Get real-time information using Grok streaming
+      const streamGenerator = llmService.streamGrokResponse(
+        `What are the latest developments and current trends in ${participant.researchTopic}?`,
+        participant.researchTopic,
+        []
+      );
+      
+      for await (const chunk of streamGenerator) {
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              content: `🔥 **Latest ${participant.researchTopic} Updates**\n\n${chunk.text}`,
+              relevanceScore: chunk.validationResult?.confidence || 1.0,
+              isStreaming: !chunk.isComplete
+            };
+          }
+          return msg;
+        }));
+        
+        if (chunk.isComplete) break;
+      }
     } catch (error) {
       console.error('Error getting real-time info:', error);
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            content: `❌ **Real-time Update Error**: Failed to get latest information, but I'm still here to help with your ${participant.researchTopic} research!`,
+            queryType: 'clarification',
+            relevanceScore: 0,
+            isStreaming: false
+          };
+        }
+        return msg;
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +389,31 @@ export const GrokInterface: React.FC<GrokInterfaceProps> = ({
                     }`}>
                       {message.timestamp.toLocaleTimeString()}
                     </p>
-                    {message.role === 'assistant' && (
+                    {message.relevanceScore !== undefined && (
+                      <div className="flex items-center space-x-1">
+                        {message.relevanceScore === 0 ? (
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                        ) : (
+                          <Sparkles className="h-3 w-3 text-purple-500" />
+                        )}
+                        <span className={`text-xs ${
+                          message.relevanceScore === 0 
+                            ? 'text-orange-600' 
+                            : 'text-purple-600'
+                        }`}>
+                          {message.relevanceScore === 0 
+                            ? 'Off-topic' 
+                            : `${(message.relevanceScore * 100).toFixed(0)}% relevant`}
+                        </span>
+                      </div>
+                    )}
+                    {message.queryType === 'clarification' && (
+                      <div className="flex items-center space-x-1">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                        <span className="text-xs text-yellow-600">System</span>
+                      </div>
+                    )}
+                    {message.role === 'assistant' && message.queryType !== 'clarification' && (
                       <div className="flex items-center space-x-1">
                         <TrendingUp className="h-3 w-3 text-purple-500" />
                         <span className="text-xs text-purple-600">Real-time</span>

@@ -1,4 +1,4 @@
-import { AlertCircle, Brain, Clock, Key, MessageSquare, Search, Sparkles, Target } from 'lucide-react';
+import { Brain, Clock, MessageSquare, Search, Sparkles, Target } from 'lucide-react';
 import { useState } from 'react';
 import { isApiKeyAvailable } from '../config/api';
 import { Participant } from '../types';
@@ -17,15 +17,12 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showApiStatus, setShowApiStatus] = useState(false);
 
-  const openaiAvailable = isApiKeyAvailable('openai');
+  const geminiAvailable = isApiKeyAvailable('gemini'); // ChatGPT interface uses Gemini
   const grokAvailable = isApiKeyAvailable('grok');
 
   const handlePlatformSelect = async (platform: 'chatgpt' | 'grok' | 'google') => {
-    // Check if API key is available for AI platforms
-    if ((platform === 'chatgpt' && !openaiAvailable) || (platform === 'grok' && !grokAvailable)) {
-      setShowApiStatus(true);
-      return;
-    }
+    // Always allow platform selection - APIs will handle fallbacks gracefully
+    setSelectedPlatform(platform);
 
     setSelectedPlatform(platform);
     setIsLoading(true);
@@ -52,7 +49,7 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
       ],
       setupTime: '2-3 minutes',
       requiresApiKey: true,
-      apiKeyAvailable: openaiAvailable
+      apiKeyAvailable: geminiAvailable
     },
     {
       id: 'grok' as const,
@@ -147,8 +144,8 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
                   key={platform.id}
                   className={`relative group transition-all duration-300 transform hover:scale-105 ${
                     selectedPlatform === platform.id ? 'ring-4 ring-blue-500' : ''
-                  } ${!platform.apiKeyAvailable && platform.requiresApiKey ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                  onClick={() => platform.apiKeyAvailable || !platform.requiresApiKey ? handlePlatformSelect(platform.id) : null}
+                  } cursor-pointer`}
+                  onClick={() => handlePlatformSelect(platform.id)}
                 >
                 <div className={`bg-gradient-to-br from-${platform.color}-50/80 to-${platform.color}-100/80 rounded-2xl p-8 border-2 border-${platform.color}-200/60 backdrop-blur-sm h-full`}>
                   {/* Platform Icon */}
@@ -186,27 +183,8 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
                     </div>
                   </div>
 
-                  {/* API Key Warning */}
-                  {platform.requiresApiKey && !platform.apiKeyAvailable && (
-                    <div className="bg-red-50 border border-red-200 p-3 rounded-xl mt-4">
-                      <div className="flex items-center space-x-2">
-                        <Key className="h-4 w-4 text-red-600" />
-                        <span className="text-sm font-medium text-red-700">API key required</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* API Key Status */}
-                  {platform.requiresApiKey && !platform.apiKeyAvailable && (
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-red-500 text-white p-2 rounded-full">
-                        <AlertCircle className="h-5 w-5" />
-                      </div>
-                    </div>
-                  )}
-
                   {/* Selection Indicator */}
-                  {selectedPlatform === platform.id && platform.apiKeyAvailable && (
+                  {selectedPlatform === platform.id && (
                     <div className="absolute top-4 right-4">
                       <div className={`bg-${platform.color}-600 text-white p-2 rounded-full`}>
                         <Sparkles className="h-5 w-5" />
