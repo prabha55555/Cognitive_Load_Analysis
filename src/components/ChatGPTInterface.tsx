@@ -1,7 +1,7 @@
-import { Send, Sparkles, User, Bot, AlertTriangle, StopCircle } from 'lucide-react';
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Participant } from '../types';
+import { AlertTriangle, Bot, Send, Sparkles, StopCircle, User } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import llmService, { ChatMessage } from '../services/llmService';
+import { Participant } from '../types';
 
 interface Message {
   id: string;
