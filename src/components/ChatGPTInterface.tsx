@@ -1,5 +1,5 @@
-import { Send, Sparkles, User, Bot, AlertTriangle } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { Send, Sparkles, User, Bot, AlertTriangle, StopCircle } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Participant } from '../types';
 import llmService, { ChatMessage } from '../services/llmService';
 
@@ -126,17 +126,125 @@ What would you like to know about ${participant.researchTopic}?`,
       relevanceScore: 1.0
     }
   ]);
+  
   const [currentInput, setCurrentInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // useRef for DOM manipulation to avoid re-renders during streaming
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const streamingMessageRef = useRef<HTMLDivElement | null>(null);
+  const streamingContentRef = useRef<HTMLDivElement | null>(null);
+  const streamingMessageId = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Stable scroll function
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
 
+  // Only scroll when messages array changes, not during streaming
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages.length, scrollToBottom]); // Only depend on length, not content
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      llmService.stopStreaming();
+    };
+  }, []);
+
+  // Function to create streaming message DOM element
+  const createStreamingMessage = (messageId: string, relevanceScore: number): HTMLDivElement => {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flex justify-start';
+    messageDiv.id = `message-${messageId}`;
+    
+    messageDiv.innerHTML = `
+      <div class="max-w-[85%] rounded-2xl p-4 bg-white border border-gray-200 text-gray-800 shadow-sm">
+        <div class="flex items-start space-x-3">
+          <div class="p-2 rounded-full flex-shrink-0 bg-gradient-to-br from-emerald-100 to-blue-100">
+            <svg class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm leading-relaxed whitespace-pre-wrap streaming-content">
+              <span class="inline-block w-2 h-5 bg-emerald-500 ml-1 animate-pulse rounded-sm"></span>
+            </div>
+            <div class="flex items-center space-x-2 mt-2">
+              <p class="text-xs text-gray-500">${new Date().toLocaleTimeString()}</p>
+              <div class="flex items-center space-x-1">
+                <svg class="h-3 w-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z" />
+                </svg>
+                <span class="text-xs text-emerald-600">${Math.round(relevanceScore * 100)}% relevant</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    return messageDiv;
+  };
+
+  // Function to update streaming content using direct DOM manipulation
+  const updateStreamingContent = (content: string, isComplete: boolean = false) => {
+    if (streamingContentRef.current) {
+      if (isComplete) {
+        // Remove cursor and set final content
+        streamingContentRef.current.innerHTML = content;
+      } else {
+        // Update content with cursor
+        streamingContentRef.current.innerHTML = content + 
+          '<span class="inline-block w-2 h-5 bg-emerald-500 ml-1 animate-pulse rounded-sm"></span>';
+      }
+      
+      // Smooth scroll during streaming (throttled)
+      if (Date.now() % 5 === 0) { // Only scroll every 5th update
+        scrollToBottom();
+      }
+    }
+  };
+
+  const stopCurrentStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    llmService.stopStreaming();
+    setIsLoading(false);
+    
+    // Clean up streaming message
+    if (streamingMessageRef.current && streamingMessageId.current) {
+      const finalContent = streamingContentRef.current?.textContent || 'Response incomplete.';
+      
+      // Convert streaming message to regular message
+      const newMessage: Message = {
+        id: streamingMessageId.current,
+        role: 'assistant',
+        content: finalContent,
+        timestamp: new Date(),
+        queryType: 'research',
+        relevanceScore: 0.8
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Remove streaming DOM element
+      if (streamingMessageRef.current.parentNode) {
+        streamingMessageRef.current.parentNode.removeChild(streamingMessageRef.current);
+      }
+      // Reset refs
+      streamingMessageId.current = null;
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!currentInput.trim() || isLoading) return;
@@ -159,6 +267,11 @@ What would you like to know about ${participant.researchTopic}?`,
     setIsLoading(true);
     onQuerySubmit(queryText);
 
+    // Stop any existing streaming
+    stopCurrentStreaming();
+
+    abortControllerRef.current = new AbortController();
+
     // Check if it's a basic greeting
     const basicGreetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
     const isBasicGreeting = basicGreetings.some(greeting => 
@@ -167,19 +280,19 @@ What would you like to know about ${participant.researchTopic}?`,
 
     // If it's a basic greeting, provide a context-aware response via Gemini
     if (isBasicGreeting) {
-      // Create a placeholder assistant message for streaming
+      // Create streaming message using DOM manipulation
       const assistantMessageId = (Date.now() + 1).toString();
-      const placeholderMessage: Message = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '💭 *Gemini is thinking...*',
-        timestamp: new Date(),
-        queryType: 'research',
-        relevanceScore: 0.8,
-        isStreaming: true
-      };
+      streamingMessageId.current = assistantMessageId;
       
-      setMessages(prev => [...prev, placeholderMessage]);
+      if (messagesContainerRef.current) {
+        const streamingElement = createStreamingMessage(assistantMessageId, relevanceCheck.confidence);
+        messagesContainerRef.current.appendChild(streamingElement);
+        
+        streamingMessageRef.current = streamingElement;
+        streamingContentRef.current = streamingElement.querySelector('.streaming-content') as HTMLDivElement;
+        
+        scrollToBottom();
+      }
 
       try {
         // Enhanced greeting prompt for Gemini
@@ -197,45 +310,61 @@ Keep the response conversational but informative, and end with a specific questi
         );
 
         for await (const chunk of streamGenerator) {
-          // Update the message content in real-time
-          setMessages(prev => prev.map(msg => {
-            if (msg.id === assistantMessageId) {
-              return {
-                ...msg,
-                content: chunk.text,
-                queryType: 'research',
-                relevanceScore: 0.8,
-                isStreaming: !chunk.isComplete
-              };
-            }
-            return msg;
-          }));
+          if (abortControllerRef.current?.signal.aborted) {
+            console.log('Request aborted by user');
+            break;
+          }
 
-          // If streaming is complete, break
+          // Update content using direct DOM manipulation (no re-render)
+          updateStreamingContent(chunk.text, chunk.isComplete);
+
           if (chunk.isComplete) {
+            // Convert to regular message and add to state
+            const finalMessage: Message = {
+              id: assistantMessageId,
+              role: 'assistant',
+              content: chunk.text,
+              timestamp: new Date(),
+              queryType: 'research',
+              relevanceScore: relevanceCheck.confidence
+            };
+            
+            setMessages(prev => [...prev, finalMessage]);
+            
+            // Clean up streaming DOM
+            if (streamingMessageRef.current && streamingMessageRef.current.parentNode) {
+              streamingMessageRef.current.parentNode.removeChild(streamingMessageRef.current);
+              streamingMessageId.current = null;
+            }
             break;
           }
         }
 
       } catch (error) {
         console.error('Error with Gemini API for greeting:', error);
-        // Fallback greeting response
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === assistantMessageId) {
-            return {
-              ...msg,
-              content: `Hello! I'm your AI research assistant powered by Google Gemini, specialized in ${participant.researchTopic}. 
+        
+        if (!abortControllerRef.current?.signal.aborted) {
+          const fallbackMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: `Hello! I'm your AI research assistant powered by Google Gemini, specialized in ${participant.researchTopic}. 
 
 ${participant.researchTopic} is a fascinating field with many applications and ongoing research developments. I'm here to help you explore this topic in depth.
 
 What specific aspect of ${participant.researchTopic} would you like to learn about?`,
-              queryType: 'research',
-              relevanceScore: 0.8,
-              isStreaming: false
-            };
+            timestamp: new Date(),
+            queryType: 'research',
+            relevanceScore: relevanceCheck.confidence
+          };
+          
+          setMessages(prev => [...prev, fallbackMessage]);
+          
+          // Clean up streaming DOM
+          if (streamingMessageRef.current && streamingMessageRef.current.parentNode) {
+            streamingMessageRef.current.parentNode.removeChild(streamingMessageRef.current);
+            streamingMessageId.current = null;
           }
-          return msg;
-        }));
+        }
       } finally {
         setIsLoading(false);
       }
@@ -268,19 +397,19 @@ This helps ensure the quality of data collection for the cognitive load analysis
       return;
     }
 
-    // Create a placeholder assistant message for streaming
+    // Create streaming message using DOM manipulation
     const assistantMessageId = (Date.now() + 1).toString();
-    const placeholderMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '💭 *Gemini is thinking...*',
-      timestamp: new Date(),
-      queryType: 'research',
-      relevanceScore: 0,
-      isStreaming: true
-    };
+    streamingMessageId.current = assistantMessageId;
     
-    setMessages(prev => [...prev, placeholderMessage]);
+    if (messagesContainerRef.current) {
+      const streamingElement = createStreamingMessage(assistantMessageId, relevanceCheck.confidence);
+      messagesContainerRef.current.appendChild(streamingElement);
+      
+      streamingMessageRef.current = streamingElement;
+      streamingContentRef.current = streamingElement.querySelector('.streaming-content') as HTMLDivElement;
+      
+      scrollToBottom();
+    }
 
     try {
       // Build conversation history for context
@@ -304,92 +433,60 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
       );
 
       for await (const chunk of streamGenerator) {
-        // Update the message content in real-time
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === assistantMessageId) {
-            // Determine query type and relevance from validation result
-            let finalRelevanceScore = relevanceCheck.confidence;
-            let finalQueryType: 'research' | 'clarification' = 'research';
-            
-            if (chunk.validationResult) {
-              finalRelevanceScore = chunk.validationResult.confidence || relevanceCheck.confidence;
-              finalQueryType = chunk.validationResult.isRelevant ? 'research' : 'clarification';
-            }
+        if (abortControllerRef.current?.signal.aborted) {
+          console.log('Request aborted by user');
+          break;
+        }
 
-            return {
-              ...msg,
-              content: chunk.text,
-              queryType: finalQueryType,
-              relevanceScore: finalRelevanceScore,
-              isStreaming: !chunk.isComplete
-            };
-          }
-          return msg;
-        }));
+        // Update content using direct DOM manipulation (no re-render)
+        updateStreamingContent(chunk.text, chunk.isComplete);
 
-        // If streaming is complete, break
         if (chunk.isComplete) {
+          // Convert to regular message and add to state
+          const finalMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: chunk.text,
+            timestamp: new Date(),
+            queryType: 'research',
+            relevanceScore: relevanceCheck.confidence
+          };
+          
+          setMessages(prev => [...prev, finalMessage]);
+          
+          // Clean up streaming DOM
+          if (streamingMessageRef.current && streamingMessageRef.current.parentNode) {
+            streamingMessageRef.current.parentNode.removeChild(streamingMessageRef.current);
+            streamingMessageId.current = null;
+          }
           break;
         }
       }
 
     } catch (error) {
-      console.error('Error with Gemini API:', error);
-      // Update with error message
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === assistantMessageId) {
-          return {
-            ...msg,
-            content: `I apologize, but I'm experiencing some technical difficulties connecting to the Gemini API. However, I can still help with your ${participant.researchTopic} question!\n\n${generateIntelligentFallback(queryText, participant.researchTopic)}`,
-            queryType: 'research',
-            relevanceScore: relevanceCheck.confidence,
-            isStreaming: false
-          };
+      console.error('Error in streaming:', error);
+      
+      if (!abortControllerRef.current?.signal.aborted) {
+        const errorMessage: Message = {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: `I apologize for the delay. Let me help you with your ${participant.researchTopic} question: "${queryText}"\n\nThis is a fascinating topic with many important aspects to explore. Could you be more specific about what aspect interests you most?`,
+          timestamp: new Date(),
+          queryType: 'research',
+          relevanceScore: relevanceCheck.confidence
+        };
+        
+        setMessages(prev => [...prev, errorMessage]);
+        
+        // Clean up streaming DOM
+        if (streamingMessageRef.current && streamingMessageRef.current.parentNode) {
+          streamingMessageRef.current.parentNode.removeChild(streamingMessageRef.current);
+          streamingMessageId.current = null;
         }
-        return msg;
-      }));
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Intelligent fallback when Gemini API is unavailable
-  const generateIntelligentFallback = (query: string, topic: string): string => {
-    const queryLower = query.toLowerCase();
-    
-    // Handle greetings specifically
-    const basicGreetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
-    const isGreeting = basicGreetings.some(greeting => queryLower.trim() === greeting);
-    
-    if (isGreeting) {
-      return `Hello! I'm your AI research assistant powered by Google Gemini, specialized in ${topic}. 
-
-${topic} is a fascinating field with many applications and ongoing research developments. I'm here to help you explore this topic in depth with accurate, up-to-date information.
-
-What specific aspect of ${topic} would you like to learn about? For example:
-• The fundamentals and core concepts of ${topic}
-• Current research trends and developments
-• Real-world applications and use cases
-• Challenges and future directions in ${topic}`;
-    }
-    
-    if (queryLower.includes('what is') || queryLower.includes('define')) {
-      return `${topic} is a significant field of study that encompasses various methodologies, principles, and applications. It involves systematic approaches to understanding complex phenomena and developing practical solutions. Current research in this area continues to evolve with new discoveries and technological advances.`;
-    }
-    
-    if (queryLower.includes('how does') || queryLower.includes('process')) {
-      return `The processes involved in ${topic} typically follow established methodologies and best practices. These approaches have been developed through extensive research and real-world application, incorporating both theoretical foundations and practical considerations to achieve optimal outcomes.`;
-    }
-    
-    if (queryLower.includes('benefits') || queryLower.includes('advantages')) {
-      return `${topic} offers numerous benefits including improved efficiency, enhanced understanding, and practical applications that can address real-world challenges. The field has shown significant potential for positive impact across various domains and continues to develop new opportunities.`;
-    }
-    
-    if (queryLower.includes('challenges') || queryLower.includes('problems')) {
-      return `Like any developing field, ${topic} faces several challenges including technical limitations, resource requirements, and implementation considerations. Researchers and practitioners continue to work on addressing these challenges through innovative approaches and collaborative efforts.`;
-    }
-    
-    return `Your question about ${topic} touches on important aspects of this field. This area continues to be actively researched and developed, with ongoing work focusing on both theoretical understanding and practical applications. Would you like me to elaborate on any specific aspect?`;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -415,6 +512,15 @@ What specific aspect of ${topic} would you like to learn about? For example:
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            {isLoading && (
+              <button
+                onClick={stopCurrentStreaming}
+                className="flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-red-500/20 hover:bg-red-500/30 transition-colors"
+              >
+                <StopCircle className="h-4 w-4" />
+                <span>Stop</span>
+              </button>
+            )}
             <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-white/20`}>
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span>Gemini API</span>
@@ -422,8 +528,8 @@ What specific aspect of ${topic} would you like to learn about? For example:
           </div>
         </div>
       </div>
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* Messages Container with ref for DOM manipulation */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50" ref={messagesContainerRef}>
         {messages.map((message) => (
           <div
             key={message.id}
