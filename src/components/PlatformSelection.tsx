@@ -18,7 +18,7 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
   const [showApiStatus, setShowApiStatus] = useState(false);
 
   const geminiAvailable = isApiKeyAvailable('gemini'); // ChatGPT interface uses Gemini
-  const grokAvailable = isApiKeyAvailable('grok');
+
 
   const handlePlatformSelect = async (platform: 'chatgpt' | 'grok' | 'google') => {
     // Always allow platform selection - APIs will handle fallbacks gracefully
@@ -51,22 +51,7 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
       requiresApiKey: true,
       apiKeyAvailable: geminiAvailable
     },
-    {
-      id: 'grok' as const,
-      name: 'Grok',
-      description: 'Real-time AI assistant with current knowledge and trends',
-      icon: Sparkles,
-      color: 'purple',
-      features: [
-        'Real-time knowledge access',
-        'Current events awareness',
-        'Trend analysis and insights',
-        'Multi-modal understanding'
-      ],
-      setupTime: '2-3 minutes',
-      requiresApiKey: true,
-      apiKeyAvailable: grokAvailable
-    },
+   
     {
       id: 'google' as const,
       name: 'Google Search',

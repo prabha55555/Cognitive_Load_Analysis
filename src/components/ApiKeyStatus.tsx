@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Copy, ExternalLink, Key, Settings, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Copy, ExternalLink, Key, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { API_CONFIG } from '../config/apiConfig';
 

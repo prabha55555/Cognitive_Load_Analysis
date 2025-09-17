@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import { AlertTriangle, Brain, CheckCircle, Download, Settings, TrendingUp, Users } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { mockParticipants } from '../data/mockData';
 import { useEEGStream } from '../hooks/useEEGStream';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter } from 'recharts';
-import { Users, Brain, TrendingUp, Download, Settings, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Participant } from '../types';
 
 interface DashboardAnalytics {
@@ -34,9 +34,29 @@ interface DashboardAnalytics {
 export const AdminDashboard: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardAnalytics | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>(mockParticipants);
+  const [topicSelectionMode, setTopicSelectionMode] = useState<'random' | 'custom'>('random');
+  const [customTopic, setCustomTopic] = useState('');
+  const [lastCreatedTopic, setLastCreatedTopic] = useState<string>('');
+  const [creationMessage, setCreationMessage] = useState<string>('');
+  const [showCreationAlert, setShowCreationAlert] = useState(false);
+  
+  const availableTopics = [
+    'Climate Change',
+    'Artificial Intelligence', 
+    'Space Exploration',
+    'Renewable Energy',
+    'Cybersecurity',
+    'Quantum Computing',
+    'Biotechnology',
+    'Ocean Conservation',
+    'Smart Cities',
+    'Digital Privacy',
+    'Sustainable Transportation'
+  ];
 
   // Get EEG data for all active participants
-  const participantData = mockParticipants.map(participant => {
+  const participantData = participants.map(participant => {
     const { currentReading } = useEEGStream(participant.id, participant.isActive);
     return { ...participant, currentReading };
   });
@@ -60,6 +80,62 @@ export const AdminDashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const getRandomTopic = () => {
+    const randomIndex = Math.floor(Math.random() * availableTopics.length);
+    return availableTopics[randomIndex];
+  };
+
+  const handleCreateParticipant = (platform: 'chatgpt' | 'google') => {
+    console.log('🚀 Creating participant...');
+    console.log('Mode:', topicSelectionMode);
+    console.log('Custom topic:', customTopic);
+    
+    let selectedTopic = '';
+    
+    if (topicSelectionMode === 'random') {
+      selectedTopic = getRandomTopic();
+      console.log('🎲 Random topic selected:', selectedTopic);
+    } else {
+      selectedTopic = customTopic.trim();
+      console.log('✏️ Custom topic used:', selectedTopic);
+      
+      // Enhanced validation for custom topics
+      if (!selectedTopic || selectedTopic.length < 3) {
+        console.error('❌ Custom topic validation failed:', selectedTopic);
+        setCreationMessage('❌ Custom topic must be at least 3 characters long');
+        setShowCreationAlert(true);
+        setTimeout(() => setShowCreationAlert(false), 3000);
+        return;
+      }
+    }
+
+    const newParticipant: Participant = {
+      id: `P${Date.now()}`,
+      name: `Participant ${participants.length + 1}`,
+      email: `participant${participants.length + 1}@study.com`,
+      researchTopic: selectedTopic,
+      assignedPlatform: platform,
+      sessionStart: new Date(),
+      isActive: true,
+      currentPhase: 'research',
+      cognitiveLoadScore: 0,
+      creativityScore: 0
+    };
+
+    setParticipants(prev => [...prev, newParticipant]);
+    setLastCreatedTopic(selectedTopic);
+    setCreationMessage(`✅ Participant created successfully with topic: "${selectedTopic}" on ${platform.toUpperCase()} platform`);
+    setShowCreationAlert(true);
+    
+    // Reset form
+    setCustomTopic('');
+    
+    // Hide success message after 5 seconds
+    setTimeout(() => setShowCreationAlert(false), 5000);
+    
+    console.log('👤 New participant created:', newParticipant);
+  };
 
   // Stable platform comparison data with consistent structure
   const platformComparison = useMemo(() => [
@@ -117,10 +193,10 @@ export const AdminDashboard: React.FC = () => {
   const getStatusColor = (participant: Participant) => {
     if (!participant.isActive) return 'text-gray-500 bg-gray-100';
     switch (participant.currentPhase) {
-      case 'chatgpt_research': return 'text-green-600 bg-green-100';
-      case 'google_research': return 'text-blue-600 bg-blue-100';
+      case 'research': return 'text-green-600 bg-green-100';
       case 'creativity_test': return 'text-purple-600 bg-purple-100';
       case 'completed': return 'text-green-600 bg-green-100';
+      case 'login': return 'text-blue-600 bg-blue-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -247,6 +323,206 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Topic Selection Panel */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Create New Participant</h3>
+            <button
+              onClick={() => {
+                console.log('🧪 Testing random topic selection:');
+                for (let i = 0; i < 5; i++) {
+                  console.log(`Test ${i + 1}: ${getRandomTopic()}`);
+                }
+              }}
+              className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+            >
+              🧪 Test Random
+            </button>
+          </div>
+          
+          {/* Success/Error Alert */}
+          {showCreationAlert && (
+            <div className={`mb-4 p-4 rounded-lg ${
+              creationMessage.startsWith('✅') 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              <p className="text-sm font-medium">{creationMessage}</p>
+            </div>
+          )}
+          
+          {/* Topic Selection Mode */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Topic Assignment Method
+            </label>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  setTopicSelectionMode('random');
+                  console.log('🎯 Switched to random topic mode');
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  topicSelectionMode === 'random'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                🎲 Random Topic
+              </button>
+              <button
+                onClick={() => {
+                  setTopicSelectionMode('custom');
+                  console.log('🎯 Switched to custom topic mode');
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  topicSelectionMode === 'custom'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                ✏️ Custom Topic
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Current mode: <span className="font-semibold">{topicSelectionMode}</span>
+            </p>
+          </div>
+
+          {/* Topic Input/Display */}
+          {topicSelectionMode === 'random' ? (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Available Topics (Random Selection)
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-lg">
+                {availableTopics.map((topic, index) => (
+                  <span key={index} className="text-sm text-gray-600 bg-white px-2 py-1 rounded">
+                    {topic}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                A random topic will be assigned when participant is created
+              </p>
+              {lastCreatedTopic && (
+                <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                  <p className="text-xs text-blue-700">
+                    <span className="font-semibold">Last assigned topic:</span> "{lastCreatedTopic}"
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mb-4">
+              <label htmlFor="customTopic" className="block text-sm font-medium text-gray-700 mb-2">
+                Enter Custom Research Topic
+              </label>
+              <input
+                id="customTopic"
+                type="text"
+                value={customTopic}
+                onChange={(e) => {
+                  setCustomTopic(e.target.value);
+                  console.log('✏️ Custom topic input:', e.target.value);
+                }}
+                placeholder="e.g., Sustainable Transportation, Machine Learning in Healthcare, Blockchain Technology..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                maxLength={100}
+              />
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  Enter any research topic you want the participant to explore
+                </p>
+                <span className="text-xs text-gray-400">
+                  {customTopic.length}/100 characters
+                </span>
+              </div>
+              {customTopic.trim() && (
+                <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                  <p className="text-xs text-green-700">
+                    <span className="font-semibold">Topic preview:</span> "{customTopic.trim()}"
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Create Participant Buttons */}
+          <div className="space-y-3">
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  console.log('🚀 Creating ChatGPT participant...');
+                  handleCreateParticipant('chatgpt');
+                }}
+                disabled={topicSelectionMode === 'custom' && !customTopic.trim()}
+                className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Create ChatGPT Participant
+              </button>
+              <button
+                onClick={() => {
+                  console.log('🚀 Creating Google participant...');
+                  handleCreateParticipant('google');
+                }}
+                disabled={topicSelectionMode === 'custom' && !customTopic.trim()}
+                className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Create Google Participant
+              </button>
+            </div>
+            
+            {/* Validation Message */}
+            {topicSelectionMode === 'custom' && !customTopic.trim() && (
+              <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                ⚠️ Please enter a custom topic before creating a participant
+              </p>
+            )}
+            
+            {/* Current Selection Summary */}
+            <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+              <span className="font-semibold">Current selection:</span> 
+              {topicSelectionMode === 'random' 
+                ? ' Random topic from available list' 
+                : ` Custom topic: "${customTopic || 'Not entered yet'}"`}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Participants Section */}
+        {participants.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h3 className="text-lg font-semibold mb-4">Recent Participants Created</h3>
+            <div className="space-y-2">
+              {participants.slice(-3).reverse().map((participant) => (
+                <div 
+                  key={participant.id} 
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div>
+                    <span className="font-medium">{participant.name}</span>
+                    <span className="mx-2 text-gray-400">•</span>
+                    <span className="text-sm text-gray-600">{participant.researchTopic}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      participant.assignedPlatform === 'chatgpt' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {participant.assignedPlatform.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000)}m ago
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Enhanced Platform Comparison */}

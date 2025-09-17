@@ -1,6 +1,7 @@
-import { AlertTriangle, Bot, Send, Sparkles, StopCircle, User } from 'lucide-react';
+import { AlertTriangle, Bot, Edit, RotateCcw, Send, Sparkles, StopCircle, User } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import llmService, { ChatMessage } from '../services/llmService';
+import { topicValidator } from '../services/topicValidationService';
 import { Participant } from '../types';
 
 interface Message {
@@ -14,107 +15,51 @@ interface Message {
   isStreaming?: boolean;
 }
 
-// Topic relevance validation function
-const validateTopicRelevance = (query: string, topic: string): { isRelevant: boolean; confidence: number; reason: string } => {
-  const queryLower = query.toLowerCase().trim();
-  const topicLower = topic.toLowerCase();
-  const topicWords = topicLower.split(' ');
-  
-  // Handle basic greetings and conversational starters
-  const basicGreetings = [
-    'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
-    'how are you', 'what\'s up', 'greetings', 'start', 'begin'
-  ];
-  
-  const isGreeting = basicGreetings.some(greeting => queryLower === greeting || queryLower.includes(greeting));
-  
-  if (isGreeting) {
-    return {
-      isRelevant: true,
-      confidence: 0.8,
-      reason: 'Greeting or conversation starter - allowing to establish context'
-    };
-  }
-  
-  // Check if query contains topic keywords
-  const directMatch = topicWords.some(word => word.length > 2 && queryLower.includes(word));
-  
-  // Check for related research terms
-  const relatedTerms = [
-    'research', 'study', 'analysis', 'data', 'findings', 'results',
-    'applications', 'benefits', 'challenges', 'methods', 'approach',
-    'development', 'technology', 'innovation', 'trends', 'future',
-    'impact', 'effect', 'influence', 'mechanism', 'process', 'theory',
-    'practice', 'implementation', 'evaluation', 'assessment', 'review',
-    'what is', 'how does', 'why', 'when', 'where', 'explain', 'describe'
-  ];
-  
-  const hasRelatedTerms = relatedTerms.some(term => queryLower.includes(term));
-  
-  // Check for completely off-topic queries
-  const offTopicIndicators = [
-    'weather', 'sports', 'entertainment', 'movies', 'music', 'food',
-    'travel', 'politics', 'news', 'celebrities', 'games', 'jokes',
-    'personal life', 'dating', 'shopping', 'cooking', 'fashion',
-    'help me with homework', 'write my essay', 'do my assignment'
-  ];
-  
-  const isOffTopic = offTopicIndicators.some(indicator => queryLower.includes(indicator));
-  
-  if (isOffTopic) {
-    return {
-      isRelevant: false,
-      confidence: 0.1,
-      reason: 'Query appears to be off-topic from the research subject'
-    };
-  }
-  
-  if (directMatch) {
-    return {
-      isRelevant: true,
-      confidence: 0.9,
-      reason: 'Query directly relates to the research topic'
-    };
-  }
-  
-  if (hasRelatedTerms && queryLower.length > 3) {
-    return {
-      isRelevant: true,
-      confidence: 0.7,
-      reason: 'Query contains research-related terms'
-    };
-  }
-  
-  // For very short queries, be more lenient
-  if (queryLower.length < 5) {
-    return {
-      isRelevant: true,
-      confidence: 0.6,
-      reason: 'Short query - giving benefit of doubt for clarification'
-    };
-  }
-  
-  return {
-    isRelevant: false,
-    confidence: 0.3,
-    reason: 'Query does not appear to be related to the research topic'
-  };
-};
+// Using topicValidator service for topic relevance validation
 
 interface ChatGPTInterfaceProps {
   participant: Participant;
   onQuerySubmit: (query: string, analytics?: any) => void;
+  onTopicChange?: (topic: string) => void; // Callback to notify parent of topic changes
 }
 
 export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
   participant,
-  onQuerySubmit
+  onQuerySubmit,
+  onTopicChange
 }) => {
+  const [currentInput, setCurrentInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Custom Topic Functionality
+  const [isCustomTopicMode, setIsCustomTopicMode] = useState(false);
+  const [currentActiveTopic, setCurrentActiveTopic] = useState(participant.researchTopic);
+  const [customTopic, setCustomTopic] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [quickSuggestions, setQuickSuggestions] = useState<string[]>([]);
+
+  // Function to update initial message when topic changes
+  const updateInitialMessage = (topic: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === '1' ? {
+        ...msg,
+        content: `Hello! I'm your AI research assistant powered by GPT-4 model. I'm here to help you explore "${topic}" with detailed, accurate information.
+
+🎯 **Research Focus**: ${topic}
+
+For the best experience and data quality, please keep your questions related to your assigned research topic. I'll help guide you if your questions go off-topic.
+
+What would you like to know about ${topic}?`
+      } : msg
+    ));
+  };
+
+  // Initialize messages with dynamic topic
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `Hello! I'm your AI research assistant powered by Google's Gemini model. I'm here to help you explore "${participant.researchTopic}" with detailed, accurate information.
+      content: `Hello! I'm your AI research assistant powered by Google's GPT model. I'm here to help you explore "${participant.researchTopic}" with detailed, accurate information.
 
 🎯 **Research Focus**: ${participant.researchTopic}
 
@@ -126,9 +71,6 @@ What would you like to know about ${participant.researchTopic}?`,
       relevanceScore: 1.0
     }
   ]);
-  
-  const [currentInput, setCurrentInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   
   // useRef for DOM manipulation to avoid re-renders during streaming
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -246,11 +188,141 @@ What would you like to know about ${participant.researchTopic}?`,
     }
   };
 
+  // Generate intelligent topic-based quick suggestions
+  const generateTopicSuggestions = (topic: string): string[] => {
+    const topicLower = topic.toLowerCase();
+    
+    // AI and Technology topics
+    if (topicLower.includes('ai') || topicLower.includes('artificial intelligence') || topicLower.includes('machine learning')) {
+      return [
+        `What are the latest advancements in ${topic}?`,
+        `How is ${topic} being applied in healthcare?`,
+        `What are the ethical concerns with ${topic}?`,
+        `How does ${topic} impact job markets?`,
+        `What are the limitations of ${topic}?`
+      ];
+    }
+    
+    // Climate and Environment
+    if (topicLower.includes('climate') || topicLower.includes('environment') || topicLower.includes('sustainability')) {
+      return [
+        `What are the main causes of ${topic} issues?`,
+        `How can technology solve ${topic} problems?`,
+        `What are the economic impacts of ${topic}?`,
+        `What policies exist for ${topic}?`,
+        `How does ${topic} affect global communities?`
+      ];
+    }
+    
+    // Health and Medicine
+    if (topicLower.includes('health') || topicLower.includes('medical') || topicLower.includes('disease') || topicLower.includes('therapy')) {
+      return [
+        `What are the symptoms and diagnosis of ${topic}?`,
+        `What treatment options are available for ${topic}?`,
+        `What research is being conducted on ${topic}?`,
+        `How can ${topic} be prevented?`,
+        `What are the risk factors for ${topic}?`
+      ];
+    }
+    
+    // Business and Economics
+    if (topicLower.includes('business') || topicLower.includes('economic') || topicLower.includes('finance') || topicLower.includes('market')) {
+      return [
+        `What are current trends in ${topic}?`,
+        `How does ${topic} affect global markets?`,
+        `What strategies work best for ${topic}?`,
+        `What are the challenges in ${topic}?`,
+        `How is ${topic} regulated?`
+      ];
+    }
+    
+    // Education and Psychology
+    if (topicLower.includes('education') || topicLower.includes('psychology') || topicLower.includes('learning') || topicLower.includes('cognitive')) {
+      return [
+        `What research methods are used in ${topic}?`,
+        `How does ${topic} affect human behavior?`,
+        `What are best practices in ${topic}?`,
+        `How is ${topic} measured and evaluated?`,
+        `What are emerging theories in ${topic}?`
+      ];
+    }
+    
+    // Technology and Engineering
+    if (topicLower.includes('technology') || topicLower.includes('engineering') || topicLower.includes('software') || topicLower.includes('blockchain')) {
+      return [
+        `How does ${topic} work technically?`,
+        `What are real-world applications of ${topic}?`,
+        `What are the security implications of ${topic}?`,
+        `How is ${topic} evolving?`,
+        `What skills are needed for ${topic}?`
+      ];
+    }
+    
+    // General fallback questions for any topic
+    return [
+      `What is the definition and scope of ${topic}?`,
+      `What are the key benefits of ${topic}?`,
+      `What challenges exist in ${topic}?`,
+      `What is the future outlook for ${topic}?`,
+      `How does ${topic} compare to alternatives?`
+    ];
+  };
+
+  // Custom topic handlers
+  const handleCustomTopicToggle = () => {
+    setShowCustomInput(!showCustomInput);
+    if (!showCustomInput) {
+      setCustomTopic('');
+    }
+  };
+
+  const handleResetToOriginalTopic = () => {
+    setIsCustomTopicMode(false);
+    setCurrentActiveTopic(participant.researchTopic);
+    setShowCustomInput(false);
+    setCustomTopic('');
+    // Generate suggestions for original topic
+    setQuickSuggestions(generateTopicSuggestions(participant.researchTopic));
+    // Update the initial message
+    updateInitialMessage(participant.researchTopic);
+    // Notify parent component of topic change
+    onTopicChange?.(participant.researchTopic);
+  };
+
+  const handleCustomTopicSubmit = () => {
+    if (customTopic.trim()) {
+      setIsCustomTopicMode(true);
+      setCurrentActiveTopic(customTopic.trim());
+      setShowCustomInput(false);
+      // Generate relevant suggestions for the new custom topic
+      setQuickSuggestions(generateTopicSuggestions(customTopic.trim()));
+      // Update the initial message
+      updateInitialMessage(customTopic.trim());
+      // Notify parent component of topic change
+      onTopicChange?.(customTopic.trim());
+      setCustomTopic('');
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setCurrentInput(suggestion);
+  };
+
+  // Initialize and update suggestions when topic changes
+  useEffect(() => {
+    setQuickSuggestions(generateTopicSuggestions(currentActiveTopic));
+  }, [currentActiveTopic]);
+
+  // Update initial message when currentActiveTopic changes
+  useEffect(() => {
+    updateInitialMessage(currentActiveTopic);
+  }, [currentActiveTopic]);
+
   const handleSendMessage = async () => {
     if (!currentInput.trim() || isLoading) return;
 
-    // Validate topic relevance before processing
-    const relevanceCheck = validateTopicRelevance(currentInput.trim(), participant.researchTopic);
+    // Validate topic relevance using topicValidator service
+    const relevanceCheck = topicValidator.validateQuery(currentInput.trim(), currentActiveTopic);
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -296,16 +368,16 @@ What would you like to know about ${participant.researchTopic}?`,
 
       try {
         // Enhanced greeting prompt for Gemini
-        const greetingPrompt = `The user just greeted you with "${queryText}". Please respond as a helpful AI research assistant specializing in ${participant.researchTopic}. 
+        const greetingPrompt = `The user just greeted you with "${queryText}". Please respond as a helpful AI research assistant specializing in ${currentActiveTopic}. 
 
-Provide a warm greeting and immediately introduce yourself as an AI assistant focused on ${participant.researchTopic}. Briefly explain what ${participant.researchTopic} is about and offer to help with specific questions about this research topic.
+Provide a warm greeting and immediately introduce yourself as an AI assistant focused on ${currentActiveTopic}. Briefly explain what ${currentActiveTopic} is about and offer to help with specific questions about this research topic.
 
-Keep the response conversational but informative, and end with a specific question about ${participant.researchTopic} to encourage engagement.`;
+Keep the response conversational but informative, and end with a specific question about ${currentActiveTopic} to encourage engagement.`;
 
         // Stream response from Gemini API for greeting
         const streamGenerator = llmService.streamGeminiResponse(
           greetingPrompt,
-          participant.researchTopic,
+          currentActiveTopic,
           []
         );
 
@@ -347,11 +419,11 @@ Keep the response conversational but informative, and end with a specific questi
           const fallbackMessage: Message = {
             id: assistantMessageId,
             role: 'assistant',
-            content: `Hello! I'm your AI research assistant powered by Google Gemini, specialized in ${participant.researchTopic}. 
+            content: `Hello! I'm your AI research assistant powered by OpenAI, specialized in ${currentActiveTopic}. 
 
-${participant.researchTopic} is a fascinating field with many applications and ongoing research developments. I'm here to help you explore this topic in depth.
+${currentActiveTopic} is a fascinating field with many applications and ongoing research developments. I'm here to help you explore this topic in depth.
 
-What specific aspect of ${participant.researchTopic} would you like to learn about?`,
+What specific aspect of ${currentActiveTopic} would you like to learn about?`,
             timestamp: new Date(),
             queryType: 'research',
             relevanceScore: relevanceCheck.confidence
@@ -376,15 +448,15 @@ What specific aspect of ${participant.researchTopic} would you like to learn abo
       const systemMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I notice your question "${queryText}" doesn't seem to be directly related to your assigned research topic: "${participant.researchTopic}". 
+        content: `I notice your question "${queryText}" doesn't seem to be directly related to your assigned research topic: "${currentActiveTopic}". 
 
 ${relevanceCheck.reason}
 
-To help with your research study, please ask questions specifically about ${participant.researchTopic}. For example:
-• What is ${participant.researchTopic}?
-• How does ${participant.researchTopic} work?
-• What are the applications of ${participant.researchTopic}?
-• What are recent developments in ${participant.researchTopic}?
+To help with your research study, please ask questions specifically about ${currentActiveTopic}. For example:
+• What is ${currentActiveTopic}?
+• How does ${currentActiveTopic} work?
+• What are the applications of ${currentActiveTopic}?
+• What are recent developments in ${currentActiveTopic}?
 
 This helps ensure the quality of data collection for the cognitive load analysis study.`,
         timestamp: new Date(),
@@ -419,16 +491,16 @@ This helps ensure the quality of data collection for the cognitive load analysis
       }));
 
       // Enhanced context for better responses
-      const enhancedQuery = `Research Topic: ${participant.researchTopic}
+      const enhancedQuery = `Research Topic: ${currentActiveTopic}
       
 User Question: ${queryText}
 
-Please provide a comprehensive, accurate response about ${participant.researchTopic} that directly addresses the user's question. Focus on factual information, current research, and practical applications related to this specific topic.`;
+Please provide a comprehensive, accurate response about ${currentActiveTopic} that directly addresses the user's question. Focus on factual information, current research, and practical applications related to this specific topic.`;
 
       // Stream response from Gemini API
       const streamGenerator = llmService.streamGeminiResponse(
         enhancedQuery,
-        participant.researchTopic,
+        currentActiveTopic,
         conversationHistory
       );
 
@@ -470,7 +542,7 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
         const errorMessage: Message = {
           id: assistantMessageId,
           role: 'assistant',
-          content: `I apologize for the delay. Let me help you with your ${participant.researchTopic} question: "${queryText}"\n\nThis is a fascinating topic with many important aspects to explore. Could you be more specific about what aspect interests you most?`,
+          content: `I apologize for the delay. Let me help you with your ${currentActiveTopic} question: "${queryText}"\n\nThis is a fascinating topic with many important aspects to explore. Could you be more specific about what aspect interests you most?`,
           timestamp: new Date(),
           queryType: 'research',
           relevanceScore: relevanceCheck.confidence
@@ -508,7 +580,34 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
             </div>
             <div>
               <h3 className="font-bold text-lg">ChatGPT-Style Interface</h3>
-              <p className="text-sm opacity-90">Powered by Google Gemini • {participant.researchTopic}</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm opacity-90">
+                  Powered by OpenAI • {currentActiveTopic}
+                </p>
+                {isCustomTopicMode && (
+                  <span className="px-2 py-1 bg-yellow-500/20 rounded-full text-xs font-medium">
+                    CUSTOM
+                  </span>
+                )}
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={handleCustomTopicToggle}
+                    className="p-1 rounded hover:bg-white/20 transition-colors"
+                    title="Add custom topic"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </button>
+                  {isCustomTopicMode && (
+                    <button
+                      onClick={handleResetToOriginalTopic}
+                      className="p-1 rounded hover:bg-white/20 transition-colors"
+                      title="Reset to original topic"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -523,11 +622,56 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
             )}
             <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-white/20`}>
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span>Gemini API</span>
+              <span>GPT API</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Custom Topic Input Section - Same color scheme as header */}
+      {showCustomInput && (
+        <div className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white p-4 border-t border-white/20">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-full bg-white/20">
+              <Edit className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-base mb-2">Set Custom Research Topic</h4>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                  placeholder="Enter your custom research topic..."
+                  className="flex-1 px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCustomTopicSubmit();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleCustomTopicSubmit}
+                  disabled={!customTopic.trim()}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <span>Set Topic</span>
+                </button>
+                <button
+                  onClick={handleCustomTopicToggle}
+                  className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <span>Cancel</span>
+                </button>
+              </div>
+              <p className="text-sm opacity-80 mt-2">
+                Setting a custom topic will update all suggestions and AI responses to focus on your chosen subject.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Messages Container with ref for DOM manipulation */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50" ref={messagesContainerRef}>
         {messages.map((message) => (
@@ -611,7 +755,7 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm text-gray-600">Gemini is thinking...</span>
+                  <span className="text-sm text-gray-600">GPT is thinking...</span>
                 </div>
               </div>
             </div>
@@ -625,19 +769,19 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex flex-wrap gap-2 mb-4">
           <button
-            onClick={() => setCurrentInput(`What are the latest developments in ${participant.researchTopic}?`)}
+            onClick={() => setCurrentInput(`What are the latest developments in ${currentActiveTopic}?`)}
             className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
           >
             Latest Developments
           </button>
           <button
-            onClick={() => setCurrentInput(`Compare different approaches to ${participant.researchTopic}`)}
+            onClick={() => setCurrentInput(`Compare different approaches to ${currentActiveTopic}`)}
             className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
           >
             Compare Approaches
           </button>
           <button
-            onClick={() => setCurrentInput(`What are the applications of ${participant.researchTopic}?`)}
+            onClick={() => setCurrentInput(`What are the applications of ${currentActiveTopic}?`)}
             className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
           >
             Applications
@@ -653,14 +797,14 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={`Ask Gemini about ${participant.researchTopic}...`}
+              placeholder={`Ask GPT about ${currentActiveTopic}...`}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
               rows={1}
               style={{ minHeight: '48px', maxHeight: '120px' }}
               disabled={isLoading}
             />
             <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-              Enter to send • Powered by Gemini
+              Enter to send • Powered by GPT-4
             </div>
           </div>
           <button
@@ -677,17 +821,14 @@ Please provide a comprehensive, accurate response about ${participant.researchTo
         
         {/* Quick Suggestions */}
         <div className="mt-4">
-          <p className="text-sm text-gray-600 mb-2">Quick suggestions for Gemini:</p>
+          <p className="text-sm text-gray-600 mb-2">
+            Quick suggestions for {currentActiveTopic}:
+          </p>
           <div className="flex flex-wrap gap-2">
-            {[
-              `What is ${participant.researchTopic}?`,
-              `How does ${participant.researchTopic} work?`,
-              `What are the benefits of ${participant.researchTopic}?`,
-              `What are the challenges in ${participant.researchTopic}?`
-            ].map((suggestion, index) => (
+            {quickSuggestions.map((suggestion, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentInput(suggestion)}
+                onClick={() => handleSuggestionClick(suggestion)}
                 className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-full transition-colors"
                 disabled={isLoading}
               >

@@ -40,6 +40,39 @@ const topicKeywords: Record<string, string[]> = {
   ]
 };
 
+// Function to generate keywords for custom topics
+const generateTopicKeywords = (topic: string): string[] => {
+  const commonResearchTerms = [
+    'research', 'study', 'analysis', 'data', 'findings', 'results',
+    'applications', 'benefits', 'challenges', 'methods', 'approach',
+    'development', 'technology', 'innovation', 'trends', 'future',
+    'theory', 'practice', 'implementation', 'impact', 'effect'
+  ];
+
+  // Split topic into words and create variations
+  const topicWords = topic.toLowerCase().split(/\s+/);
+  const variations = [];
+
+  for (const word of topicWords) {
+    if (word.length > 2) { // Skip very short words
+      variations.push(word);
+      // Add plural forms
+      if (!word.endsWith('s')) {
+        variations.push(word + 's');
+      }
+      // Add common suffixes
+      variations.push(word + 'ing');
+      if (!word.endsWith('e')) {
+        variations.push(word + 'ed');
+      } else {
+        variations.push(word + 'd');
+      }
+    }
+  }
+
+  return [...variations, ...commonResearchTerms];
+};
+
 export class TopicValidationService {
   private static instance: TopicValidationService;
 
@@ -63,13 +96,34 @@ export class TopicValidationService {
     }
 
     const normalizedQuery = query.toLowerCase().trim();
-    const keywords = topicKeywords[researchTopic] || [];
+    
+    // Handle basic greetings
+    const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
+    const isBasicGreeting = greetings.some(greeting => 
+      normalizedQuery === greeting || normalizedQuery.startsWith(greeting + ' ')
+    ) && normalizedQuery.split(' ').length <= 3;
+    
+    if (isBasicGreeting) {
+      return { 
+        isRelevant: true, 
+        confidence: 0.8, 
+        reason: 'Greeting message' 
+      };
+    }
+
+    // Get keywords for the topic (predefined or generated)
+    let keywords = topicKeywords[researchTopic];
+    if (!keywords) {
+      // Generate keywords for custom topics
+      keywords = generateTopicKeywords(researchTopic);
+    }
 
     // Check for exact topic match
     if (normalizedQuery.includes(researchTopic.toLowerCase())) {
       return {
         isRelevant: true,
-        confidence: 1.0
+        confidence: 1.0,
+        reason: 'Query directly mentions the research topic'
       };
     }
 
@@ -84,10 +138,8 @@ export class TopicValidationService {
       }
     }
 
-    const confidence = keywords.length > 0 ? matchCount / keywords.length : 0;
-
-    // Consider relevant if at least one keyword matches
-    const isRelevant = matchCount > 0;
+    const confidence = keywords.length > 0 ? Math.min((matchCount / keywords.length) * 2, 1.0) : 0;
+    const isRelevant = matchCount > 0 || confidence > 0.3;
 
     if (!isRelevant) {
       return {
@@ -99,7 +151,8 @@ export class TopicValidationService {
 
     return {
       isRelevant: true,
-      confidence: Math.min(confidence * 2, 1.0) // Boost confidence for better UX
+      confidence: Math.max(confidence, 0.5),
+      reason: matchedKeywords.length > 0 ? `Matched keywords: ${matchedKeywords.slice(0, 3).join(', ')}` : 'General research relevance'
     };
   }
 
@@ -146,11 +199,19 @@ export class TopicValidationService {
       ]
     };
 
-    return suggestions[researchTopic] || [
-      `Tell me about the basics of ${researchTopic}`,
+    // Return predefined suggestions if available
+    if (suggestions[researchTopic]) {
+      return suggestions[researchTopic];
+    }
+
+    // Generate suggestions for custom topics
+    return [
+      `What is ${researchTopic} and why is it important?`,
+      `What are the main challenges in ${researchTopic}?`,
       `What are recent developments in ${researchTopic}?`,
-      `What are the challenges in ${researchTopic}?`,
-      `How does ${researchTopic} impact society?`
+      `How does ${researchTopic} impact society?`,
+      `What are the future prospects of ${researchTopic}?`,
+      `What methods are used to study ${researchTopic}?`
     ];
   }
 

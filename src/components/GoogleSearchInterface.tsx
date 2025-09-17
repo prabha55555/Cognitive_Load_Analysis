@@ -1,7 +1,7 @@
-import { ExternalLink, Search, Globe, Clock, TrendingUp, BookOpen, FileText, Video, MapPin } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { Participant } from '../types';
+import { BookOpen, Clock, Edit, ExternalLink, FileText, Globe, MapPin, RotateCcw, Search, TrendingUp, Video } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { analyticsService } from '../services/analyticsService';
+import { Participant } from '../types';
 
 interface SearchResult {
   id: string;
@@ -21,12 +21,14 @@ interface GoogleSearchInterfaceProps {
     timeSpent: number;
     scrollDepth: number;
   }) => void;
+  onTopicChange?: (topic: string) => void; // Callback to notify parent of topic changes
 }
 
 export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
   participant,
   onQuerySubmit,
-  onSearchBehavior
+  onSearchBehavior,
+  onTopicChange
 }) => {
   const [currentQuery, setCurrentQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -35,6 +37,26 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
   const [clickedResults, setClickedResults] = useState<string[]>([]);
   const [searchStartTime, setSearchStartTime] = useState<Date | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
+  
+  // Link tracking state
+  const [visitedSites, setVisitedSites] = useState<string[]>([]);
+  const [clickAnalytics, setClickAnalytics] = useState({
+    totalClicks: 0,
+    uniqueSites: 0,
+    clickHistory: [] as Array<{
+      url: string;
+      timestamp: Date;
+      context: string;
+      participantId: string;
+      researchTopic: string;
+    }>
+  });
+
+  // Custom topic functionality
+  const [isCustomTopicMode, setIsCustomTopicMode] = useState(false);
+  const [customResearchTopic, setCustomResearchTopic] = useState('');
+  const [showCustomTopicInput, setShowCustomTopicInput] = useState(false);
+  const [currentActiveTopic, setCurrentActiveTopic] = useState(participant.researchTopic);
 
   // Initialize analytics session
   useEffect(() => {
@@ -47,6 +69,33 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
       }
     };
   }, [participant.id, participant.researchTopic]);
+
+  // Custom topic handlers
+  const handleCustomTopicToggle = () => {
+    setShowCustomTopicInput(!showCustomTopicInput);
+    if (!showCustomTopicInput) {
+      setCustomResearchTopic('');
+    }
+  };
+
+  const handleCustomTopicSubmit = () => {
+    if (customResearchTopic.trim()) {
+      setCurrentActiveTopic(customResearchTopic.trim());
+      setIsCustomTopicMode(true);
+      setShowCustomTopicInput(false);
+      // Notify parent component of topic change
+      onTopicChange?.(customResearchTopic.trim());
+    }
+  };
+
+  const handleResetToOriginalTopic = () => {
+    setCurrentActiveTopic(participant.researchTopic);
+    setIsCustomTopicMode(false);
+    setShowCustomTopicInput(false);
+    setCustomResearchTopic('');
+    // Notify parent component of topic change
+    onTopicChange?.(participant.researchTopic);
+  };
 
   // Generate topic-specific search suggestions
   const getSearchSuggestions = (topic: string) => [
@@ -91,55 +140,51 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
     }, 1500);
   };
 
-  const generateSearchResults = (query: string, topic: string): SearchResult[] => {
-    const baseResults: SearchResult[] = [
-      {
-        id: '1',
-        title: `Comprehensive Guide to ${topic}: Understanding the Fundamentals`,
-        url: `https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`,
-        snippet: `This comprehensive research paper explores the fundamental principles of ${topic}, providing detailed analysis of current methodologies and future implications.`,
-        type: 'academic',
-        relevance: 95
-      },
-      {
-        id: '2',
-        title: `${topic} in Modern Applications: A Practical Approach`,
-        url: `https://www.researchgate.net/publication/${encodeURIComponent(query)}`,
-        snippet: `Explore how ${topic} is being applied in contemporary settings, with real-world examples and case studies demonstrating its effectiveness.`,
-        type: 'web',
-        relevance: 88
-      },
-      {
-        id: '3',
-        title: `Latest Developments in ${topic}: 2024 Research Overview`,
-        url: `https://www.sciencedirect.com/science/article/${encodeURIComponent(query)}`,
-        snippet: `Stay updated with the latest research findings and technological advancements in ${topic}, including breakthrough discoveries and emerging trends.`,
-        type: 'news',
-        relevance: 92
-      },
-      {
-        id: '4',
-        title: `${topic} Tutorial: Step-by-Step Implementation Guide`,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
-        snippet: `Learn how to implement ${topic} effectively with this detailed tutorial covering best practices, common pitfalls, and optimization strategies.`,
-        type: 'video',
-        relevance: 85
-      },
-      {
-        id: '5',
-        title: `${topic} Case Studies: Success Stories and Lessons Learned`,
-        url: `https://ieeexplore.ieee.org/search/searchresult.jsp?queryText=${encodeURIComponent(query)}`,
-        snippet: `Discover real-world applications of ${topic} through detailed case studies, showcasing successful implementations and valuable insights.`,
-        type: 'academic',
-        relevance: 90
-      }
-    ];
+  // Function to track link clicks with analytics
+  const trackLinkClick = (url: string, context: string) => {
+    const clickData = {
+      url,
+      timestamp: new Date(),
+      context,
+      participantId: participant.id,
+      researchTopic: participant.researchTopic
+    };
 
-    return baseResults.sort((a, b) => b.relevance - a.relevance);
+    setClickAnalytics(prev => ({
+      totalClicks: prev.totalClicks + 1,
+      uniqueSites: new Set([...prev.clickHistory.map(c => c.url), url]).size,
+      clickHistory: [...prev.clickHistory, clickData]
+    }));
+
+    setVisitedSites(prev => [...new Set([...prev, url])]);
+    
+    // Track analytics through the existing analytics service
+    if (sessionId) {
+      analyticsService.trackUserInteraction(sessionId, 'click', url, {
+        context,
+        timestamp: new Date(),
+        participantId: participant.id,
+        researchTopic: participant.researchTopic
+      });
+    }
+  };
+
+  const generateSearchResults = (query: string, topic: string): SearchResult[] => {
+    console.log(`🔍 Search requested: "${query}" for topic: "${topic}"`);
+    
+    // In a real implementation, this would call Google Search API
+    // For now, return empty results to show that real search is not available
+    console.warn('⚠️ Real Google Search API not implemented - showing no results');
+    
+    // Return empty array instead of placeholder data
+    return [];
   };
 
   const handleResultClick = (result: SearchResult) => {
     setClickedResults(prev => [...prev, result.id]);
+    
+    // Track link click with our new tracking system
+    trackLinkClick(result.url, `search_result_${result.type}`);
     
     // Track search behavior
     if (searchStartTime) {
@@ -152,7 +197,7 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
       });
     }
 
-    // Track user interaction
+    // Track user interaction with existing analytics service
     if (sessionId) {
       analyticsService.trackUserInteraction(sessionId, 'click', result.url, {
         resultId: result.id,
@@ -168,6 +213,10 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
 
   const handleGoogleSearch = () => {
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(currentQuery || participant.researchTopic)}`;
+    
+    // Track the Google search click
+    trackLinkClick(googleSearchUrl, 'google_search_redirect');
+    
     window.open(googleSearchUrl, '_blank');
   };
 
@@ -201,11 +250,108 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-lg">Google Search Interface</h3>
-              <p className="text-sm opacity-90">Research {participant.researchTopic}</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm opacity-90">
+                  Research {isCustomTopicMode ? 'Custom Topic: ' : ''}{currentActiveTopic}
+                </p>
+                {isCustomTopicMode && (
+                  <span className="px-2 py-1 bg-yellow-500/20 rounded text-xs">CUSTOM</span>
+                )}
+              </div>
             </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {/* Custom Topic Controls */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCustomTopicToggle}
+                className="flex items-center space-x-1 px-3 py-1 rounded-full text-sm bg-white/20 hover:bg-white/30 transition-colors"
+                title="Set custom research topic"
+              >
+                <Edit className="h-4 w-4" />
+                <span>Custom Topic</span>
+              </button>
+              {isCustomTopicMode && (
+                <button
+                  onClick={handleResetToOriginalTopic}
+                  className="flex items-center space-x-1 px-3 py-1 rounded-full text-sm bg-orange-500/20 hover:bg-orange-500/30 transition-colors"
+                  title="Reset to original topic"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+            {clickAnalytics.totalClicks > 0 && (
+              <div className="flex items-center space-x-1 px-3 py-1 bg-white/20 rounded-full text-sm">
+                <ExternalLink className="h-4 w-4" />
+                <span>{clickAnalytics.totalClicks} click{clickAnalytics.totalClicks !== 1 ? 's' : ''}</span>
+                <span className="opacity-60">•</span>
+                <span>{clickAnalytics.uniqueSites} site{clickAnalytics.uniqueSites !== 1 ? 's' : ''}</span>
+                {visitedSites.length > 0 && (
+                  <>
+                    <span className="opacity-60">•</span>
+                    <span className="text-xs opacity-75">
+                      Recent: {visitedSites.slice(-3).map(site => {
+                        try {
+                          const domain = new URL(site).hostname.replace('www.', '');
+                          return domain;
+                        } catch {
+                          return site.slice(0, 15);
+                        }
+                      }).join(', ')}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Custom Topic Input Section - Same color scheme as header */}
+      {showCustomTopicInput && (
+        <div className="bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 border-t border-white/20">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-full bg-white/20">
+              <Edit className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-base mb-2">Set Custom Research Topic</h4>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  value={customResearchTopic}
+                  onChange={(e) => setCustomResearchTopic(e.target.value)}
+                  placeholder="Enter your custom research topic..."
+                  className="flex-1 px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCustomTopicSubmit();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleCustomTopicSubmit}
+                  disabled={!customResearchTopic.trim()}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <span>Set Topic</span>
+                </button>
+                <button
+                  onClick={handleCustomTopicToggle}
+                  className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <span>Cancel</span>
+                </button>
+              </div>
+              <p className="text-sm opacity-80 mt-2">
+                Setting a custom topic will update all search suggestions and focus your research on the chosen subject.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Input */}
       <div className="p-6 border-b border-gray-200 bg-white">
@@ -216,7 +362,7 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
               value={currentQuery}
               onChange={(e) => setCurrentQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder={`Search for ${participant.researchTopic}...`}
+              placeholder={`Search for ${currentActiveTopic}...`}
               className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -239,7 +385,7 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
 
         {/* Search Suggestions */}
         <div className="flex flex-wrap gap-2">
-          {getSearchSuggestions(participant.researchTopic).map((suggestion, index) => (
+          {getSearchSuggestions(currentActiveTopic).map((suggestion, index) => (
             <button
               key={index}
               onClick={() => setCurrentQuery(suggestion)}
@@ -287,7 +433,10 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 font-medium text-lg"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          trackLinkClick(result.url, `direct_link_${result.type}`);
+                        }}
                       >
                         {result.title}
                       </a>

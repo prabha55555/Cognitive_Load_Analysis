@@ -1,6 +1,6 @@
 // LLM Service for handling Gemini and Grok API calls
 import { API_CONFIG } from '../config/api';
-import { topicValidator, TopicValidationResult } from './topicValidationService';
+import { TopicValidationResult, topicValidator } from './topicValidationService';
 
 export interface LLMResponse {
   response: string;

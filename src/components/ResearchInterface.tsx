@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Participant } from '../types';
 import { ChatGPTInterface } from './ChatGPTInterface';
 import { GoogleSearchInterface } from './GoogleSearchInterface';
-import { GrokInterface } from './GrokInterface';
+// import { GrokInterface } from './GrokInterface'; // TODO: Create GrokInterface component
 import { PlatformSelection } from './PlatformSelection';
 
 interface ResearchInterfaceProps {
@@ -22,6 +22,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const [pulseEffect, setPulseEffect] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'grok' | 'google' | null>(null);
   const [searchBehaviorData, setSearchBehaviorData] = useState<any[]>([]);
+  const [currentResearchTopic, setCurrentResearchTopic] = useState(participant.researchTopic);
 
   // Animate pulse effect periodically
   useEffect(() => {
@@ -55,6 +56,11 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
     setSearchBehaviorData(prev => [...prev, behavior]);
     // Here you would send this data to your backend for analysis
     console.log('Search behavior tracked:', behavior);
+  };
+
+  const handleTopicChange = (newTopic: string) => {
+    setCurrentResearchTopic(newTopic);
+    console.log('Research topic changed to:', newTopic);
   };
 
   const handlePlatformSelect = (platform: 'chatgpt' | 'grok' | 'google') => {
@@ -111,7 +117,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                 <div>
                   <h2 className="text-2xl lg:text-3xl xl:text-4xl font-black text-slate-800">Research Phase</h2>
                   <p className="text-base lg:text-lg xl:text-xl text-slate-600 mt-2 font-medium">
-                    Research the topic: <span className="font-bold text-blue-700">{participant.researchTopic}</span>
+                    Research the topic: <span className="font-bold text-blue-700">{currentResearchTopic}</span>
                   </p>
                   <div className="flex items-center space-x-3 mt-3">
                     <div className={`px-4 lg:px-5 xl:px-6 py-2 lg:py-3 xl:py-3 rounded-full text-sm lg:text-base xl:text-lg font-medium ${
@@ -167,17 +173,18 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                 <ChatGPTInterface
                   participant={participant}
                   onQuerySubmit={handleQuerySubmit}
+                  onTopicChange={handleTopicChange}
                 />
               ) : selectedPlatform === 'grok' ? (
-                <GrokInterface
-                  participant={participant}
-                  onQuerySubmit={handleQuerySubmit}
-                />
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500">Grok Interface - Coming Soon</p>
+                </div>
               ) : (
                 <GoogleSearchInterface
                   participant={participant}
                   onQuerySubmit={handleQuerySubmit}
                   onSearchBehavior={handleSearchBehavior}
+                  onTopicChange={handleTopicChange}
                 />
               )}
             </div>
