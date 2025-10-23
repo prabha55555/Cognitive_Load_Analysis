@@ -8,7 +8,7 @@ import { PlatformSelection } from './PlatformSelection';
 
 interface ResearchInterfaceProps {
   participant: Participant;
-  onComplete: () => void;
+  onComplete: (readingContent?: string, userNotes?: string) => void;
 }
 
 export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
@@ -70,7 +70,9 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const handleTimeUp = () => {
     setIsActive(false);
     setTimeout(() => {
-      onComplete();
+      // Pass reading content (queries joined) and notes to parent
+      const readingContent = queries.join(' | ');
+      onComplete(readingContent, notes);
     }, 2000);
   };
 
@@ -244,7 +246,10 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
             </span>
               </div>
               <button
-            onClick={onComplete}
+            onClick={() => {
+              const readingContent = queries.join(' | ');
+              onComplete(readingContent, notes);
+            }}
             className="px-4 lg:px-6 py-2 lg:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm lg:text-base"
               >
             <div className="flex items-center space-x-2">

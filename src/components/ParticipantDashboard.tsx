@@ -1,11 +1,13 @@
 import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User } from 'lucide-react';
 import { useState } from 'react';
-import { creativityTests } from '../data/mockData';
 import { useEEGStream } from '../hooks/useEEGStream';
-import { Participant } from '../types';
+import { AssessmentResponse, Participant, TestResponse } from '../types';
+import { AssessmentPhase } from './AssessmentPhase';
+import { CognitiveLoadResults } from './CognitiveLoadResults';
 import { CreativityTest } from './CreativityTest';
 import { EEGVisualization } from './EEGVisualization';
 import { ResearchInterface } from './ResearchInterface';
+import { CreativityEvaluation } from '../services/geminiService';
 
 interface ParticipantDashboardProps {
   participant: Participant;
@@ -17,13 +19,18 @@ export const ParticipantDashboard = ({
   onPhaseComplete
 }: ParticipantDashboardProps) => {
   const { eegData, currentReading } = useEEGStream(participant.id, participant.isActive);
-  const [currentTestIndex, setCurrentTestIndex] = useState(0);
+  const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);
+  const [creativityEvaluations, setCreativityEvaluations] = useState<CreativityEvaluation[]>([]);
+  const [readingContent, setReadingContent] = useState<string>('');
+  const [userNotes, setUserNotes] = useState<string>('');
 
   const getPhaseColor = (phase: string) => {
     switch (phase) {
       case 'research': return 'text-blue-600 bg-blue-100 border-blue-200';
-      case 'creativity_test': return 'text-purple-600 bg-purple-100 border-purple-200';
-      case 'completed': return 'text-green-600 bg-green-100 border-green-200';
+      case 'assessment': return 'text-orange-600 bg-orange-100 border-orange-200';
+      case 'results': return 'text-green-600 bg-green-100 border-green-200';
+      case 'creativity_test': return 'text-pink-600 bg-pink-100 border-pink-200';
+      case 'completed': return 'text-emerald-600 bg-emerald-100 border-emerald-200';
       default: return 'text-gray-600 bg-gray-100 border-gray-200';
     }
   };
@@ -37,6 +44,8 @@ export const ParticipantDashboard = ({
   const getPhaseIcon = (phase: string) => {
     switch (phase) {
       case 'research': return <PlayCircle className="h-4 w-4" />;
+      case 'assessment': return <Target className="h-4 w-4" />;
+      case 'results': return <CheckCircle className="h-4 w-4" />;
       case 'creativity_test': return <Brain className="h-4 w-4" />;
       case 'completed': return <CheckCircle className="h-4 w-4" />;
       default: return <PauseCircle className="h-4 w-4" />;
@@ -45,12 +54,15 @@ export const ParticipantDashboard = ({
 
   const sessionDuration = Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000);
 
-  const handleTestComplete = () => {
-    if (currentTestIndex < creativityTests.length - 1) {
-      setCurrentTestIndex(currentTestIndex + 1);
-    } else {
-      onPhaseComplete('completed');
-    }
+  const handleCreativityComplete = (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
+    console.log('Creativity test complete:', { responses, evaluations });
+    setCreativityEvaluations(evaluations);
+    onPhaseComplete('completed');
+  };
+
+  const handleAssessmentComplete = (responses: AssessmentResponse[]) => {
+    setAssessmentResponses(responses);
+    onPhaseComplete('results');
   };
 
   const renderCurrentPhase = () => {
@@ -59,15 +71,46 @@ export const ParticipantDashboard = ({
         return (
           <ResearchInterface
             participant={participant}
+            onComplete={(content, notes) => {
+              setReadingContent(content || '');
+              setUserNotes(notes || '');
+              onPhaseComplete('assessment');
+            }}
+          />
+        );
+      case 'assessment':
+        return (
+          <AssessmentPhase
+            participant={participant}
+            readingContent={readingContent}
+            userNotes={userNotes}
+            onComplete={handleAssessmentComplete}
+          />
+        );
+      case 'results':
+        if (!assessmentResponses) {
+          return (
+            <div className="p-8 text-center">
+              <p className="text-red-600">Error: Missing assessment data</p>
+            </div>
+          );
+        }
+        return (
+          <CognitiveLoadResults
+            assessmentResponses={assessmentResponses}
+            creativityEvaluations={creativityEvaluations}
+            topic={participant.researchTopic}
+            participantId={participant.id}
             onComplete={() => onPhaseComplete('creativity_test')}
           />
         );
       case 'creativity_test':
         return (
           <CreativityTest
-            test={creativityTests[currentTestIndex]}
+            topic={participant.researchTopic}
+            notes={userNotes}
             participantId={participant.id}
-            onComplete={handleTestComplete}
+            onComplete={handleCreativityComplete}
           />
         );
       case 'completed':
@@ -116,7 +159,7 @@ export const ParticipantDashboard = ({
                     <p className="text-sm text-gray-500">Platform Used</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-800">{creativityTests.length}</p>
+                    <p className="text-2xl font-bold text-gray-800">{creativityEvaluations.length}</p>
                     <p className="text-sm text-gray-500">Tests Completed</p>
                   </div>
                   <div>
@@ -224,7 +267,7 @@ export const ParticipantDashboard = ({
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
                     <p className="text-sm text-gray-600 mb-2">Test Progress</p>
                     <p className="text-3xl font-bold text-purple-600">
-                      {participant.currentPhase === 'creativity_test' ? `${currentTestIndex + 1}/${creativityTests.length}` : 
+                      {participant.currentPhase === 'creativity_test' ? '3 Questions' : 
                        participant.currentPhase === 'completed' ? 'Done' : 'Starting'}
                     </p>
                   </div>
@@ -235,40 +278,42 @@ export const ParticipantDashboard = ({
               <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                 <h3 className="text-xl font-bold text-gray-800 mb-6">Study Progress</h3>
                 <div className="space-y-4">
-                  {['research', 'creativity_test', 'completed'].map((phase, index) => (
-                    <div key={phase} className="flex items-center space-x-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        participant.currentPhase === phase 
-                          ? 'bg-blue-600 text-white' 
-                          : participant.currentPhase === 'completed' || 
-                            (phase === 'research' && participant.currentPhase !== 'login') ||
-                            (phase === 'creativity_test' && participant.currentPhase === 'creativity_test')
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {participant.currentPhase === phase ? (
-                          <PlayCircle className="h-5 w-5" />
-                        ) : participant.currentPhase === 'completed' || 
-                           (phase === 'research' && participant.currentPhase !== 'login') ||
-                           (phase === 'creativity_test' && participant.currentPhase === 'creativity_test') ? (
-                          <CheckCircle className="h-5 w-5" />
-                        ) : (
-                          <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                        )}
+                  {['research', 'assessment', 'results', 'creativity_test', 'completed'].map((phase) => {
+                    const phaseOrder = ['research', 'assessment', 'results', 'creativity_test', 'completed'];
+                    const currentIndex = phaseOrder.indexOf(participant.currentPhase);
+                    const thisIndex = phaseOrder.indexOf(phase);
+                    const isCompleted = thisIndex < currentIndex;
+                    const isCurrent = thisIndex === currentIndex;
+
+                    return (
+                      <div key={phase} className="flex items-center space-x-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          isCurrent 
+                            ? 'bg-blue-600 text-white' 
+                            : isCompleted
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}>
+                          {isCurrent ? (
+                            <PlayCircle className="h-5 w-5" />
+                          ) : isCompleted ? (
+                            <CheckCircle className="h-5 w-5" />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+                          )}
+                        </div>
+                        <span className={`text-base font-medium ${
+                          isCurrent 
+                            ? 'text-blue-600' 
+                            : isCompleted
+                            ? 'text-green-600'
+                            : 'text-gray-500'
+                        }`}>
+                          {phase.replace('_', ' ').toUpperCase()}
+                        </span>
                       </div>
-                      <span className={`text-base font-medium ${
-                        participant.currentPhase === phase 
-                          ? 'text-blue-600' 
-                          : participant.currentPhase === 'completed' || 
-                            (phase === 'research' && participant.currentPhase !== 'login') ||
-                            (phase === 'creativity_test' && participant.currentPhase === 'creativity_test')
-                          ? 'text-green-600'
-                          : 'text-gray-500'
-                      }`}>
-                        {phase.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
