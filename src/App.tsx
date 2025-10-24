@@ -28,7 +28,7 @@ function App() {
       
       if (!participant) {
         // Create new participant with random assignment
-        const platforms: ('chatgpt' | 'grok' | 'google')[] = ['chatgpt', 'grok', 'google'];
+        const platforms: ('chatgpt' | 'google')[] = ['chatgpt', 'google'];
         const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
         const randomTopic = researchTopics[Math.floor(Math.random() * researchTopics.length)];
         
@@ -62,12 +62,27 @@ function App() {
   };
 
   const handlePhaseComplete = (phase: string) => {
+    console.log('==========================================');
+    console.log('📍 PHASE COMPLETE - UPDATING PARTICIPANT');
+    console.log('New phase:', phase);
+    console.log('Current user:', currentUser);
+    console.log('Current participant:', currentUser?.participant);
+    console.log('Current participant topic:', currentUser?.participant?.researchTopic);
+    console.log('==========================================');
+    
     if (currentUser && currentUser.participant) {
       const updatedParticipant = {
         ...currentUser.participant,
         currentPhase: phase as any,
         isActive: phase !== 'completed'
       };
+      
+      console.log('==========================================');
+      console.log('✅ UPDATED PARTICIPANT');
+      console.log('New phase:', updatedParticipant.currentPhase);
+      console.log('Research Topic:', updatedParticipant.researchTopic);
+      console.log('Full updated participant:', updatedParticipant);
+      console.log('==========================================');
       
       setCurrentUser({
         ...currentUser,

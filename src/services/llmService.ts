@@ -33,6 +33,9 @@ export interface StreamingChunk {
 export class LLMService {
   private static instance: LLMService;
   private abortController: AbortController | null = null;
+  private retryCount: number = 0;
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
   static getInstance(): LLMService {
     if (!LLMService.instance) {
@@ -42,7 +45,7 @@ export class LLMService {
   }
 
   /**
-   * Stream response from Gemini API with timeout and error handling
+   * Stream response from Gemini API with retry logic and error handling
    */
   async *streamGeminiResponse(
     query: string,
@@ -51,20 +54,76 @@ export class LLMService {
   ): AsyncGenerator<StreamingChunk> {
     console.log('🚀 Starting Gemini streaming for:', query);
     
+    // Reset retry count for new request
+    this.retryCount = 0;
+
+    // Try with retries
+    while (this.retryCount <= this.MAX_RETRIES) {
+      try {
+        yield* await this.attemptGeminiRequest(query, researchTopic, conversationHistory);
+        return; // Success, exit
+      } catch (error: any) {
+        console.error(`❌ Gemini attempt ${this.retryCount + 1} failed:`, error);
+
+        // Check if it's a retryable error
+        const isRetryable = this.isRetryableError(error);
+        
+        if (isRetryable && this.retryCount < this.MAX_RETRIES) {
+          this.retryCount++;
+          const delay = this.RETRY_DELAYS[this.retryCount - 1];
+          
+          console.log(`⏳ Retrying in ${delay}ms... (Attempt ${this.retryCount + 1}/${this.MAX_RETRIES + 1})`);
+          
+          // Show retry message to user
+          yield {
+            text: `⏳ The AI service is experiencing high demand. Retrying in ${delay / 1000} seconds... (Attempt ${this.retryCount}/${this.MAX_RETRIES})`,
+            isComplete: false,
+            isSuccess: false
+          };
+
+          await this.delay(delay);
+          continue; // Retry
+        } else {
+          // Not retryable or max retries reached, use fallback
+          console.log('🔄 Using fallback response after retries exhausted');
+          const fallbackResponse = this.generateEnhancedResponse(query, researchTopic);
+          const validation = topicValidator.validateQuery(query, researchTopic);
+          
+          yield {
+            text: `⚠️ The AI service is temporarily unavailable. Here's a helpful response based on our knowledge base:\n\n${fallbackResponse}`,
+            isComplete: true,
+            isSuccess: false,
+            validationResult: validation,
+            error: this.getUserFriendlyError(error)
+          };
+          return;
+        }
+      }
+    }
+  }
+
+  /**
+   * Attempt Gemini API request (extracted for retry logic)
+   */
+  private async *attemptGeminiRequest(
+    query: string,
+    researchTopic: string,
+    conversationHistory: ChatMessage[]
+  ): AsyncGenerator<StreamingChunk> {
     // Create abort controller for timeout handling
     this.abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       this.abortController?.abort();
-    }, 15000); // 15 second timeout
+    }, 30000); // 30 second timeout (increased for reliability)
 
     try {
       // First validate the query
       const validation = topicValidator.validateQuery(query, researchTopic);
       console.log('✅ Validation result:', validation);
 
-      // Check API key
-      if (!API_CONFIG.GEMINI.API_KEY) {
-        console.warn('⚠️ No Gemini API key found, using fallback');
+      // Check CHAT API key
+      if (!API_CONFIG.GEMINI_CHAT.API_KEY) {
+        console.warn('⚠️ No Gemini Chat API key found, using fallback');
         const fallbackResponse = this.generateEnhancedResponse(query, researchTopic);
         yield* this.streamText(fallbackResponse, true, validation);
         clearTimeout(timeoutId);
@@ -81,43 +140,55 @@ export class LLMService {
         return;
       }
 
-      console.log('🔍 Attempting Gemini API call for query:', query.substring(0, 50) + '...');
-      console.log('📍 Research Topic:', researchTopic);
-      console.log('🔑 API Key available:', !!API_CONFIG.GEMINI.API_KEY);
+      console.log('� Using CHAT API key for chatbot interaction');
+      console.log('� Attempting Gemini API call...');
       
       const systemPrompt = topicValidator.generateSystemPrompt(researchTopic);
       const prompt = this.buildContextualPrompt(query, researchTopic, systemPrompt, conversationHistory);
 
-      // Call Gemini API with timeout
-      const response = await Promise.race([
-        fetch(`${API_CONFIG.GEMINI.BASE_URL}?key=${API_CONFIG.GEMINI.API_KEY}`, {
+      // Call Gemini CHAT API
+      const response = await fetch(
+        `${API_CONFIG.GEMINI_CHAT.BASE_URL}?key=${API_CONFIG.GEMINI_CHAT.API_KEY}`,
+        {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: API_CONFIG.GEMINI.TEMPERATURE,
-              maxOutputTokens: API_CONFIG.GEMINI.MAX_TOKENS,
+              temperature: API_CONFIG.GEMINI_CHAT.TEMPERATURE,
+              maxOutputTokens: API_CONFIG.GEMINI_CHAT.MAX_TOKENS,
             }
           }),
           signal: this.abortController.signal
-        }),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('API timeout')), 10000)
-        )
-      ]);
+        }
+      );
 
       clearTimeout(timeoutId);
-      console.log('📡 Gemini API Response Status:', response.status);
+      console.log('📡 Gemini Chat API Response Status:', response.status);
 
+      // Handle different error status codes
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Gemini API Error Details:', errorText);
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        console.error('❌ Gemini Chat API Error Details:', errorText);
+        
+        // Parse error
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: { message: errorText, code: response.status } };
+        }
+
+        // Throw with structured error
+        const error: any = new Error(errorData.error?.message || 'API request failed');
+        error.status = response.status;
+        error.code = errorData.error?.code;
+        error.retryable = this.isRetryableStatusCode(response.status);
+        throw error;
       }
 
       const data = await response.json();
-      console.log('✅ Gemini API Response received:', !!data.candidates?.[0]?.content?.parts?.[0]?.text);
+      console.log('✅ Gemini Chat API Response received');
       
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 
         'I apologize, but I couldn\'t generate a proper response. Please try rephrasing your question.';
@@ -126,13 +197,68 @@ export class LLMService {
 
     } catch (error) {
       clearTimeout(timeoutId);
-      console.error('❌ Gemini API error:', error);
-      
-      // Generate enhanced fallback response
-      const fallbackResponse = this.generateEnhancedResponse(query, researchTopic);
-      const validation = topicValidator.validateQuery(query, researchTopic);
-      yield* this.streamText(fallbackResponse, false, validation, error as Error);
+      throw error; // Re-throw for retry logic
     }
+  }
+
+  /**
+   * Check if error is retryable
+   */
+  private isRetryableError(error: any): boolean {
+    // Network errors
+    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+      return true;
+    }
+
+    // Check HTTP status code
+    if (error.status) {
+      return this.isRetryableStatusCode(error.status);
+    }
+
+    // Check error message
+    const message = error.message?.toLowerCase() || '';
+    return message.includes('overloaded') ||
+           message.includes('unavailable') ||
+           message.includes('timeout') ||
+           message.includes('network') ||
+           message.includes('503') ||
+           message.includes('429');
+  }
+
+  /**
+   * Check if HTTP status code is retryable
+   */
+  private isRetryableStatusCode(status: number): boolean {
+    return [429, 500, 502, 503, 504].includes(status);
+  }
+
+  /**
+   * Get user-friendly error message
+   */
+  private getUserFriendlyError(error: any): string {
+    const status = error.status;
+    const message = error.message?.toLowerCase() || '';
+
+    if (status === 503 || message.includes('overloaded')) {
+      return 'The AI service is experiencing high demand right now.';
+    }
+    if (status === 429 || message.includes('quota')) {
+      return 'API rate limit reached. Please wait a moment.';
+    }
+    if (status === 401 || message.includes('unauthorized')) {
+      return 'API authentication failed. Please check your API key.';
+    }
+    if (message.includes('timeout')) {
+      return 'The request took too long. Please try again.';
+    }
+    return 'Unable to connect to the AI service.';
+  }
+
+  /**
+   * Delay helper for retry logic
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

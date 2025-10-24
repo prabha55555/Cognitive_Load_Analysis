@@ -1,27 +1,27 @@
-import { Brain, Clock, FileText, Lightbulb, MessageSquare, Search, Sparkles, Timer } from 'lucide-react';
+import { Brain, CheckCircle, Clock, FileText, Lightbulb, MessageSquare, Search, Timer } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Participant } from '../types';
 import { ChatGPTInterface } from './ChatGPTInterface';
 import { GoogleSearchInterface } from './GoogleSearchInterface';
-// import { GrokInterface } from './GrokInterface'; // TODO: Create GrokInterface component
 import { PlatformSelection } from './PlatformSelection';
 
 interface ResearchInterfaceProps {
   participant: Participant;
   onComplete: (readingContent?: string, userNotes?: string) => void;
+  onTopicChange?: (topic: string) => void;
 }
 
 export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   participant,
-  onComplete
+  onComplete,
+  onTopicChange
 }) => {
   const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
   const [queries, setQueries] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [pulseEffect, setPulseEffect] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'grok' | 'google' | null>(null);
-  const [searchBehaviorData, setSearchBehaviorData] = useState<any[]>([]);
+  const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | null>(null);
   const [currentResearchTopic, setCurrentResearchTopic] = useState(participant.researchTopic);
 
   // Animate pulse effect periodically
@@ -53,17 +53,30 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   };
 
   const handleSearchBehavior = (behavior: any) => {
-    setSearchBehaviorData(prev => [...prev, behavior]);
     // Here you would send this data to your backend for analysis
     console.log('Search behavior tracked:', behavior);
   };
 
   const handleTopicChange = (newTopic: string) => {
+    console.log('==========================================');
+    console.log('🔄 TOPIC CHANGE IN RESEARCH INTERFACE');
+    console.log('Old Topic:', currentResearchTopic);
+    console.log('New Topic:', newTopic);
+    console.log('Propagating to parent...');
+    console.log('==========================================');
+    
     setCurrentResearchTopic(newTopic);
-    console.log('Research topic changed to:', newTopic);
+    
+    // Propagate topic change to parent (ParticipantDashboard)
+    if (onTopicChange) {
+      onTopicChange(newTopic);
+      console.log('✅ Topic change propagated to ParticipantDashboard');
+    } else {
+      console.error('❌ onTopicChange prop not provided to ResearchInterface!');
+    }
   };
 
-  const handlePlatformSelect = (platform: 'chatgpt' | 'grok' | 'google') => {
+  const handlePlatformSelect = (platform: 'chatgpt' | 'google' | 'grok') => {
     setSelectedPlatform(platform);
   };
 
@@ -125,8 +138,6 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                     <div className={`px-4 lg:px-5 xl:px-6 py-2 lg:py-3 xl:py-3 rounded-full text-sm lg:text-base xl:text-lg font-medium ${
                       selectedPlatform === 'chatgpt' 
                         ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                        : selectedPlatform === 'grok'
-                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
                         : 'bg-blue-100 text-blue-700 border border-blue-200'
                     }`}>
                       <div className="flex items-center space-x-2 lg:space-x-3">
@@ -135,17 +146,12 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                             <MessageSquare className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
                             <span>ChatGPT Interface</span>
                           </>
-                        ) : selectedPlatform === 'grok' ? (
-                        <>
-                          <Sparkles className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
-                          <span>Grok Interface</span>
-                        </>
-                      ) : (
-                        <>
-                          <Search className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
-                          <span>Google Search Interface</span>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <Search className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
+                            <span>Google Search Interface</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -177,10 +183,6 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                   onQuerySubmit={handleQuerySubmit}
                   onTopicChange={handleTopicChange}
                 />
-              ) : selectedPlatform === 'grok' ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">Grok Interface - Coming Soon</p>
-                </div>
               ) : (
                 <GoogleSearchInterface
                   participant={participant}
@@ -212,7 +214,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                 ? 'bg-purple-100 text-purple-700 border border-purple-200'
                 : 'bg-blue-100 text-blue-700 border border-blue-200'
             }`}>
-              {selectedPlatform === 'chatgpt' ? 'ChatGPT' : selectedPlatform === 'grok' ? 'Grok' : 'Google'}
+              {selectedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google'}
             </span>
               </div>
               <div className="flex items-center justify-between p-3 lg:p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border border-orange-200">
@@ -253,7 +255,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
             className="px-4 lg:px-6 py-2 lg:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm lg:text-base"
               >
             <div className="flex items-center space-x-2">
-              <Sparkles className="h-4 w-4" />
+              <CheckCircle className="h-4 w-4" />
               <span>Finish Early</span>
             </div>
               </button>

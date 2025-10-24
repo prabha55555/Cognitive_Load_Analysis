@@ -7,7 +7,7 @@ import { CreativityEvaluation } from '../services/geminiService';
 interface CognitiveLoadResultsProps {
   assessmentResponses: AssessmentResponse[];
   creativityEvaluations?: CreativityEvaluation[];
-  onComplete: () => void;
+  onComplete: (cognitiveLoadScore: number) => void;
   topic?: string;
   participantId?: string;
 }
@@ -32,7 +32,7 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
             Please complete the reading and note-taking phase first to generate assessment questions.
           </p>
           <button
-            onClick={onComplete}
+            onClick={() => onComplete(0)}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             Go Back
@@ -51,9 +51,6 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
     .filter(t => t instanceof Date);
 
   // Create minimal learning data since we're skipping the learning phase
-  console.log('CognitiveLoadResults - Assessment Responses:', assessmentResponses);
-  console.log('CognitiveLoadResults - Topic:', topic);
-  
   const metrics: CognitiveLoadMetrics = cognitiveLoadService.calculateCognitiveLoad(
     {
       participantId: actualParticipantId,
@@ -68,7 +65,13 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
     assessmentResponses
   );
 
-  console.log('CognitiveLoadResults - Calculated Metrics:', metrics);
+  console.log('==========================================');
+  console.log('📊 COGNITIVE LOAD RESULTS - METRICS CALCULATED');
+  console.log('Overall Cognitive Load:', metrics.overallCognitiveLoad);
+  console.log('Category:', metrics.category);
+  console.log('Full metrics:', metrics);
+  console.log('==========================================');
+
   const recommendations = cognitiveLoadService.getRecommendations(metrics);
 
   const formatTime = (seconds: number) => {
@@ -379,7 +382,14 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
         {/* Complete Button */}
         <div className="text-center">
           <button
-            onClick={onComplete}
+            onClick={() => {
+              console.log('==========================================');
+              console.log('✅ COMPLETE BUTTON CLICKED');
+              console.log('Passing cognitive load score:', metrics.overallCognitiveLoad);
+              console.log('Type:', typeof metrics.overallCognitiveLoad);
+              console.log('==========================================');
+              onComplete(metrics.overallCognitiveLoad);
+            }}
             className="px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-bold rounded-2xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-2xl transform hover:scale-105"
           >
             Complete & Continue

@@ -291,15 +291,33 @@ What would you like to know about ${participant.researchTopic}?`,
 
   const handleCustomTopicSubmit = () => {
     if (customTopic.trim()) {
+      const newTopic = customTopic.trim();
+      
+      console.log('==========================================');
+      console.log('🎯 CUSTOM TOPIC SUBMITTED IN CHATGPT INTERFACE');
+      console.log('New Topic:', newTopic);
+      console.log('Old Topic:', participant.researchTopic);
+      console.log('Current Active Topic:', currentActiveTopic);
+      console.log('==========================================');
+      
       setIsCustomTopicMode(true);
-      setCurrentActiveTopic(customTopic.trim());
+      setCurrentActiveTopic(newTopic);
       setShowCustomInput(false);
       // Generate relevant suggestions for the new custom topic
-      setQuickSuggestions(generateTopicSuggestions(customTopic.trim()));
+      setQuickSuggestions(generateTopicSuggestions(newTopic));
       // Update the initial message
-      updateInitialMessage(customTopic.trim());
-      // Notify parent component of topic change
-      onTopicChange?.(customTopic.trim());
+      updateInitialMessage(newTopic);
+      
+      // CRITICAL: Notify parent component of topic change
+      console.log('Calling onTopicChange with:', newTopic);
+      console.log('onTopicChange exists?:', !!onTopicChange);
+      if (onTopicChange) {
+        onTopicChange(newTopic);
+        console.log('✅ onTopicChange called successfully');
+      } else {
+        console.error('❌ onTopicChange is undefined!');
+      }
+      
       setCustomTopic('');
     }
   };

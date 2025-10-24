@@ -87,9 +87,13 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleCreateParticipant = (platform: 'chatgpt' | 'google') => {
-    console.log('🚀 Creating participant...');
+    console.log('==========================================');
+    console.log('🚀 CREATING PARTICIPANT');
     console.log('Mode:', topicSelectionMode);
-    console.log('Custom topic:', customTopic);
+    console.log('Custom topic input:', customTopic);
+    console.log('Custom topic length:', customTopic?.length);
+    console.log('Platform:', platform);
+    console.log('==========================================');
     
     let selectedTopic = '';
     
@@ -99,6 +103,7 @@ export const AdminDashboard: React.FC = () => {
     } else {
       selectedTopic = customTopic.trim();
       console.log('✏️ Custom topic used:', selectedTopic);
+      console.log('✏️ Custom topic trimmed length:', selectedTopic.length);
       
       // Enhanced validation for custom topics
       if (!selectedTopic || selectedTopic.length < 3) {
@@ -122,6 +127,16 @@ export const AdminDashboard: React.FC = () => {
       cognitiveLoadScore: 0,
       creativityScore: 0
     };
+
+    console.log('==========================================');
+    console.log('✅ PARTICIPANT CREATED');
+    console.log('Participant ID:', newParticipant.id);
+    console.log('Participant Name:', newParticipant.name);
+    console.log('Research Topic:', newParticipant.researchTopic);
+    console.log('Assigned Platform:', newParticipant.assignedPlatform);
+    console.log('Current Phase:', newParticipant.currentPhase);
+    console.log('Full Participant Object:', newParticipant);
+    console.log('==========================================');
 
     setParticipants(prev => [...prev, newParticipant]);
     setLastCreatedTopic(selectedTopic);

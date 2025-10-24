@@ -1,8 +1,8 @@
 import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useEEGStream } from '../hooks/useEEGStream';
 import { AssessmentResponse, Participant, TestResponse } from '../types';
-import { AssessmentPhase } from './AssessmentPhase';
+import AssessmentPhase from './AssessmentPhase';
 import { CognitiveLoadResults } from './CognitiveLoadResults';
 import { CreativityTest } from './CreativityTest';
 import { EEGVisualization } from './EEGVisualization';
@@ -15,14 +15,29 @@ interface ParticipantDashboardProps {
 }
 
 export const ParticipantDashboard = ({
-  participant,
+  participant: initialParticipant,
   onPhaseComplete
 }: ParticipantDashboardProps) => {
+  // Use local state to manage participant data including topic changes
+  const [participant, setParticipant] = useState<Participant>(initialParticipant);
+  
+  // Sync with parent participant updates
+  useEffect(() => {
+    setParticipant(initialParticipant);
+  }, [initialParticipant]);
+  
   const { eegData, currentReading } = useEEGStream(participant.id, participant.isActive);
   const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);
   const [creativityEvaluations, setCreativityEvaluations] = useState<CreativityEvaluation[]>([]);
   const [readingContent, setReadingContent] = useState<string>('');
   const [userNotes, setUserNotes] = useState<string>('');
+
+  // Log when scores change
+  useEffect(() => {
+    console.log('📊 SCORES UPDATED:');
+    console.log('Cognitive Load Score:', participant.cognitiveLoadScore);
+    console.log('Creativity Score:', participant.creativityScore);
+  }, [participant.cognitiveLoadScore, participant.creativityScore]);
 
   const getPhaseColor = (phase: string) => {
     switch (phase) {
@@ -36,9 +51,14 @@ export const ParticipantDashboard = ({
   };
 
   const getPlatformColor = (platform: string) => {
-    return platform === 'chatgpt' 
-      ? 'text-green-600 bg-green-100 border-green-200' 
-      : 'text-blue-600 bg-blue-100 border-blue-200';
+    switch (platform) {
+      case 'chatgpt':
+        return 'text-green-600 bg-green-100 border-green-200';
+      case 'google':
+        return 'text-blue-600 bg-blue-100 border-blue-200';
+      default:
+        return 'text-gray-600 bg-gray-100 border-gray-200';
+    }
   };
 
   const getPhaseIcon = (phase: string) => {
@@ -55,14 +75,106 @@ export const ParticipantDashboard = ({
   const sessionDuration = Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000);
 
   const handleCreativityComplete = (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
-    console.log('Creativity test complete:', { responses, evaluations });
+    console.log('==========================================');
+    console.log('🎨 CREATIVITY TEST COMPLETE');
+    console.log('Responses received:', responses);
+    console.log('Evaluations received:', evaluations);
+    console.log('Evaluations length:', evaluations.length);
+    
+    // Calculate creativity score from evaluations
+    const creativityScore = evaluations.length > 0 
+      ? Math.round(evaluations.reduce((sum, e) => sum + e.score, 0) / evaluations.length)
+      : 0;
+    
+    console.log('Calculated Creativity Score:', creativityScore);
+    
+    // Update participant with creativity score
+    setParticipant(prev => {
+      const updated = {
+        ...prev,
+        creativityScore: creativityScore
+      };
+      console.log('Updated participant object:', updated);
+      console.log('Previous creativity score:', prev.creativityScore);
+      console.log('New creativity score:', updated.creativityScore);
+      return updated;
+    });
+    
     setCreativityEvaluations(evaluations);
+    
+    console.log('✅ Creativity score saved to state:', creativityScore);
+    console.log('Moving to completed phase...');
+    console.log('==========================================');
+    
     onPhaseComplete('completed');
   };
 
   const handleAssessmentComplete = (responses: AssessmentResponse[]) => {
+    console.log('==========================================');
+    console.log('📝 ASSESSMENT COMPLETE');
+    console.log('Responses count:', responses.length);
+    console.log('Responses:', responses);
+    console.log('==========================================');
+    
     setAssessmentResponses(responses);
     onPhaseComplete('results');
+  };
+  
+  const handleResultsComplete = (cognitiveLoadScore: number) => {
+    console.log('==========================================');
+    console.log('🧠 COGNITIVE LOAD RESULTS COMPLETE');
+    console.log('Received cognitive load score:', cognitiveLoadScore);
+    console.log('Type:', typeof cognitiveLoadScore);
+    
+    // Update participant with cognitive load score before moving to creativity test
+    setParticipant(prev => {
+      const rounded = Math.round(cognitiveLoadScore);
+      const updated = {
+        ...prev,
+        cognitiveLoadScore: rounded
+      };
+      console.log('Updated participant object:', updated);
+      console.log('Previous cognitive load score:', prev.cognitiveLoadScore);
+      console.log('New cognitive load score:', updated.cognitiveLoadScore);
+      return updated;
+    });
+    
+    console.log('✅ Cognitive load score saved to state:', Math.round(cognitiveLoadScore));
+    console.log('Moving to creativity test phase...');
+    console.log('==========================================');
+    
+    onPhaseComplete('creativity_test');
+  };
+
+  // CRITICAL: Handle topic changes from research interfaces
+  const handleTopicChange = (newTopic: string) => {
+    console.log('==========================================');
+    console.log('🔄 TOPIC CHANGE DETECTED IN PARTICIPANT DASHBOARD');
+    console.log('Previous Topic:', participant.researchTopic);
+    console.log('New Topic:', newTopic);
+    console.log('Participant ID:', participant.id);
+    console.log('==========================================');
+    
+    // CRITICAL: Force re-render by creating completely new object
+    setParticipant(prev => {
+      const updated = {
+        ...prev,
+        researchTopic: newTopic.trim(),
+        // Add timestamp to force React to detect the change
+        _topicUpdatedAt: Date.now()
+      };
+      
+      console.log('📝 Created new participant object');
+      console.log('Previous researchTopic:', prev.researchTopic);
+      console.log('New researchTopic:', updated.researchTopic);
+      console.log('Timestamp added:', updated._topicUpdatedAt);
+      
+      return updated;
+    });
+    
+    console.log('✅ Participant state update queued');
+    console.log('React will re-render with new topic:', newTopic);
+    console.log('==========================================');
   };
 
   const renderCurrentPhase = () => {
@@ -76,6 +188,7 @@ export const ParticipantDashboard = ({
               setUserNotes(notes || '');
               onPhaseComplete('assessment');
             }}
+            onTopicChange={handleTopicChange}
           />
         );
       case 'assessment':
@@ -101,7 +214,7 @@ export const ParticipantDashboard = ({
             creativityEvaluations={creativityEvaluations}
             topic={participant.researchTopic}
             participantId={participant.id}
-            onComplete={() => onPhaseComplete('creativity_test')}
+            onComplete={handleResultsComplete}
           />
         );
       case 'creativity_test':
@@ -114,6 +227,14 @@ export const ParticipantDashboard = ({
           />
         );
       case 'completed':
+        console.log('==========================================');
+        console.log('🎉 RENDERING COMPLETED PHASE');
+        console.log('Participant object:', participant);
+        console.log('Cognitive Load Score:', participant.cognitiveLoadScore);
+        console.log('Creativity Score:', participant.creativityScore);
+        console.log('Creativity Evaluations:', creativityEvaluations);
+        console.log('==========================================');
+        
         return (
           <div className="max-w-4xl mx-auto p-6">
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-8 text-center">
@@ -133,16 +254,26 @@ export const ParticipantDashboard = ({
                     <Brain className="h-8 w-8 text-blue-600 mr-3" />
                     <h3 className="text-xl font-semibold text-gray-800">Cognitive Load Score</h3>
                   </div>
-                  <p className="text-4xl font-bold text-blue-600">{participant.cognitiveLoadScore}%</p>
+                  <p className="text-4xl font-bold text-blue-600">
+                    {participant.cognitiveLoadScore || 0}%
+                  </p>
                   <p className="text-sm text-gray-500 mt-2">Average cognitive load during session</p>
+                  {participant.cognitiveLoadScore === 0 && (
+                    <p className="text-xs text-red-500 mt-2">⚠️ Score not calculated</p>
+                  )}
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200">
                   <div className="flex items-center justify-center mb-4">
                     <Target className="h-8 w-8 text-purple-600 mr-3" />
                     <h3 className="text-xl font-semibold text-gray-800">Creativity Score</h3>
                   </div>
-                  <p className="text-4xl font-bold text-purple-600">{participant.creativityScore}</p>
+                  <p className="text-4xl font-bold text-purple-600">
+                    {participant.creativityScore || 0}
+                  </p>
                   <p className="text-sm text-gray-500 mt-2">Overall creativity assessment</p>
+                  {participant.creativityScore === 0 && (
+                    <p className="text-xs text-red-500 mt-2">⚠️ Score not calculated</p>
+                  )}
                 </div>
               </div>
               <div className="mt-8 p-6 bg-white rounded-xl shadow-lg border border-green-200">
@@ -153,8 +284,9 @@ export const ParticipantDashboard = ({
                     <p className="text-sm text-gray-500">Minutes</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-800">
-                      {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google'}
+                    <p className="text-2l font-bold text-gray-800">
+                      {/* {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google Search'} */}
+                      Coginitive  Platform
                     </p>
                     <p className="text-sm text-gray-500">Platform Used</p>
                   </div>
@@ -206,12 +338,12 @@ export const ParticipantDashboard = ({
                   {participant.assignedPlatform === 'chatgpt' ? (
                     <>
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>ChatGPT</span>
+                      <span>Cognitive Load</span>
                     </>
                   ) : (
                     <>
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>Google Search</span>
+                      <span>Cognitive Load</span>
                     </>
                   )}
                 </div>

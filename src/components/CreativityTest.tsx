@@ -112,9 +112,15 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
         setStartTime(Date.now());
       } else {
         setIsCompleted(true);
-        console.log('=== Creativity Assessment Complete ===');
+        console.log('==========================================');
+        console.log('🎨 CREATIVITY ASSESSMENT COMPLETE');
         console.log('Total Responses:', newResponses.length);
+        console.log('Total Evaluations:', newEvaluations.length);
         console.log('All Evaluations:', newEvaluations);
+        console.log('Evaluation Scores:', newEvaluations.map(e => e.score));
+        console.log('Average Score:', newEvaluations.reduce((sum, e) => sum + e.score, 0) / newEvaluations.length);
+        console.log('Calling onComplete with:', { responses: newResponses, evaluations: newEvaluations });
+        console.log('==========================================');
         onComplete(newResponses, newEvaluations);
       }
     } catch (error) {

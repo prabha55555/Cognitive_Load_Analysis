@@ -1,78 +1,257 @@
 import { AlertCircle, CheckCircle, Clock, FileText, Send } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { generateAssessmentQuestions } from '../services/assessmentGenerationService';
-import { AssessmentQuestion, AssessmentResponse, Participant } from '../types';
+import { useEffect, useState, useRef } from 'react';
+import { geminiService, AssessmentQuestion as GeminiAssessmentQuestion } from '../services/geminiService';
+import { AssessmentResponse, Participant } from '../types';
 
 interface AssessmentPhaseProps {
   participant: Participant;
+  onComplete: (responses: AssessmentResponse[]) => void;
   readingContent?: string;
   userNotes?: string;
-  onComplete: (responses: AssessmentResponse[]) => void;
 }
 
-export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
-  participant,
-  readingContent = '',
-  userNotes = '',
-  onComplete
-}) => {
-  const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
+export default function AssessmentPhase({ 
+  participant, 
+  onComplete,
+}: AssessmentPhaseProps) {
+  // Use ref to track if questions have been loaded to prevent duplicate loading
+  const questionsLoadedRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  // Use STATE instead of const - makes it reactive to participant changes
+  const [researchTopic, setResearchTopic] = useState(participant?.researchTopic?.trim() || '');
+
+  // Watch for participant changes and update topic
+  useEffect(() => {
+    const newTopic = participant?.researchTopic?.trim() || '';
+    
+    console.log('==========================================');
+    console.log('🔄 PARTICIPANT PROP CHANGED IN ASSESSMENT');
+    console.log('Previous topic in state:', researchTopic);
+    console.log('New topic from participant:', newTopic);
+    console.log('participant._topicUpdatedAt:', (participant as any)?._topicUpdatedAt);
+    console.log('Full participant object:', participant);
+    console.log('==========================================');
+    
+    if (newTopic !== researchTopic && newTopic !== '') {
+      console.log('✅ Updating research topic state to:', newTopic);
+      console.log('🔄 Resetting questions to force reload with new topic');
+      
+      // Reset everything to reload with new topic
+      setResearchTopic(newTopic);
+      questionsLoadedRef.current = false; // Force reload
+      setQuestions([]);
+      setIsLoading(true);
+      setError('');
+    }
+  }, [participant, participant?.researchTopic, (participant as any)?._topicUpdatedAt]);
+
+  // ONLY LOG ONCE on initial mount
+  useEffect(() => {
+    if (!mountedRef.current) {
+      console.log('==========================================');
+      console.log('🎯 ASSESSMENT PHASE COMPONENT MOUNTED');
+      console.log('Participant ID:', participant.id);
+      console.log('Participant Name:', participant.name);
+      console.log('Participant Email:', participant.email);
+      console.log('Research Topic from participant:', participant.researchTopic);
+      console.log('Research Topic variable:', researchTopic);
+      console.log('Topic length:', researchTopic?.length);
+      console.log('Topic empty?:', !researchTopic || researchTopic.trim() === '');
+      console.log('Full participant object:', JSON.stringify(participant, null, 2));
+      console.log('==========================================');
+      mountedRef.current = true;
+    }
+  }, []); // Empty dependency array - runs only once
+
+  const [questions, setQuestions] = useState<GeminiAssessmentQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [responses, setResponses] = useState<AssessmentResponse[]>([]);
-  const [currentAnswer, setCurrentAnswer] = useState('');
+  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [questionStartTime, setQuestionStartTime] = useState<Date>(new Date());
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
-  // Load assessment questions
+  // Load assessment questions - Watch for topic changes
   useEffect(() => {
+    // Prevent loading if already loaded
+    if (questionsLoadedRef.current) {
+      console.log('⏭️ Questions already loaded, skipping...');
+      return;
+    }
+
+    // Don't load if topic is empty
+    if (!researchTopic || researchTopic.trim() === '') {
+      console.log('⏸️ Waiting for topic to be set... Current topic:', researchTopic);
+      return;
+    }
+
     const loadQuestions = async () => {
       setIsLoading(true);
       setError('');
+      
       try {
-        console.log('Generating assessment for topic:', participant.researchTopic);
-        const generatedQuestions = await generateAssessmentQuestions(
-          participant.researchTopic,
-          readingContent,
-          userNotes
+        console.log('==========================================');
+        console.log('🔄 STARTING QUESTION GENERATION');
+        console.log('Step 1: Extract topic from participant');
+        console.log('  participant object:', participant);
+        console.log('  participant.researchTopic:', participant?.researchTopic);
+        console.log('  researchTopic variable:', researchTopic);
+        console.log('==========================================');
+        
+        // CRITICAL: Validate topic exists
+        if (!researchTopic || researchTopic.trim() === '') {
+          const errorDetails = `
+==========================================
+❌ CRITICAL ERROR: No Research Topic Found!
+
+Participant Details:
+- ID: ${participant?.id || 'undefined'}
+- Name: ${participant?.name || 'undefined'}
+- Email: ${participant?.email || 'undefined'}
+- researchTopic field: ${participant?.researchTopic || 'undefined'}
+- Extracted topic: ${researchTopic || 'undefined'}
+
+Full Participant Object:
+${JSON.stringify(participant, null, 2)}
+
+This means:
+1. The topic was not set when creating the participant
+2. OR the topic field is named differently
+3. OR the participant object is corrupted
+==========================================`;
+          
+          console.error(errorDetails);
+          setError('No research topic found. Please go back and select a topic before starting the assessment.');
+          setIsLoading(false);
+          return;
+        }
+
+        const topicToUse = researchTopic.trim();
+        
+        console.log('==========================================');
+        console.log('✅ TOPIC VALIDATED');
+        console.log('Topic to use:', topicToUse);
+        console.log('Topic length:', topicToUse.length);
+        console.log('==========================================');
+
+        console.log('==========================================');
+        console.log('🔑 CALLING GEMINI SERVICE');
+        console.log('Function: geminiService.generateAssessmentQuestions');
+        console.log('Arguments:');
+        console.log('  [0] topic:', topicToUse);
+        console.log('  [1] notes:', '""');
+        console.log('  [2] count:', 5);
+        console.log('==========================================');
+        
+        // Generate questions
+        const generatedQuestions = await geminiService.generateAssessmentQuestions(
+          topicToUse,
+          '', // Empty string - questions based on topic only
+          5
         );
         
         if (!generatedQuestions || generatedQuestions.length === 0) {
-          setError(`No assessment questions available for topic: "${participant.researchTopic}". Please ensure you have completed the reading phase.`);
+          console.error('==========================================');
+          console.error('❌ NO QUESTIONS GENERATED');
+          console.error('Topic used:', topicToUse);
+          console.error('This could mean:');
+          console.error('1. Gemini API failed');
+          console.error('2. API key is invalid');
+          console.error('3. Network error');
+          console.error('==========================================');
+          setError(`Failed to generate questions for topic: "${topicToUse}".`);
           setIsLoading(false);
           return;
         }
         
-        console.log(`Loaded ${generatedQuestions.length} questions`);
+        console.log('==========================================');
+        console.log('✅ QUESTIONS LOADED SUCCESSFULLY');
+        console.log('Number of questions:', generatedQuestions.length);
+        console.log('Questions generated for topic:', topicToUse);
+        console.log('Expected topic:', topicToUse);
+        console.log('==========================================');
+        
+        generatedQuestions.forEach((q, idx) => {
+          console.log(`\n📝 Question ${idx + 1}:`);
+          console.log(`  Topic field: "${q.topic}"`);
+          console.log(`  Expected: "${topicToUse}"`);
+          console.log(`  Match: ${q.topic === topicToUse ? '✅' : '❌'}`);
+          console.log(`  Question: "${q.question.substring(0, 80)}..."`);
+          console.log(`  Difficulty: ${q.difficulty}`);
+          console.log(`  Cognitive Level: ${q.cognitiveLevel}`);
+          console.log('---');
+        });
+        
+        console.log('==========================================');
+        
+        // VERIFY: Check if questions match the topic
+        const topicsMatch = generatedQuestions.every(q => 
+          q.topic.toLowerCase() === topicToUse.toLowerCase()
+        );
+        
+        if (!topicsMatch) {
+          console.warn('==========================================');
+          console.warn('⚠️ WARNING: Some questions have different topics!');
+          generatedQuestions.forEach((q, idx) => {
+            if (q.topic.toLowerCase() !== topicToUse.toLowerCase()) {
+              console.warn(`  Question ${idx + 1} topic: "${q.topic}" (expected: "${topicToUse}")`);
+            }
+          });
+          console.warn('==========================================');
+        } else {
+          console.log('✅ All questions match the topic:', topicToUse);
+        }
+        
         setQuestions(generatedQuestions);
         setQuestionStartTime(new Date());
+        
+        // Mark as loaded to prevent reloading
+        questionsLoadedRef.current = true;
+        
       } catch (err) {
-        console.error('Error loading questions:', err);
-        setError('Failed to generate assessment questions. Please try again.');
+        console.error('==========================================');
+        console.error('❌ CRITICAL ERROR LOADING QUESTIONS');
+        console.error('Error object:', err);
+        console.error('Error message:', err instanceof Error ? err.message : 'Unknown error');
+        console.error('Topic was:', researchTopic);
+        console.error('Participant was:', participant);
+        console.error('==========================================');
+        setError(`Failed to generate assessment questions. Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadQuestions();
-  }, [participant.researchTopic, readingContent, userNotes]);
+  }, [researchTopic]); // Re-run when researchTopic changes
 
   // Timer for current question
   useEffect(() => {
+    // Only run timer when questions are loaded
+    if (isLoading || questions.length === 0) {
+      return;
+    }
+
     const timer = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
       
-      // Show warning if taking too long
-      const currentQuestion = questions[currentQuestionIndex];
-      if (currentQuestion && timeElapsed > currentQuestion.expectedTimeSeconds * 1.5) {
+      // Show warning if taking too long (more than 3 minutes)
+      if (timeElapsed > 180) {
         setShowWarning(true);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeElapsed, currentQuestionIndex, questions]);
+  }, [timeElapsed, isLoading, questions.length]);
+
+  // Reset timer when moving to next question
+  useEffect(() => {
+    setTimeElapsed(0);
+    setShowWarning(false);
+  }, [currentQuestionIndex]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -81,8 +260,8 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
   };
 
   const handleSubmitAnswer = () => {
-    if (!currentAnswer.trim()) {
-      alert('Please provide an answer before submitting.');
+    if (!selectedAnswer.trim()) {
+      alert('Please select an answer before submitting.');
       return;
     }
 
@@ -90,38 +269,18 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
     const endTime = new Date();
     const timeTaken = Math.floor((endTime.getTime() - questionStartTime.getTime()) / 1000);
 
-    // Calculate score based on correctness and time
-    let score = 0;
-    let isCorrect = false;
-
-    if (currentQuestion.type === 'multiple-choice') {
-      isCorrect = currentAnswer === currentQuestion.correctAnswer;
-      score = isCorrect ? currentQuestion.points : 0;
-    } else if (currentQuestion.type === 'short-answer') {
-      // Simple keyword matching for short answers
-      const answerLower = currentAnswer.toLowerCase();
-      const correctLower = currentQuestion.correctAnswer?.toLowerCase() || '';
-      isCorrect = answerLower.includes(correctLower) || correctLower.includes(answerLower);
-      score = isCorrect ? currentQuestion.points : currentQuestion.points * 0.5;
-    } else {
-      // Descriptive questions - partial credit based on length and time
-      const wordCount = currentAnswer.split(/\s+/).length;
-      if (wordCount > 50) {
-        score = currentQuestion.points;
-      } else if (wordCount > 20) {
-        score = currentQuestion.points * 0.7;
-      } else {
-        score = currentQuestion.points * 0.4;
-      }
-    }
+    // Check if answer is correct
+    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+    const pointsPerQuestion = 20; // 100 points total / 5 questions
+    const score = isCorrect ? pointsPerQuestion : 0;
 
     // Calculate confidence level based on time taken
-    const calculateConfidence = (actualTime: number, expectedTime: number): number => {
-      if (actualTime <= expectedTime * 0.5) return 5; // Very confident
-      if (actualTime <= expectedTime) return 4; // Confident
-      if (actualTime <= expectedTime * 1.5) return 3; // Moderate
-      if (actualTime <= expectedTime * 2) return 2; // Less confident
-      return 1; // Not confident
+    const calculateConfidence = (actualTime: number): number => {
+      if (actualTime <= 30) return 5; // Very confident (< 30s)
+      if (actualTime <= 60) return 4; // Confident (< 1min)
+      if (actualTime <= 120) return 3; // Moderate (< 2min)
+      if (actualTime <= 180) return 2; // Less confident (< 3min)
+      return 1; // Not confident (> 3min)
     };
 
     const response: AssessmentResponse = {
@@ -130,68 +289,70 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
       startTime: questionStartTime,
       endTime: endTime,
       timeTaken: timeTaken,
-      answer: currentAnswer,
+      answer: selectedAnswer,
       isCorrect: isCorrect,
       score: score,
-      confidenceLevel: calculateConfidence(timeTaken, currentQuestion.expectedTimeSeconds),
+      confidenceLevel: calculateConfidence(timeTaken),
       topic: currentQuestion.topic,
       difficulty: currentQuestion.difficulty,
-      points: currentQuestion.points,
+      points: pointsPerQuestion,
       earnedPoints: score
     };
 
-    console.log('=== Assessment Response Created ===');
-    console.log('Question:', currentQuestion.question);
-    console.log('Selected Answer:', currentAnswer);
-    console.log('Correct Answer:', currentQuestion.correctAnswer);
-    console.log('Is Correct:', isCorrect);
-    console.log('Points Available:', currentQuestion.points);
-    console.log('Points Earned:', score);
-    console.log('Full Response:', response);
+    console.log(`✅ Answer submitted for Q${currentQuestionIndex + 1}:`);
+    console.log(`   Topic: ${currentQuestion.topic}`);
+    console.log(`   Question: ${currentQuestion.question.substring(0, 50)}...`);
+    console.log(`   Selected: ${selectedAnswer.substring(0, 40)}...`);
+    console.log(`   Correct: ${isCorrect ? '✓' : '✗'}`);
+    console.log(`   Time: ${timeTaken}s`);
 
-    setResponses(prev => [...prev, response]);
+    const newResponses = [...responses, response];
+    setResponses(newResponses);
     
     // Move to next question or complete
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
-      setCurrentAnswer('');
+      setSelectedAnswer('');
       setQuestionStartTime(new Date());
-      setTimeElapsed(0);
-      setShowWarning(false);
     } else {
-      const finalResponses = [...responses, response];
-      console.log('=== Assessment Complete ===');
-      console.log('Total Questions:', finalResponses.length);
-      console.log('All Responses:', finalResponses);
-      console.log('Total Earned Points:', finalResponses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0));
-      console.log('Total Possible Points:', finalResponses.reduce((sum, r) => sum + (r.points || 0), 0));
-      onComplete(finalResponses);
+      console.log('==========================================');
+      console.log('✅ ASSESSMENT COMPLETE');
+      console.log('Topic:', researchTopic);
+      console.log('Total Questions:', newResponses.length);
+      console.log('Correct Answers:', newResponses.filter(r => r.isCorrect).length);
+      console.log('Total Points:', newResponses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0));
+      console.log('==========================================');
+      onComplete(newResponses);
     }
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      // Save current progress before going back
-      if (currentAnswer.trim()) {
-        handleSubmitAnswer();
-      }
       setCurrentQuestionIndex(prev => prev - 1);
+      setSelectedAnswer('');
+      setQuestionStartTime(new Date());
     }
   };
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
   const totalResponses = responses.length;
 
   // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 flex items-center justify-center p-6">
-        <div className="text-center bg-white rounded-2xl shadow-2xl p-12">
+        <div className="text-center bg-white rounded-2xl shadow-2xl p-12 max-w-md">
           <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-purple-600 mx-auto mb-6"></div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-3">Generating Your Assessment</h2>
-          <p className="text-lg text-gray-600 mb-2">Analyzing your notes and reading content...</p>
-          <p className="text-sm text-gray-500">Creating personalized questions based on {participant.researchTopic}</p>
+          <h2 className="text-3xl font-bold text-gray-800 mb-3">Generating Assessment</h2>
+          <div className="mb-4 p-4 bg-purple-50 rounded-lg">
+            <p className="text-sm text-gray-500 mb-2">Creating questions about:</p>
+            <p className="text-2xl font-bold text-purple-600">{researchTopic || '(No topic found)'}</p>
+            {!researchTopic && (
+              <p className="text-xs text-red-500 mt-2">⚠️ Warning: No topic detected!</p>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">This may take a moment</p>
         </div>
       </div>
     );
@@ -201,23 +362,37 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
   if (error || !currentQuestion) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 flex items-center justify-center p-6">
-        <div className="max-w-xl text-center bg-white rounded-2xl shadow-xl p-8">
-          <div className="inline-block p-3 bg-red-100 rounded-full mb-4">
-            <AlertCircle className="h-10 w-10 text-red-600" />
+        <div className="max-w-2xl bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-6">
+            <div className="inline-block p-3 bg-red-100 rounded-full mb-4">
+              <AlertCircle className="h-10 w-10 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Assessment Not Available</h2>
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-gray-800">Assessment Not Available</h2>
-          <p className="text-gray-600 mb-4">
-            {error || `No assessment questions available for topic: "${participant.researchTopic}"`}
-          </p>
-          <p className="text-sm text-gray-500 mb-6">
-            Available topics: Renewable Energy Innovation, Artificial Intelligence, Climate Change
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Try Again
-          </button>
+          
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
+            <p className="font-bold text-gray-700">Debug Information:</p>
+            <p><strong>Participant ID:</strong> {participant?.id || 'undefined'}</p>
+            <p><strong>Participant Name:</strong> {participant?.name || 'undefined'}</p>
+            <p><strong>Research Topic:</strong> <span className="text-purple-600 font-bold">{participant?.researchTopic || '(empty)'}</span></p>
+            <p><strong>Extracted Topic:</strong> <span className="text-purple-600 font-bold">{researchTopic || '(empty)'}</span></p>
+          </div>
+          
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+            <p className="text-red-700 font-medium">{error || 'Unable to generate assessment questions.'}</p>
+          </div>
+          
+          <div className="text-center">
+            <button
+              onClick={() => {
+                questionsLoadedRef.current = false;
+                window.location.reload();
+              }}
+              className="px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Reload and Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -235,7 +410,10 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
               </div>
               <div>
                 <h1 className="text-3xl font-black text-gray-800">Assessment Phase</h1>
-                <p className="text-gray-600 mt-1">Topic: <span className="font-bold text-purple-600">{participant.researchTopic}</span></p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className="text-gray-600">Topic:</span>
+                  <span className="font-bold text-purple-600 text-lg">{researchTopic}</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -270,7 +448,7 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
           {/* Question Header */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                 currentQuestion.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                 currentQuestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
@@ -278,18 +456,16 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
               }`}>
                 {currentQuestion.difficulty.toUpperCase()}
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                currentQuestion.type === 'multiple-choice' ? 'bg-blue-100 text-blue-700' :
-                currentQuestion.type === 'short-answer' ? 'bg-indigo-100 text-indigo-700' :
-                'bg-purple-100 text-purple-700'
-              }`}>
-                {currentQuestion.type === 'multiple-choice' ? 'Multiple Choice' :
-                 currentQuestion.type === 'short-answer' ? 'Short Answer' :
-                 'Descriptive'}
+              <div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                {currentQuestion.cognitiveLevel.toUpperCase()}
+              </div>
+              <div className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
+                📚 {currentQuestion.topic}
               </div>
             </div>
-            <div className="text-sm text-gray-500">
-              Expected: {formatTime(currentQuestion.expectedTimeSeconds)}
+            <div className="text-sm text-gray-500 flex items-center space-x-2">
+              <Clock className="h-4 w-4" />
+              <span>{formatTime(timeElapsed)}</span>
             </div>
           </div>
 
@@ -313,57 +489,29 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
               {currentQuestion.question}
             </h2>
 
-            {/* Answer Input based on question type */}
-            {currentQuestion.type === 'multiple-choice' && currentQuestion.options ? (
-              <div className="space-y-3">
-                {currentQuestion.options.map((option, idx) => (
-                  <label
-                    key={idx}
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      currentAnswer === option
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="answer"
-                      value={option}
-                      checked={currentAnswer === option}
-                      onChange={(e) => setCurrentAnswer(e.target.value)}
-                      className="mr-3 h-5 w-5 text-purple-600"
-                    />
-                    <span className="text-gray-700 font-medium">{option}</span>
-                  </label>
-                ))}
-              </div>
-            ) : currentQuestion.type === 'short-answer' ? (
-              <input
-                type="text"
-                value={currentAnswer}
-                onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Type your answer here..."
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            ) : (
-              <div>
-                <textarea
-                  value={currentAnswer}
-                  onChange={(e) => setCurrentAnswer(e.target.value)}
-                  placeholder="Write your detailed answer here... Aim for at least 50 words for full credit."
-                  rows={10}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm text-gray-500">
-                    Word count: {currentAnswer.split(/\s+/).filter(w => w).length}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Recommended: 50+ words
-                  </p>
-                </div>
-              </div>
-            )}
+            {/* Answer Options - Multiple Choice */}
+            <div className="space-y-3">
+              {currentQuestion.options.map((option, idx) => (
+                <label
+                  key={idx}
+                  className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    selectedAnswer === option
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="answer"
+                    value={option}
+                    checked={selectedAnswer === option}
+                    onChange={(e) => setSelectedAnswer(e.target.value)}
+                    className="mr-3 h-5 w-5 text-purple-600"
+                  />
+                  <span className="text-gray-700 font-medium">{option}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Navigation Buttons */}
@@ -378,7 +526,7 @@ export const AssessmentPhase: React.FC<AssessmentPhaseProps> = ({
             
             <button
               onClick={handleSubmitAnswer}
-              disabled={!currentAnswer.trim()}
+              disabled={!selectedAnswer.trim()}
               className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg"
             >
               <span>{currentQuestionIndex === questions.length - 1 ? 'Complete Assessment' : 'Submit & Next'}</span>

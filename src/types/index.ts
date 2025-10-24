@@ -4,7 +4,7 @@ export interface Participant {
   id: string;
   name: string;
   email: string;
-  assignedPlatform: 'chatgpt' | 'grok' | 'google';
+  assignedPlatform: 'chatgpt' | 'google';
   currentPhase: 'login' | 'research' | 'assessment' | 'results' | 'creativity_test' | 'completed';
   sessionStart: Date;
   researchTopic: string;
@@ -47,7 +47,7 @@ export interface TestResponse {
 export interface ExperimentSession {
   id: string;
   participantId: string;
-  platform: 'chatgpt' | 'grok' | 'google';
+  platform: 'chatgpt' | 'google';
   topic: string;
   startTime: Date;
   endTime?: Date;

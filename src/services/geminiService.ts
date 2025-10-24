@@ -1,6 +1,18 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { API_CONFIG } from '../config/api';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+// Use separate API key for question generation
+const questionsGenAI = new GoogleGenerativeAI(API_CONFIG.GEMINI_QUESTIONS.API_KEY || '');
+
+export interface AssessmentQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  topic: string;
+  cognitiveLevel: 'remembering' | 'understanding' | 'application' | 'analysis';
+}
 
 export interface CreativityQuestion {
   id: string;
@@ -36,13 +48,186 @@ export interface CreativityEvaluation {
 
 export const geminiService = {
   /**
+   * Generate assessment questions based on TOPIC ONLY (not notes)
+   * Questions are clear, understandable, and applicable
+   */
+  async generateAssessmentQuestions(
+    topic: string,
+    notes: string, // Keep parameter for compatibility but won't use it
+    count: number = 5
+  ): Promise<AssessmentQuestion[]> {
+    const model = questionsGenAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    // More forceful prompt that emphasizes the EXACT topic
+    const prompt = `You are an expert educational assessment designer. Create ${count} multiple-choice questions SPECIFICALLY AND EXCLUSIVELY about: "${topic}"
+
+🎯 CRITICAL REQUIREMENTS:
+1. EVERY question must be DIRECTLY about "${topic}" - use the exact topic name in questions
+2. Questions MUST test knowledge of "${topic}" concepts, applications, and principles
+3. DO NOT create generic questions - make them specific to "${topic}"
+4. Each question has 4 options - one correct, three plausible but wrong
+5. Use simple, clear language that students can understand
+6. Make questions practical and applicable to understanding "${topic}"
+
+📚 TOPIC: ${topic}
+
+⚠️ IMPORTANT: If the topic is "${topic}", then questions should explicitly mention or be clearly about "${topic}". For example:
+- If topic is "Quantum Computing": Ask "What is a qubit in Quantum Computing?"
+- If topic is "Climate Change": Ask "What is the primary cause of Climate Change?"
+- If topic is "Machine Learning": Ask "What is supervised learning in Machine Learning?"
+
+📊 DIFFICULTY MIX:
+- 2 EASY questions: Basic facts and definitions of "${topic}"
+- 2 MEDIUM questions: Understanding how "${topic}" works
+- 1 HARD question: Applying "${topic}" knowledge to solve problems
+
+🧠 COGNITIVE LEVELS:
+- Remembering: Basic facts about "${topic}"
+- Understanding: Explaining "${topic}" concepts
+- Application: Using "${topic}" in real scenarios
+- Analysis: Analyzing "${topic}" components
+
+EXAMPLE for "Blockchain Technology":
+{
+  "id": "q1",
+  "question": "What is the primary purpose of Blockchain Technology?",
+  "options": [
+    "To create a secure, decentralized ledger for recording transactions",
+    "To store files in the cloud",
+    "To send emails securely",
+    "To compress video files"
+  ],
+  "correctAnswer": "To create a secure, decentralized ledger for recording transactions",
+  "difficulty": "easy",
+  "topic": "Blockchain Technology",
+  "cognitiveLevel": "remembering"
+}
+
+NOW CREATE ${count} QUESTIONS SPECIFICALLY ABOUT: "${topic}"
+
+RESPOND WITH ONLY THIS JSON ARRAY (NO MARKDOWN, NO CODE BLOCKS, NO EXTRA TEXT):
+[
+  {
+    "id": "q1",
+    "question": "What is [specific aspect of ${topic}]?",
+    "options": ["Correct answer about ${topic}", "Wrong but plausible", "Wrong but plausible", "Wrong but plausible"],
+    "correctAnswer": "Correct answer about ${topic}",
+    "difficulty": "easy",
+    "topic": "${topic}",
+    "cognitiveLevel": "remembering"
+  }
+]`;
+
+    try {
+      console.log('==========================================');
+      console.log('🎯 ASSESSMENT GENERATION FOR CUSTOM TOPIC');
+      console.log('Topic provided:', topic);
+      console.log('Topic length:', topic.length);
+      console.log('Calling Gemini API with Questions API Key...');
+      console.log('==========================================');
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log('📡 RAW GEMINI RESPONSE:');
+      console.log(text.substring(0, 500));
+      console.log('==========================================');
+      
+      // Aggressive cleaning to extract JSON
+      let cleanText = text.trim();
+      
+      // Remove all markdown
+      cleanText = cleanText.replace(/```json\s*/g, '');
+      cleanText = cleanText.replace(/```\s*/g, '');
+      
+      // Find JSON array boundaries
+      const startIdx = cleanText.indexOf('[');
+      const endIdx = cleanText.lastIndexOf(']');
+      
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        cleanText = cleanText.substring(startIdx, endIdx + 1);
+      }
+      
+      console.log('🧹 CLEANED JSON:');
+      console.log(cleanText.substring(0, 300));
+      console.log('==========================================');
+      
+      const questions = JSON.parse(cleanText);
+      
+      console.log('✅ PARSED QUESTIONS SUCCESSFULLY');
+      console.log('Number of questions:', questions.length);
+      console.log('==========================================');
+      
+      // Log each question to verify topic relevance
+      questions.forEach((q: any, idx: number) => {
+        console.log(`Question ${idx + 1}:`, q.question?.substring(0, 100));
+        console.log(`Topic field:`, q.topic);
+        console.log(`Difficulty:`, q.difficulty);
+        console.log('---');
+      });
+      console.log('==========================================');
+      
+      // Validate and ensure all questions are about the correct topic
+      const validatedQuestions = questions.map((q: any, idx: number) => {
+        const questionText = q.question || `Question ${idx + 1} about ${topic}`;
+        
+        // Double-check the question is about the topic
+        const lowerQuestion = questionText.toLowerCase();
+        const lowerTopic = topic.toLowerCase();
+        
+        // Warn if topic not mentioned in question
+        if (!lowerQuestion.includes(lowerTopic) && !lowerQuestion.includes('this') && !lowerQuestion.includes('it')) {
+          console.warn(`⚠️ Question ${idx + 1} may not be specific to topic "${topic}":`, questionText);
+        }
+        
+        return {
+          id: q.id || `assessment-${Date.now()}-${idx}`,
+          question: questionText,
+          options: Array.isArray(q.options) && q.options.length === 4 
+            ? q.options 
+            : [
+                `Correct answer specifically about ${topic}`,
+                `Incorrect option related to ${topic}`,
+                `Another incorrect option about ${topic}`,
+                `Third incorrect option for ${topic}`
+              ],
+          correctAnswer: q.correctAnswer || (Array.isArray(q.options) ? q.options[0] : `Correct answer about ${topic}`),
+          difficulty: q.difficulty || 'medium',
+          topic: topic, // Force the topic to be correct
+          cognitiveLevel: q.cognitiveLevel || 'understanding'
+        };
+      });
+      
+      console.log('==========================================');
+      console.log('✅ FINAL VALIDATED QUESTIONS:');
+      validatedQuestions.forEach((q: any, idx: number) => {
+        console.log(`${idx + 1}. ${q.question.substring(0, 80)}...`);
+      });
+      console.log('==========================================');
+      
+      return validatedQuestions;
+      
+    } catch (error) {
+      console.error('==========================================');
+      console.error('❌ GEMINI API ERROR:');
+      console.error(error);
+      console.error('==========================================');
+      console.log('📋 USING FALLBACK QUESTIONS FOR:', topic);
+      console.log('==========================================');
+      
+      return this.getFallbackAssessmentQuestions(topic);
+    }
+  },
+
+  /**
    * Generate creativity questions based on topic
    */
   async generateCreativityQuestions(
     topic: string,
     notes: string
   ): Promise<CreativityQuestion[]> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = questionsGenAI.getGenerativeModel({ model: API_CONFIG.GEMINI_QUESTIONS.MODEL });
 
     const prompt = `You are an expert educational psychologist specializing in creativity assessment and cognitive load measurement.
 
@@ -82,7 +267,8 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no code b
 ]`;
 
     try {
-      console.log('Generating creativity questions with Gemini...');
+      console.log('🔑 Generating creativity questions using QUESTIONS API key');
+      console.log('Topic:', topic);
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -125,9 +311,9 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no code b
   async evaluateCreativityResponse(
     question: CreativityQuestion,
     response: string,
-    timeSpent: number
+    timeSpent: number       
   ): Promise<CreativityEvaluation> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = questionsGenAI.getGenerativeModel({ model: API_CONFIG.GEMINI_QUESTIONS.MODEL });
 
     const timeRatio = timeSpent / question.timeLimit;
     const timeUsageDescription = 
@@ -188,7 +374,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 }`;
 
     try {
-      console.log('Evaluating response with Gemini...');
+      console.log('🔑 Evaluating response using QUESTIONS API key');
       const result = await model.generateContent(prompt);
       const responseObj = await result.response;
       const text = responseObj.text();
@@ -310,5 +496,90 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
         cognitiveStrain: Math.round(cognitiveStrain)
       }
     };
+  },
+
+  /**
+   * Fallback assessment questions if API fails
+   * Clear, understandable, and applicable questions about the topic
+   */
+  getFallbackAssessmentQuestions(topic: string): AssessmentQuestion[] {
+    console.log('==========================================');
+    console.log('🔄 GENERATING FALLBACK QUESTIONS');
+    console.log('Topic:', topic);
+    console.log('==========================================');
+    
+    // Create topic-specific fallback questions
+    return [
+      {
+        id: `fallback-assess-1-${Date.now()}`,
+        question: `What is ${topic}?`,
+        options: [
+          `${topic} is a field/concept that studies specific principles and methods`,
+          `${topic} is unrelated to its commonly understood meaning`,
+          `${topic} is an outdated concept with no modern applications`,
+          `${topic} is purely theoretical with no practical use`
+        ],
+        correctAnswer: `${topic} is a field/concept that studies specific principles and methods`,
+        difficulty: 'easy',
+        topic,
+        cognitiveLevel: 'remembering'
+      },
+      {
+        id: `fallback-assess-2-${Date.now()}`,
+        question: `Why is ${topic} important in modern society?`,
+        options: [
+          `${topic} provides valuable solutions to real-world problems and challenges`,
+          `${topic} has minimal relevance to everyday life`,
+          `${topic} is only relevant to academic researchers`,
+          `${topic} was important in the past but not anymore`
+        ],
+        correctAnswer: `${topic} provides valuable solutions to real-world problems and challenges`,
+        difficulty: 'easy',
+        topic,
+        cognitiveLevel: 'understanding'
+      },
+      {
+        id: `fallback-assess-3-${Date.now()}`,
+        question: `How is ${topic} applied in practical scenarios?`,
+        options: [
+          `${topic} is used to solve specific problems and improve outcomes in various fields`,
+          `${topic} cannot be applied outside of controlled environments`,
+          `${topic} only exists in theory without real applications`,
+          `${topic} requires resources that are not widely available`
+        ],
+        correctAnswer: `${topic} is used to solve specific problems and improve outcomes in various fields`,
+        difficulty: 'medium',
+        topic,
+        cognitiveLevel: 'application'
+      },
+      {
+        id: `fallback-assess-4-${Date.now()}`,
+        question: `What are the key benefits of understanding ${topic}?`,
+        options: [
+          `Understanding ${topic} leads to better problem-solving and innovation capabilities`,
+          `There are no significant benefits to studying ${topic}`,
+          `${topic} only benefits a narrow group of specialists`,
+          `The benefits of ${topic} are impossible to measure`
+        ],
+        correctAnswer: `Understanding ${topic} leads to better problem-solving and innovation capabilities`,
+        difficulty: 'medium',
+        topic,
+        cognitiveLevel: 'understanding'
+      },
+      {
+        id: `fallback-assess-5-${Date.now()}`,
+        question: `What challenges exist when implementing ${topic} principles?`,
+        options: [
+          `Challenges include complexity, resource requirements, and need for specialized knowledge`,
+          `There are no challenges when working with ${topic}`,
+          `The only challenge is lack of interest from people`,
+          `All challenges related to ${topic} have been completely solved`
+        ],
+        correctAnswer: `Challenges include complexity, resource requirements, and need for specialized knowledge`,
+        difficulty: 'hard',
+        topic,
+        cognitiveLevel: 'analysis'
+      }
+    ];
   }
 };

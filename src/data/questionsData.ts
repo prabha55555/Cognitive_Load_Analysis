@@ -93,56 +93,56 @@ export const learningContent: Record<string, QuestionAndAnswer[]> = {
 
 // Assessment Phase: Questions for Testing Understanding
 export const assessmentQuestions: Record<string, AssessmentQuestion[]> = {
-  'Renewable Energy Innovation': [
+  'Climate Change': [
     {
-      id: 'assess_re_1',
-      question: 'Which of the following is NOT a type of renewable energy?',
+      id: 'assess_cc_1',
+      question: 'What is the primary cause of current climate change?',
       type: 'multiple-choice',
-      topic: 'Renewable Energy Innovation',
+      topic: 'Climate Change',
       difficulty: 'easy',
       expectedTimeSeconds: 30,
       options: [
-        'Solar Energy',
-        'Natural Gas',
-        'Wind Energy',
-        'Geothermal Energy'
+        'Natural climate variations',
+        'Volcanic eruptions',
+        'Human activities burning fossil fuels',
+        'Solar radiation changes'
       ],
-      correctAnswer: 'Natural Gas',
+      correctAnswer: 'Human activities burning fossil fuels',
       points: 10
     },
     {
-      id: 'assess_re_2',
-      question: 'Explain how solar panels generate electricity from sunlight. Include the role of photons, electrons, and semiconductor materials in your answer.',
+      id: 'assess_cc_2',
+      question: 'Explain what greenhouse gases are and how they contribute to global warming. Provide at least three examples of greenhouse gases.',
       type: 'descriptive',
-      topic: 'Renewable Energy Innovation',
+      topic: 'Climate Change',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_cc_3',
+      question: 'Describe the main impacts of climate change on ecosystems and human societies.',
+      type: 'descriptive',
+      topic: 'Climate Change',
       difficulty: 'medium',
       expectedTimeSeconds: 180,
       points: 20
     },
     {
-      id: 'assess_re_3',
-      question: 'List three major benefits of renewable energy and explain why each is important for society.',
-      type: 'descriptive',
-      topic: 'Renewable Energy Innovation',
+      id: 'assess_cc_4',
+      question: 'What are the most effective strategies for mitigating climate change?',
+      type: 'short-answer',
+      topic: 'Climate Change',
       difficulty: 'medium',
-      expectedTimeSeconds: 150,
+      expectedTimeSeconds: 90,
+      correctAnswer: 'Reducing emissions, renewable energy, reforestation, sustainable practices',
       points: 15
     },
     {
-      id: 'assess_re_4',
-      question: 'What is the main challenge related to solar and wind energy availability?',
-      type: 'short-answer',
-      topic: 'Renewable Energy Innovation',
-      difficulty: 'easy',
-      expectedTimeSeconds: 45,
-      correctAnswer: 'Intermittency',
-      points: 10
-    },
-    {
-      id: 'assess_re_5',
-      question: 'Describe the challenges in renewable energy adoption and propose solutions for at least two of these challenges.',
+      id: 'assess_cc_5',
+      question: 'Analyze the role of international agreements like the Paris Agreement in addressing climate change.',
       type: 'descriptive',
-      topic: 'Renewable Energy Innovation',
+      topic: 'Climate Change',
       difficulty: 'hard',
       expectedTimeSeconds: 240,
       points: 25
@@ -183,33 +183,519 @@ export const assessmentQuestions: Record<string, AssessmentQuestion[]> = {
       difficulty: 'hard',
       expectedTimeSeconds: 200,
       points: 25
-    }
-  ],
-  'Climate Change': [
-    {
-      id: 'assess_cc_1',
-      question: 'What is the primary cause of current climate change?',
-      type: 'multiple-choice',
-      topic: 'Climate Change',
-      difficulty: 'easy',
-      expectedTimeSeconds: 30,
-      options: [
-        'Natural climate variations',
-        'Volcanic eruptions',
-        'Human activities burning fossil fuels',
-        'Solar radiation changes'
-      ],
-      correctAnswer: 'Human activities burning fossil fuels',
-      points: 10
     },
     {
-      id: 'assess_cc_2',
-      question: 'Explain what greenhouse gases are and how they contribute to global warming. Provide at least three examples of greenhouse gases.',
+      id: 'assess_ai_4',
+      question: 'What are the main ethical concerns surrounding artificial intelligence?',
       type: 'descriptive',
-      topic: 'Climate Change',
+      topic: 'Artificial Intelligence',
       difficulty: 'medium',
       expectedTimeSeconds: 150,
       points: 20
+    },
+    {
+      id: 'assess_ai_5',
+      question: 'Describe three real-world applications of AI and their impact on society.',
+      type: 'descriptive',
+      topic: 'Artificial Intelligence',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    }
+  ],
+  'Space Exploration': [
+    {
+      id: 'assess_se_1',
+      question: 'Which organization successfully landed the first humans on the Moon?',
+      type: 'multiple-choice',
+      topic: 'Space Exploration',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'NASA',
+        'ESA',
+        'Roscosmos',
+        'SpaceX'
+      ],
+      correctAnswer: 'NASA',
+      points: 10
+    },
+    {
+      id: 'assess_se_2',
+      question: 'Explain the main challenges of sending humans to Mars.',
+      type: 'descriptive',
+      topic: 'Space Exploration',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_se_3',
+      question: 'What is the purpose of the International Space Station (ISS)?',
+      type: 'short-answer',
+      topic: 'Space Exploration',
+      difficulty: 'easy',
+      expectedTimeSeconds: 60,
+      correctAnswer: 'Scientific research, international cooperation, testing space technologies',
+      points: 10
+    },
+    {
+      id: 'assess_se_4',
+      question: 'Describe the technological advancements that have made space exploration more accessible.',
+      type: 'descriptive',
+      topic: 'Space Exploration',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_se_5',
+      question: 'Analyze the potential benefits and risks of colonizing other planets.',
+      type: 'descriptive',
+      topic: 'Space Exploration',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Renewable Energy': [
+    {
+      id: 'assess_re_1',
+      question: 'Which of the following is NOT a type of renewable energy?',
+      type: 'multiple-choice',
+      topic: 'Renewable Energy',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'Solar Energy',
+        'Natural Gas',
+        'Wind Energy',
+        'Geothermal Energy'
+      ],
+      correctAnswer: 'Natural Gas',
+      points: 10
+    },
+    {
+      id: 'assess_re_2',
+      question: 'Explain how solar panels generate electricity from sunlight.',
+      type: 'descriptive',
+      topic: 'Renewable Energy',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_re_3',
+      question: 'List three major benefits of renewable energy for society.',
+      type: 'descriptive',
+      topic: 'Renewable Energy',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 15
+    },
+    {
+      id: 'assess_re_4',
+      question: 'What is the main challenge related to solar and wind energy availability?',
+      type: 'short-answer',
+      topic: 'Renewable Energy',
+      difficulty: 'easy',
+      expectedTimeSeconds: 45,
+      correctAnswer: 'Intermittency',
+      points: 10
+    },
+    {
+      id: 'assess_re_5',
+      question: 'Describe the challenges in renewable energy adoption and propose solutions.',
+      type: 'descriptive',
+      topic: 'Renewable Energy',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Cybersecurity': [
+    {
+      id: 'assess_cs_1',
+      question: 'What is the primary purpose of encryption in cybersecurity?',
+      type: 'multiple-choice',
+      topic: 'Cybersecurity',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'To protect data by converting it into unreadable format',
+        'To delete viruses',
+        'To speed up internet connection',
+        'To backup data'
+      ],
+      correctAnswer: 'To protect data by converting it into unreadable format',
+      points: 10
+    },
+    {
+      id: 'assess_cs_2',
+      question: 'Explain the difference between malware, phishing, and ransomware attacks.',
+      type: 'descriptive',
+      topic: 'Cybersecurity',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_cs_3',
+      question: 'What are the key principles of secure password creation?',
+      type: 'short-answer',
+      topic: 'Cybersecurity',
+      difficulty: 'easy',
+      expectedTimeSeconds: 60,
+      correctAnswer: 'Length, complexity, uniqueness, regular changes',
+      points: 10
+    },
+    {
+      id: 'assess_cs_4',
+      question: 'Describe the role of firewalls and antivirus software in protecting computer systems.',
+      type: 'descriptive',
+      topic: 'Cybersecurity',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_cs_5',
+      question: 'Analyze the challenges organizations face in maintaining cybersecurity and recommend best practices.',
+      type: 'descriptive',
+      topic: 'Cybersecurity',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Quantum Computing': [
+    {
+      id: 'assess_qc_1',
+      question: 'What is a qubit in quantum computing?',
+      type: 'multiple-choice',
+      topic: 'Quantum Computing',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'A quantum bit that can be 0, 1, or both simultaneously',
+        'A regular computer bit',
+        'A type of quantum particle',
+        'A quantum measurement tool'
+      ],
+      correctAnswer: 'A quantum bit that can be 0, 1, or both simultaneously',
+      points: 10
+    },
+    {
+      id: 'assess_qc_2',
+      question: 'Explain the concept of quantum superposition and its importance in quantum computing.',
+      type: 'descriptive',
+      topic: 'Quantum Computing',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_qc_3',
+      question: 'What is quantum entanglement?',
+      type: 'short-answer',
+      topic: 'Quantum Computing',
+      difficulty: 'medium',
+      expectedTimeSeconds: 90,
+      correctAnswer: 'Connection between particles where measuring one affects the other instantly',
+      points: 15
+    },
+    {
+      id: 'assess_qc_4',
+      question: 'Describe potential applications of quantum computing in cryptography and drug discovery.',
+      type: 'descriptive',
+      topic: 'Quantum Computing',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_qc_5',
+      question: 'Analyze the main challenges preventing widespread adoption of quantum computers.',
+      type: 'descriptive',
+      topic: 'Quantum Computing',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Biotechnology': [
+    {
+      id: 'assess_bt_1',
+      question: 'What is CRISPR-Cas9 primarily used for?',
+      type: 'multiple-choice',
+      topic: 'Biotechnology',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'Gene editing',
+        'Protein synthesis',
+        'Cell division',
+        'DNA replication'
+      ],
+      correctAnswer: 'Gene editing',
+      points: 10
+    },
+    {
+      id: 'assess_bt_2',
+      question: 'Explain how biotechnology is used in developing new medical treatments.',
+      type: 'descriptive',
+      topic: 'Biotechnology',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_bt_3',
+      question: 'What are genetically modified organisms (GMOs)?',
+      type: 'short-answer',
+      topic: 'Biotechnology',
+      difficulty: 'easy',
+      expectedTimeSeconds: 60,
+      correctAnswer: 'Organisms whose genetic material has been altered using genetic engineering',
+      points: 10
+    },
+    {
+      id: 'assess_bt_4',
+      question: 'Describe the applications of biotechnology in agriculture and food production.',
+      type: 'descriptive',
+      topic: 'Biotechnology',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_bt_5',
+      question: 'Analyze the ethical considerations surrounding gene editing and biotechnology research.',
+      type: 'descriptive',
+      topic: 'Biotechnology',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Ocean Conservation': [
+    {
+      id: 'assess_oc_1',
+      question: 'What percentage of Earth\'s surface is covered by oceans?',
+      type: 'multiple-choice',
+      topic: 'Ocean Conservation',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'About 71%',
+        'About 50%',
+        'About 85%',
+        'About 60%'
+      ],
+      correctAnswer: 'About 71%',
+      points: 10
+    },
+    {
+      id: 'assess_oc_2',
+      question: 'Explain the main threats facing ocean ecosystems today.',
+      type: 'descriptive',
+      topic: 'Ocean Conservation',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_oc_3',
+      question: 'What is ocean acidification and what causes it?',
+      type: 'short-answer',
+      topic: 'Ocean Conservation',
+      difficulty: 'medium',
+      expectedTimeSeconds: 90,
+      correctAnswer: 'Decrease in ocean pH caused by absorption of excess CO2 from atmosphere',
+      points: 15
+    },
+    {
+      id: 'assess_oc_4',
+      question: 'Describe the role of coral reefs in marine ecosystems and why their conservation is important.',
+      type: 'descriptive',
+      topic: 'Ocean Conservation',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_oc_5',
+      question: 'Analyze strategies for reducing plastic pollution in oceans and their effectiveness.',
+      type: 'descriptive',
+      topic: 'Ocean Conservation',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Smart Cities': [
+    {
+      id: 'assess_sc_1',
+      question: 'What is the primary goal of a smart city?',
+      type: 'multiple-choice',
+      topic: 'Smart Cities',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'Using technology to improve quality of life and efficiency',
+        'Building taller buildings',
+        'Increasing population density',
+        'Reducing green spaces'
+      ],
+      correctAnswer: 'Using technology to improve quality of life and efficiency',
+      points: 10
+    },
+    {
+      id: 'assess_sc_2',
+      question: 'Explain how IoT (Internet of Things) contributes to smart city infrastructure.',
+      type: 'descriptive',
+      topic: 'Smart Cities',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_sc_3',
+      question: 'What are smart grids in the context of smart cities?',
+      type: 'short-answer',
+      topic: 'Smart Cities',
+      difficulty: 'easy',
+      expectedTimeSeconds: 60,
+      correctAnswer: 'Intelligent electricity networks that optimize energy distribution and consumption',
+      points: 10
+    },
+    {
+      id: 'assess_sc_4',
+      question: 'Describe how smart transportation systems can reduce traffic congestion and pollution.',
+      type: 'descriptive',
+      topic: 'Smart Cities',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_sc_5',
+      question: 'Analyze the challenges cities face in becoming "smart" and propose solutions.',
+      type: 'descriptive',
+      topic: 'Smart Cities',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Digital Privacy': [
+    {
+      id: 'assess_dp_1',
+      question: 'What is end-to-end encryption?',
+      type: 'multiple-choice',
+      topic: 'Digital Privacy',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'Encryption where only sender and recipient can read messages',
+        'Encryption of email addresses',
+        'Encryption of website URLs',
+        'Encryption of user passwords'
+      ],
+      correctAnswer: 'Encryption where only sender and recipient can read messages',
+      points: 10
+    },
+    {
+      id: 'assess_dp_2',
+      question: 'Explain how companies collect and use personal data online.',
+      type: 'descriptive',
+      topic: 'Digital Privacy',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_dp_3',
+      question: 'What is GDPR and why is it important?',
+      type: 'short-answer',
+      topic: 'Digital Privacy',
+      difficulty: 'medium',
+      expectedTimeSeconds: 90,
+      correctAnswer: 'General Data Protection Regulation - EU law protecting personal data and privacy',
+      points: 15
+    },
+    {
+      id: 'assess_dp_4',
+      question: 'Describe the risks associated with sharing personal information on social media.',
+      type: 'descriptive',
+      topic: 'Digital Privacy',
+      difficulty: 'medium',
+      expectedTimeSeconds: 150,
+      points: 20
+    },
+    {
+      id: 'assess_dp_5',
+      question: 'Analyze the balance between personalization and privacy in digital services.',
+      type: 'descriptive',
+      topic: 'Digital Privacy',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
+    }
+  ],
+  'Sustainable Transportation': [
+    {
+      id: 'assess_st_1',
+      question: 'Which of the following is considered the most sustainable form of urban transportation?',
+      type: 'multiple-choice',
+      topic: 'Sustainable Transportation',
+      difficulty: 'easy',
+      expectedTimeSeconds: 30,
+      options: [
+        'Electric public transit and cycling',
+        'Diesel buses',
+        'Gasoline cars',
+        'Motorcycles'
+      ],
+      correctAnswer: 'Electric public transit and cycling',
+      points: 10
+    },
+    {
+      id: 'assess_st_2',
+      question: 'Explain how electric vehicles contribute to reducing carbon emissions.',
+      type: 'descriptive',
+      topic: 'Sustainable Transportation',
+      difficulty: 'medium',
+      expectedTimeSeconds: 180,
+      points: 20
+    },
+    {
+      id: 'assess_st_3',
+      question: 'What is the main advantage of hydrogen fuel cell vehicles?',
+      type: 'short-answer',
+      topic: 'Sustainable Transportation',
+      difficulty: 'medium',
+      expectedTimeSeconds: 90,
+      correctAnswer: 'Zero emissions, only water vapor as byproduct, fast refueling',
+      points: 15
+    },
+    {
+      id: 'assess_st_4',
+      question: 'Describe the benefits of bike-sharing programs in urban areas.',
+      type: 'descriptive',
+      topic: 'Sustainable Transportation',
+      difficulty: 'easy',
+      expectedTimeSeconds: 120,
+      points: 15
+    },
+    {
+      id: 'assess_st_5',
+      question: 'Analyze the challenges and opportunities in transitioning to sustainable transportation systems.',
+      type: 'descriptive',
+      topic: 'Sustainable Transportation',
+      difficulty: 'hard',
+      expectedTimeSeconds: 240,
+      points: 25
     }
   ]
 };
