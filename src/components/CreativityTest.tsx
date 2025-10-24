@@ -78,8 +78,23 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
     const currentQuestion = questions[currentQuestionIndex];
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
 
+    console.log('==========================================');
+    console.log('🎨 CREATIVITY TEST - SUBMITTING RESPONSE');
+    console.log('Question ID:', currentQuestion.id);
+    console.log('Question:', currentQuestion.question);
+    console.log('Question Type:', currentQuestion.type);
+    console.log('Topic:', currentQuestion.topic);
+    console.log('Response length:', response.length, 'characters');
+    console.log('Response word count:', response.trim().split(/\s+/).length, 'words');
+    console.log('Time spent:', timeSpent, 'seconds');
+    console.log('Time limit:', currentQuestion.timeLimit, 'seconds');
+    console.log('Time usage:', ((timeSpent / currentQuestion.timeLimit) * 100).toFixed(1) + '%');
+    console.log('Response preview:', response.substring(0, 200));
+    console.log('==========================================');
+
     try {
-      console.log('Evaluating response for question:', currentQuestion.id);
+      console.log('📡 Calling Gemini AI for evaluation...');
+      console.log('Using geminiService.evaluateCreativityResponse()');
       
       // Evaluate response using Gemini AI
       const evaluation = await geminiService.evaluateCreativityResponse(
@@ -88,7 +103,19 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
         timeSpent
       );
 
-      console.log('Evaluation result:', evaluation);
+      console.log('==========================================');
+      console.log('✅ EVALUATION RECEIVED FROM GEMINI');
+      console.log('Overall Score:', evaluation.score);
+      console.log('Relevance Score:', evaluation.relevanceScore);
+      console.log('Creativity Score:', evaluation.creativityScore);
+      console.log('Depth Score:', evaluation.depthScore);
+      console.log('Coherence Score:', evaluation.coherenceScore);
+      console.log('Time Efficiency Score:', evaluation.timeEfficiencyScore);
+      console.log('Feedback:', evaluation.feedback);
+      console.log('Strengths:', evaluation.strengths);
+      console.log('Improvements:', evaluation.improvements);
+      console.log('Cognitive Load Indicators:', evaluation.cognitiveLoadIndicators);
+      console.log('==========================================');
 
       const testResponse: TestResponse = {
         participantId,
@@ -104,8 +131,16 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
       setResponses(newResponses);
       setEvaluations(newEvaluations);
 
+      console.log('==========================================');
+      console.log('📊 UPDATED STATE');
+      console.log('Total responses:', newResponses.length);
+      console.log('Total evaluations:', newEvaluations.length);
+      console.log('All evaluation scores:', newEvaluations.map(e => e.score));
+      console.log('==========================================');
+
       // Move to next question or complete
       if (currentQuestionIndex < questions.length - 1) {
+        console.log('➡️ Moving to next question:', currentQuestionIndex + 1);
         setCurrentQuestionIndex(currentQuestionIndex + 1);
         setResponse('');
         setTimeLeft(questions[currentQuestionIndex + 1].timeLimit);
@@ -124,7 +159,13 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
         onComplete(newResponses, newEvaluations);
       }
     } catch (error) {
-      console.error('Evaluation error:', error);
+      console.error('==========================================');
+      console.error('❌ ERROR DURING EVALUATION');
+      console.error('Error:', error);
+      console.error('Question:', currentQuestion.question);
+      console.error('Response:', response.substring(0, 100));
+      console.error('==========================================');
+      alert('Error evaluating response. Please try again.');
     } finally {
       setIsEvaluating(false);
     }

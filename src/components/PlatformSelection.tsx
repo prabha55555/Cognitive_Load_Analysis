@@ -6,7 +6,7 @@ import { ApiKeyStatus } from './ApiKeyStatus';
 
 interface PlatformSelectionProps {
   participant: Participant;
-  onPlatformSelect: (platform: 'chatgpt' | 'grok' | 'google') => void;
+  onPlatformSelect: (platform: 'chatgpt' | 'google') => void;
 }
 
 export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
@@ -20,7 +20,7 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
   const geminiAvailable = isApiKeyAvailable('gemini'); // ChatGPT interface uses Gemini
 
 
-  const handlePlatformSelect = async (platform: 'chatgpt' | 'grok' | 'google') => {
+  const handlePlatformSelect = async (platform: 'chatgpt' | 'google') => {
     // Always allow platform selection - APIs will handle fallbacks gracefully
     setSelectedPlatform(platform);
 

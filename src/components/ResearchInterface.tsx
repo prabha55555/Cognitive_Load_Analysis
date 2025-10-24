@@ -1,4 +1,4 @@
-import { Brain, CheckCircle, Clock, FileText, Lightbulb, MessageSquare, Search, Timer } from 'lucide-react';
+import { Brain, CheckCircle, Clock, FileText, Lightbulb, MessageSquare, Search, Sparkles, Timer } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Participant } from '../types';
 import { ChatGPTInterface } from './ChatGPTInterface';
@@ -76,7 +76,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
     }
   };
 
-  const handlePlatformSelect = (platform: 'chatgpt' | 'google' | 'grok') => {
+  const handlePlatformSelect = (platform: 'chatgpt' | 'google') => {
     setSelectedPlatform(platform);
   };
 
@@ -210,8 +210,6 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
             <span className={`text-xs lg:text-sm font-medium px-2 lg:px-3 py-1 lg:py-2 rounded-full ${
               selectedPlatform === 'chatgpt' 
                 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                : selectedPlatform === 'grok'
-                ? 'bg-purple-100 text-purple-700 border border-purple-200'
                 : 'bg-blue-100 text-blue-700 border border-blue-200'
             }`}>
               {selectedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google'}

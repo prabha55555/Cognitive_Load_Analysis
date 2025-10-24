@@ -68,7 +68,6 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
   console.log('==========================================');
   console.log('📊 COGNITIVE LOAD RESULTS - METRICS CALCULATED');
   console.log('Overall Cognitive Load:', metrics.overallCognitiveLoad);
-  console.log('Category:', metrics.category);
   console.log('Full metrics:', metrics);
   console.log('==========================================');
 
@@ -384,9 +383,12 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
           <button
             onClick={() => {
               console.log('==========================================');
-              console.log('✅ COMPLETE BUTTON CLICKED');
-              console.log('Passing cognitive load score:', metrics.overallCognitiveLoad);
+              console.log('✅ COMPLETE BUTTON CLICKED IN COGNITIVE LOAD RESULTS');
+              console.log('Metrics object:', metrics);
+              console.log('Overall Cognitive Load:', metrics.overallCognitiveLoad);
               console.log('Type:', typeof metrics.overallCognitiveLoad);
+              console.log('Is valid number?:', !isNaN(metrics.overallCognitiveLoad));
+              console.log('Passing to onComplete:', metrics.overallCognitiveLoad);
               console.log('==========================================');
               onComplete(metrics.overallCognitiveLoad);
             }}

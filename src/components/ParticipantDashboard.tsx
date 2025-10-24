@@ -77,36 +77,43 @@ export const ParticipantDashboard = ({
   const handleCreativityComplete = (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
     console.log('==========================================');
     console.log('🎨 CREATIVITY TEST COMPLETE');
-    console.log('Responses received:', responses);
-    console.log('Evaluations received:', evaluations);
-    console.log('Evaluations length:', evaluations.length);
+    console.log('Responses received:', responses.length);
+    console.log('Evaluations received:', evaluations.length);
+    console.log('Current participant state BEFORE update:', participant);
     
     // Calculate creativity score from evaluations
     const creativityScore = evaluations.length > 0 
       ? Math.round(evaluations.reduce((sum, e) => sum + e.score, 0) / evaluations.length)
       : 0;
     
-    console.log('Calculated Creativity Score:', creativityScore);
-    
-    // Update participant with creativity score
-    setParticipant(prev => {
-      const updated = {
-        ...prev,
-        creativityScore: creativityScore
-      };
-      console.log('Updated participant object:', updated);
-      console.log('Previous creativity score:', prev.creativityScore);
-      console.log('New creativity score:', updated.creativityScore);
-      return updated;
-    });
-    
-    setCreativityEvaluations(evaluations);
-    
-    console.log('✅ Creativity score saved to state:', creativityScore);
-    console.log('Moving to completed phase...');
+    console.log('==========================================');
+    console.log('📊 CREATIVITY SCORE CALCULATION');
+    console.log('Number of evaluations:', evaluations.length);
+    console.log('Individual scores:', evaluations.map(e => e.score));
+    console.log('Sum of scores:', evaluations.reduce((sum, e) => sum + e.score, 0));
+    console.log('Calculated average:', creativityScore);
     console.log('==========================================');
     
-    onPhaseComplete('completed');
+    // Save evaluations first
+    setCreativityEvaluations(evaluations);
+    
+    // Update participant with creativity score
+    setParticipant(prev => ({
+      ...prev,
+      creativityScore: creativityScore
+    }));
+    
+    console.log('✅ Creativity score set to:', creativityScore);
+    console.log('⏳ Waiting 500ms before phase transition to ensure state update...');
+    
+    // Use setTimeout OUTSIDE setState to ensure state updates complete before phase change
+    setTimeout(() => {
+      console.log('==========================================');
+      console.log('🚀 TRANSITIONING TO COMPLETED PHASE');
+      console.log('Creativity Score after state update:', creativityScore);
+      console.log('==========================================');
+      onPhaseComplete('completed');
+    }, 500);
   };
 
   const handleAssessmentComplete = (responses: AssessmentResponse[]) => {
@@ -124,7 +131,9 @@ export const ParticipantDashboard = ({
     console.log('==========================================');
     console.log('🧠 COGNITIVE LOAD RESULTS COMPLETE');
     console.log('Received cognitive load score:', cognitiveLoadScore);
-    console.log('Type:', typeof cognitiveLoadScore);
+    console.log('Type of score:', typeof cognitiveLoadScore);
+    console.log('Is valid number?:', !isNaN(cognitiveLoadScore));
+    console.log('Current participant state BEFORE update:', participant);
     
     // Update participant with cognitive load score before moving to creativity test
     setParticipant(prev => {
@@ -133,17 +142,22 @@ export const ParticipantDashboard = ({
         ...prev,
         cognitiveLoadScore: rounded
       };
-      console.log('Updated participant object:', updated);
+      console.log('Updated participant state AFTER update:', updated);
       console.log('Previous cognitive load score:', prev.cognitiveLoadScore);
       console.log('New cognitive load score:', updated.cognitiveLoadScore);
+      console.log('Cognitive load score saved:', rounded);
       return updated;
     });
     
-    console.log('✅ Cognitive load score saved to state:', Math.round(cognitiveLoadScore));
-    console.log('Moving to creativity test phase...');
+    console.log('✅ Cognitive load score saved:', Math.round(cognitiveLoadScore));
+    console.log('⏳ Waiting 300ms before phase transition to ensure state update...');
     console.log('==========================================');
     
-    onPhaseComplete('creativity_test');
+    // Use setTimeout to ensure state updates complete before phase change
+    setTimeout(() => {
+      console.log('🚀 Transitioning to creativity_test phase...');
+      onPhaseComplete('creativity_test');
+    }, 300);
   };
 
   // CRITICAL: Handle topic changes from research interfaces
@@ -230,9 +244,20 @@ export const ParticipantDashboard = ({
         console.log('==========================================');
         console.log('🎉 RENDERING COMPLETED PHASE');
         console.log('Participant object:', participant);
-        console.log('Cognitive Load Score:', participant.cognitiveLoadScore);
-        console.log('Creativity Score:', participant.creativityScore);
-        console.log('Creativity Evaluations:', creativityEvaluations);
+        console.log('Cognitive Load Score from participant:', participant.cognitiveLoadScore);
+        console.log('Creativity Score from participant:', participant.creativityScore);
+        console.log('Type of Cognitive Load Score:', typeof participant.cognitiveLoadScore);
+        console.log('Type of Creativity Score:', typeof participant.creativityScore);
+        console.log('Is Cognitive Load Score defined?:', participant.cognitiveLoadScore !== undefined);
+        console.log('Is Creativity Score defined?:', participant.creativityScore !== undefined);
+        
+        // Add null checks and defaults
+        const finalCognitiveScore = participant.cognitiveLoadScore ?? 0;
+        const finalCreativityScore = participant.creativityScore ?? 0;
+        
+        console.log('Final scores to display:');
+        console.log('- Cognitive Load:', finalCognitiveScore);
+        console.log('- Creativity:', finalCreativityScore);
         console.log('==========================================');
         
         return (
@@ -255,11 +280,11 @@ export const ParticipantDashboard = ({
                     <h3 className="text-xl font-semibold text-gray-800">Cognitive Load Score</h3>
                   </div>
                   <p className="text-4xl font-bold text-blue-600">
-                    {participant.cognitiveLoadScore || 0}%
+                    {finalCognitiveScore}%
                   </p>
                   <p className="text-sm text-gray-500 mt-2">Average cognitive load during session</p>
-                  {participant.cognitiveLoadScore === 0 && (
-                    <p className="text-xs text-red-500 mt-2">⚠️ Score not calculated</p>
+                  {finalCognitiveScore === 0 && (
+                    <p className="text-xs text-amber-600 mt-2">⚠️ Score not calculated</p>
                   )}
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200">
@@ -268,11 +293,11 @@ export const ParticipantDashboard = ({
                     <h3 className="text-xl font-semibold text-gray-800">Creativity Score</h3>
                   </div>
                   <p className="text-4xl font-bold text-purple-600">
-                    {participant.creativityScore || 0}
+                    {finalCreativityScore}
                   </p>
                   <p className="text-sm text-gray-500 mt-2">Overall creativity assessment</p>
-                  {participant.creativityScore === 0 && (
-                    <p className="text-xs text-red-500 mt-2">⚠️ Score not calculated</p>
+                  {finalCreativityScore === 0 && (
+                    <p className="text-xs text-amber-600 mt-2">⚠️ Score not calculated</p>
                   )}
                 </div>
               </div>
@@ -284,9 +309,11 @@ export const ParticipantDashboard = ({
                     <p className="text-sm text-gray-500">Minutes</p>
                   </div>
                   <div>
-                    <p className="text-2l font-bold text-gray-800">
-                      {/* {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 'Google Search'} */}
-                      Coginitive  Platform
+                    <p className="text-l font-bold text-gray-800">
+                      {/* {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 
+                       participant.assignedPlatform === 'google' ? 'Google' : 
+                       'Research'} */}
+                       Cognitive Load
                     </p>
                     <p className="text-sm text-gray-500">Platform Used</p>
                   </div>
