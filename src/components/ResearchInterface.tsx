@@ -21,7 +21,8 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const [isActive, setIsActive] = useState(true);
   const [pulseEffect, setPulseEffect] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'grok' | 'google' | null>(null);
-  const [searchBehaviorData, setSearchBehaviorData] = useState<any[]>([]);
+
+  // Load platform-specific notes on component mount
   const [currentResearchTopic, setCurrentResearchTopic] = useState(participant.researchTopic);
 
   // Animate pulse effect periodically
@@ -53,7 +54,6 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   };
 
   const handleSearchBehavior = (behavior: any) => {
-    setSearchBehaviorData(prev => [...prev, behavior]);
     // Here you would send this data to your backend for analysis
     console.log('Search behavior tracked:', behavior);
   };

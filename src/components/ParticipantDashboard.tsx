@@ -235,7 +235,7 @@ export const ParticipantDashboard = ({
               <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                 <h3 className="text-xl font-bold text-gray-800 mb-6">Study Progress</h3>
                 <div className="space-y-4">
-                  {['research', 'creativity_test', 'completed'].map((phase, index) => (
+                  {['research', 'creativity_test', 'completed'].map((phase) => (
                     <div key={phase} className="flex items-center space-x-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         participant.currentPhase === phase 
