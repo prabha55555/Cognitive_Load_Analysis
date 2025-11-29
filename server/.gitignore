@@ -1,0 +1,7 @@
+# Backend Server
+# TODO: Implement when ready
+
+node_modules/
+.env
+*.log
+dist/
