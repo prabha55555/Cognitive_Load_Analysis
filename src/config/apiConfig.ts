@@ -42,8 +42,15 @@ export const API_CONFIG = {
 
   // Backend API Configuration
   BACKEND: {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
     TIMEOUT: 15000 // 15 seconds
+  },
+
+  // Biosignal Service Configuration
+  BIOSIGNAL: {
+    BASE_URL: import.meta.env.VITE_BIOSIGNAL_URL || 'http://localhost:3001/api/biosignal',
+    TIMEOUT: 30000, // 30 seconds (generation can take time)
+    CACHE_TTL: 300000, // 5 minutes local cache
   },
 
   // EEG Service Configuration
@@ -59,6 +66,7 @@ export const API_CONFIG = {
   // Feature Flags
   FEATURES: {
     ENABLE_EEG: import.meta.env.VITE_ENABLE_EEG === 'true',
+    ENABLE_CHRONOS: import.meta.env.VITE_ENABLE_CHRONOS === 'true',
     ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
     ENABLE_REAL_TIME: import.meta.env.VITE_ENABLE_REAL_TIME === 'true'
   },
@@ -287,6 +295,14 @@ export const createFetchConfig = (
           'Authorization': `Bearer ${apiKey}`
         }
   };
+};
+
+// Convenience export with typed interface
+export const apiConfig = {
+  BACKEND_URL: API_CONFIG.BACKEND.BASE_URL,
+  BIOSIGNAL_URL: API_CONFIG.BIOSIGNAL.BASE_URL,
+  FEATURES: API_CONFIG.FEATURES,
+  TIMEOUTS: API_CONFIG.TIMEOUTS,
 };
 
 // Export default configuration

@@ -26,7 +26,16 @@ export const ParticipantDashboard = ({
     setParticipant(initialParticipant);
   }, [initialParticipant]);
   
-  const { eegData, currentReading } = useEEGStream(participant.id, participant.isActive);
+  // Use EEG stream with cognitive load score for more accurate data
+  const { eegData, currentReading, isLoading: eegLoading, error: eegError } = useEEGStream(
+    participant.id, 
+    participant.isActive,
+    {
+      cognitiveLoadScore: participant.cognitiveLoadScore || 50,
+      platform: participant.platform as 'chatgpt' | 'google',
+      useChronos: true, // Enable Chronos-based generation
+    }
+  );
   const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);
   const [creativityEvaluations, setCreativityEvaluations] = useState<CreativityEvaluation[]>([]);
   const [readingContent, setReadingContent] = useState<string>('');
@@ -404,6 +413,7 @@ export const ParticipantDashboard = ({
                 eegData={eegData}
                 currentReading={currentReading}
                 participantName={participant.name}
+                connected={!eegError}
               />
               
               {/* Topic Information */}

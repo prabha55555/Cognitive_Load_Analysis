@@ -1,18 +1,10 @@
 /**
  * Rate Limiting Middleware
  * 
- * TODO: Implement request throttling
- * 
- * Related Flaw: Module 7 - No Rate Limiting (HIGH)
- * @see docs/FLAWS_AND_ISSUES.md
+ * Implements request throttling to prevent abuse
  */
 
-// TODO: Uncomment when express is installed
-// import { Request, Response, NextFunction } from 'express';
-
-type Request = any;
-type Response = any;
-type NextFunction = () => void;
+import { Request, Response, NextFunction } from 'express';
 
 interface RateLimitOptions {
   windowMs: number;
@@ -26,6 +18,9 @@ interface RequestRecord {
 
 const requestCounts = new Map<string, RequestRecord>();
 
+/**
+ * Create rate limiting middleware with configurable options
+ */
 export const rateLimit = (options: RateLimitOptions) => {
   const { windowMs, maxRequests } = options;
 
@@ -47,7 +42,7 @@ export const rateLimit = (options: RateLimitOptions) => {
     
     if (record.count >= maxRequests) {
       const retryAfter = Math.ceil((record.resetTime - now) / 1000);
-      res.setHeader('Retry-After', retryAfter);
+      res.setHeader('Retry-After', retryAfter.toString());
       return res.status(429).json({
         error: 'Too many requests',
         retryAfter,
@@ -57,6 +52,18 @@ export const rateLimit = (options: RateLimitOptions) => {
     record.count++;
     next();
   };
+};
+
+/**
+ * Convenience wrapper for creating rate limit middleware
+ * @param maxRequests Maximum requests allowed in window
+ * @param windowSeconds Window duration in seconds
+ */
+export const rateLimitMiddleware = (maxRequests: number, windowSeconds: number) => {
+  return rateLimit({
+    windowMs: windowSeconds * 1000,
+    maxRequests,
+  });
 };
 
 // Cleanup old records periodically

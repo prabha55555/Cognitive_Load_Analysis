@@ -4,12 +4,12 @@ A research platform for studying cognitive load differences between AI chatbots 
 
 ## 🎯 Overview
 
-This platform enables researchers to conduct studies comparing how users learn and retain information when using AI chatbots (like ChatGPT) versus Google Search. It measures cognitive load through simulated EEG data, knowledge assessments, and creativity tests.
+This platform enables researchers to conduct studies comparing how users learn and retain information when using AI chatbots (like ChatGPT) versus Google Search. It measures cognitive load through **synthetic EEG data generated using Amazon Chronos foundation model** trained on the Mendeley cognitive load EEG dataset, knowledge assessments, and creativity tests.
 
 ## ✨ Features
 
 - **Multi-Platform Research**: Compare learning outcomes between AI chatbots and Google Search
-- **Real-time EEG Simulation**: Visualize simulated brainwave patterns during research tasks
+- **Synthetic EEG Generation**: Real-time brainwave patterns generated using Amazon Chronos time-series foundation model
 - **Dynamic Assessments**: AI-generated questions based on research topics
 - **Creativity Evaluation**: Divergent thinking tests with automated scoring
 - **Cognitive Load Metrics**: NASA-TLX based scoring system
@@ -20,20 +20,31 @@ This platform enables researchers to conduct studies comparing how users learn a
 - **Frontend**: React 18 + TypeScript + Vite
 - **Styling**: Tailwind CSS
 - **AI Integration**: Google Gemini API (with dual API key system)
-- **Backend**: Node.js + Express (in development)
+- **Backend**: Node.js + Express + Redis
+- **Biosignal Service**: Python + Flask + Amazon Chronos (time-series foundation model)
+- **Containerization**: Docker + Docker Compose
 - **Testing**: Vitest + React Testing Library
 
 ## 📁 Project Structure
 
 ```
 Cognitive_Load_Analysis/
+├── biosignal-service/              # Python EEG generation microservice
+│   ├── src/
+│   │   ├── app.py                  # Flask API server
+│   │   ├── generator.py            # Chronos-based EEG generator
+│   │   ├── preprocessing.py        # Mendeley dataset preprocessing
+│   │   └── config.py               # Service configuration
+│   ├── Dockerfile
+│   └── requirements.txt
+│
 ├── docs/                           # Documentation
 │   ├── APPLICATION_FLOW.md         # User journey documentation
 │   ├── CODEBASE_INDEX.md           # Complete codebase reference
 │   ├── FLAWS_AND_ISSUES.md         # Known issues & action plan
 │   └── UI_COMPONENTS.md            # Component documentation
 │
-├── server/                         # Backend (TODO: Implement)
+├── server/                         # Node.js Backend API
 │   ├── src/
 │   │   ├── controllers/            # Request handlers
 │   │   │   ├── aiController.ts     # AI proxy endpoints
@@ -157,7 +168,9 @@ Cognitive_Load_Analysis/
 
 - Node.js 18+
 - npm or yarn
+- Docker & Docker Compose
 - Google Gemini API key(s)
+- Mendeley EEG Dataset (for biosignal generation)
 
 ### Installation
 
@@ -174,8 +187,25 @@ cp .env.example .env
 
 # Add your API keys to .env
 # VITE_GEMINI_API_KEY=your-api-key
+```
 
-# Start development server
+### Running with Docker (Recommended)
+
+```bash
+# Download Mendeley EEG dataset and place in raw_data/
+# Dataset: https://data.mendeley.com/datasets/kt38js3jv7/1
+
+# Start all services (Redis, Biosignal Service, Backend)
+docker-compose up -d
+
+# Start frontend development server
+npm run dev
+```
+
+### Running without Docker
+
+```bash
+# Start frontend only (no EEG generation)
 npm run dev
 ```
 

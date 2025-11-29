@@ -12,6 +12,25 @@ dist
 dist-ssr
 *.local
 
+# Python virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+biosignal-service/venv/
+biosignal-service/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+eggs/
+*.egg-info/
+*.egg
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,3 +42,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# EEG/Biosignal data
+raw_data/
+biosignal-service/processed_patterns/
+*.pkl
