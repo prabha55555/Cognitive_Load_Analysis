@@ -1,4 +1,6 @@
 # Amazon Chronos and ML dependencies
+# Using CPU-only torch for smaller image size
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.0.0
 transformers>=4.35.0
 chronos-forecasting>=1.0.0

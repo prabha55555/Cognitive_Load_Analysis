@@ -17,6 +17,9 @@ COPY . .
 # Create directories for data (raw_data will be mounted)
 RUN mkdir -p /app/processed_patterns
 
+# Pre-download the T5-mini model during build (smaller, faster)
+RUN python -c "from chronos import ChronosPipeline; ChronosPipeline.from_pretrained('amazon/chronos-t5-mini', device_map='cpu')" || true
+
 # Expose port
 EXPOSE 5000
 
@@ -24,6 +27,7 @@ EXPOSE 5000
 ENV FLASK_APP=src/app.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
+ENV CHRONOS_MODEL=amazon/chronos-t5-mini
 
 # Run with gunicorn for production
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "src.app:app"]

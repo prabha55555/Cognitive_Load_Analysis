@@ -27,7 +27,7 @@ services:
     environment:
       - FLASK_ENV=production
       - REDIS_URL=redis://redis:6379/0
-      - CHRONOS_MODEL=amazon/chronos-t5-large
+      - CHRONOS_MODEL=amazon/chronos-t5-mini
       - USE_GPU=false
     volumes:
       - ./biosignal-service/raw_data:/app/raw_data

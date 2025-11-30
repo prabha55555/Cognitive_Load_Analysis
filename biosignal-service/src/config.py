@@ -17,7 +17,7 @@ class Config:
     CACHE_TTL = int(os.getenv('CACHE_TTL', '3600'))  # 1 hour default
     
     # Model settings
-    CHRONOS_MODEL = os.getenv('CHRONOS_MODEL', 'amazon/chronos-t5-large')
+    CHRONOS_MODEL = os.getenv('CHRONOS_MODEL', 'amazon/chronos-t5-mini')
     USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
     DEVICE = 'cuda' if USE_GPU else 'cpu'
     
