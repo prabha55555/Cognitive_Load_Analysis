@@ -1,6 +1,7 @@
 import { Brain, CheckCircle, Clock, FileText, Lightbulb, MessageSquare, Search, Sparkles, Timer } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Participant } from '../types';
+import { useBehavior } from '../context';
 import { ChatGPTInterface } from './ChatGPTInterface';
 import { GoogleSearchInterface } from './GoogleSearchInterface';
 import { PlatformSelection } from './PlatformSelection';
@@ -24,6 +25,17 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | null>(null);
   const [currentResearchTopic, setCurrentResearchTopic] = useState(participant.researchTopic);
 
+  // Behavior tracking for EEG modulation
+  const { addEvent, setPhase } = useBehavior();
+
+  // Track phase start when platform is selected
+  useEffect(() => {
+    if (selectedPlatform) {
+      setPhase('research');
+      addEvent('phase_started', 0.5, { phase: 'research', platform: selectedPlatform });
+    }
+  }, [selectedPlatform, setPhase, addEvent]);
+
   // Animate pulse effect periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -36,11 +48,21 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   useEffect(() => {
     if (timeLeft > 0 && isActive && selectedPlatform) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      
+      // Track time warnings for EEG modulation
+      if (timeLeft === 300) { // 5 minutes left
+        addEvent('time_warning', 0.6, { minutesRemaining: 5, phase: 'research' });
+      } else if (timeLeft === 120) { // 2 minutes left
+        addEvent('time_warning', 0.8, { minutesRemaining: 2, phase: 'research' });
+      } else if (timeLeft === 60) { // 1 minute left
+        addEvent('time_warning', 0.9, { minutesRemaining: 1, phase: 'research' });
+      }
+      
       return () => clearTimeout(timer);
     } else if (timeLeft === 0) {
       handleTimeUp();
     }
-  }, [timeLeft, isActive, selectedPlatform]);
+  }, [timeLeft, isActive, selectedPlatform, addEvent]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -50,6 +72,13 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
 
   const handleQuerySubmit = (query: string) => {
     setQueries(prev => [...prev, query]);
+    
+    // Track query submission for EEG modulation
+    addEvent('query_submitted', 0.5, {
+      queryLength: query.length,
+      queryCount: queries.length + 1,
+      timeRemaining: timeLeft,
+    });
   };
 
   const handleSearchBehavior = (behavior: any) => {
@@ -64,6 +93,13 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
     console.log('New Topic:', newTopic);
     console.log('Propagating to parent...');
     console.log('==========================================');
+    
+    // Track topic change for EEG modulation (indicates potential confusion/pivoting)
+    addEvent('topic_changed', 0.7, {
+      oldTopic: currentResearchTopic,
+      newTopic,
+      timeRemaining: timeLeft,
+    });
     
     setCurrentResearchTopic(newTopic);
     

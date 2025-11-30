@@ -4,6 +4,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { LandingPage } from './components/LandingPage';
 import { Login } from './components/Login';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
+import { BehaviorProvider } from './context';
 import { mockParticipants, researchTopics } from './data/mockData';
 import { Participant } from './types';
 
@@ -107,57 +108,59 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          <Route 
-            path="/" 
-            element={
-              currentUser.type === 'admin' ? (
-                <Navigate to="/admin" replace />
-              ) : (
-                <Navigate to="/participant" replace />
-              )
-            } 
-          />
-          
-          <Route 
-            path="/participant" 
-            element={
-              currentUser.type === 'participant' && currentUser.participant ? (
-                <ParticipantDashboard 
-                  participant={currentUser.participant}
-                  onPhaseComplete={handlePhaseComplete}
-                />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            } 
-          />
-          
-          <Route 
-            path="/admin" 
-            element={
-              currentUser.type === 'admin' ? (
-                <AdminDashboard />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            } 
-          />
-          
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+    <BehaviorProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                currentUser.type === 'admin' ? (
+                  <Navigate to="/admin" replace />
+                ) : (
+                  <Navigate to="/participant" replace />
+                )
+              } 
+            />
+            
+            <Route 
+              path="/participant" 
+              element={
+                currentUser.type === 'participant' && currentUser.participant ? (
+                  <ParticipantDashboard 
+                    participant={currentUser.participant}
+                    onPhaseComplete={handlePhaseComplete}
+                  />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } 
+            />
+            
+            <Route 
+              path="/admin" 
+              element={
+                currentUser.type === 'admin' ? (
+                  <AdminDashboard />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } 
+            />
+            
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
 
-        {/* Enhanced Logout Button */}
-        <button
-          onClick={handleLogout}
-          className="fixed bottom-6 right-6 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 z-50 font-medium"
-        >
-          Logout
-        </button>
-      </div>
-    </Router>
+          {/* Enhanced Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="fixed bottom-6 right-6 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 z-50 font-medium"
+          >
+            Logout
+          </button>
+        </div>
+      </Router>
+    </BehaviorProvider>
   );
 }
 

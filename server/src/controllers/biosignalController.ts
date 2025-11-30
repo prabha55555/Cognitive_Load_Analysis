@@ -125,7 +125,13 @@ export async function generateBiosignal(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { participantId, metrics, platform, cognitiveLoadScore: providedScore } = req.body;
+    const { 
+      participantId, 
+      metrics, 
+      platform, 
+      cognitiveLoadScore: providedScore,
+      behaviorModifiers 
+    } = req.body;
 
     if (!participantId) {
       throw new ApiError(400, 'participantId is required');
@@ -146,30 +152,40 @@ export async function generateBiosignal(
       throw new ApiError(400, 'cognitiveLoadScore must be between 0 and 100');
     }
 
-    // Check cache first
-    const cacheKey = getCacheKey(participantId, cognitiveLoadScore);
-    const cached = await getCache<BiosignalData>(cacheKey);
-    
-    if (cached) {
-      console.log(`Cache hit for ${cacheKey}`);
-      res.json({
-        success: true,
-        data: cached,
-        cached: true,
-      });
-      return;
+    // Skip cache if behavior modifiers are provided (real-time EEG)
+    const hasBehaviorModifiers = behaviorModifiers && 
+      (behaviorModifiers.recentEvents?.length > 0 || behaviorModifiers.currentPhase);
+
+    if (!hasBehaviorModifiers) {
+      // Check cache first (only for non-behavior-modulated requests)
+      const cacheKey = getCacheKey(participantId, cognitiveLoadScore);
+      const cached = await getCache<BiosignalData>(cacheKey);
+      
+      if (cached) {
+        console.log(`Cache hit for ${cacheKey}`);
+        res.json({
+          success: true,
+          data: cached,
+          cached: true,
+        });
+        return;
+      }
     }
 
-    // Call Python service
+    // Call Python service with behavior modifiers
     const biosignalData = await callBiosignalService('/api/biosignal/generate', {
       cognitiveLoadScore,
       participantId,
       platform: platform || 'unknown',
       numPoints: 50,
+      behaviorModifiers: behaviorModifiers || null,
     });
 
-    // Cache the result
-    await setCache(cacheKey, biosignalData, CACHE_TTL);
+    // Only cache non-behavior-modulated results
+    if (!hasBehaviorModifiers) {
+      const cacheKey = getCacheKey(participantId, cognitiveLoadScore);
+      await setCache(cacheKey, biosignalData, CACHE_TTL);
+    }
 
     res.json({
       success: true,

@@ -1,6 +1,7 @@
 import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useEEGStream } from '../hooks/useEEGStream';
+import { useBehavior } from '../context';
 import { AssessmentResponse, Participant, TestResponse } from '../types';
 import AssessmentPhase from './AssessmentPhase';
 import { CognitiveLoadResults } from './CognitiveLoadResults';
@@ -26,7 +27,11 @@ export const ParticipantDashboard = ({
     setParticipant(initialParticipant);
   }, [initialParticipant]);
   
-  // Use EEG stream with cognitive load score for more accurate data
+  // Get behavior modifiers for EEG modulation
+  const { getModifiers } = useBehavior();
+  const behaviorModifiers = getModifiers();
+  
+  // Use EEG stream with cognitive load score and behavior modifiers
   const { eegData, currentReading, isLoading: eegLoading, error: eegError } = useEEGStream(
     participant.id, 
     participant.isActive,
@@ -34,6 +39,8 @@ export const ParticipantDashboard = ({
       cognitiveLoadScore: participant.cognitiveLoadScore || 50,
       platform: participant.platform as 'chatgpt' | 'google',
       useChronos: true, // Enable Chronos-based generation
+      behaviorModifiers, // Pass behavior data for EEG modulation
+      pollingInterval: 2500, // Poll every 2.5s for behavior updates
     }
   );
   const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);

@@ -165,14 +165,31 @@ def health_check():
 @cache_response(ttl=config.CACHE_TTL)
 def generate_biosignal():
     """
-    Generate synthetic EEG biosignal data.
+    Generate synthetic EEG biosignal data with behavior-based modulation.
     
     Request Body:
         {
             "cognitiveLoadScore": 65,  // Required: 0-100
             "participantId": "p123",    // Optional: for tracking
             "platform": "chatgpt",      // Optional: 'chatgpt' or 'google'
-            "numPoints": 50             // Optional: number of data points
+            "numPoints": 50,            // Optional: number of data points
+            "behaviorModifiers": {      // Optional: behavior-based modulation
+                "currentPhase": "assessment",  // research|assessment|creativity|results|idle
+                "phaseProgress": 0.45,         // 0-1 progress through phase
+                "currentTime": 1700000000,     // Current timestamp in ms
+                "recentEvents": [              // Recent behavioral events
+                    {
+                        "type": "answer_submitted_correct",
+                        "timestamp": 1700000000,
+                        "intensity": 0.8
+                    }
+                ],
+                "aggregateMetrics": {          // Session-level metrics
+                    "avgResponseTime": 45.2,
+                    "correctCount": 3,
+                    "incorrectCount": 1
+                }
+            }
         }
     
     Response:
@@ -187,7 +204,14 @@ def generate_biosignal():
                 },
                 "metadata": {
                     "cognitiveLoadScore": 65,
+                    "effectiveLoad": 62.5,
                     "loadLevel": "midlevel",
+                    "behaviorModulation": {
+                        "alphaModifier": 0.92,
+                        "betaModifier": 1.12,
+                        "thetaModifier": 1.05,
+                        "phase": "assessment"
+                    },
                     ...
                 }
             }
@@ -207,16 +231,29 @@ def generate_biosignal():
         participant_id = data.get('participantId', 'anonymous')
         platform = data.get('platform', 'unknown')
         num_points = int(data.get('numPoints', config.DEFAULT_NUM_POINTS))
+        behavior_modifiers = data.get('behaviorModifiers', None)
+        
+        # Validate behavior modifiers if provided
+        if behavior_modifiers:
+            valid_phases = ['research', 'assessment', 'creativity', 'results', 'idle']
+            current_phase = behavior_modifiers.get('currentPhase', 'idle')
+            if current_phase not in valid_phases:
+                behavior_modifiers['currentPhase'] = 'idle'
+            
+            # Ensure recentEvents is a list
+            if not isinstance(behavior_modifiers.get('recentEvents'), list):
+                behavior_modifiers['recentEvents'] = []
         
         logger.info(
             f"Generating biosignal for participant={participant_id}, "
-            f"load={cognitive_load_score}, platform={platform}"
+            f"load={cognitive_load_score}, platform={platform}, "
+            f"phase={behavior_modifiers.get('currentPhase') if behavior_modifiers else 'none'}"
         )
         
-        # Generate biosignal data
+        # Generate biosignal data with behavior modulation
         generator = get_generator()
         biosignal_data = generator.generate_full_biosignal_data(
-            cognitive_load_score, num_points
+            cognitive_load_score, num_points, behavior_modifiers
         )
         
         # Add request metadata

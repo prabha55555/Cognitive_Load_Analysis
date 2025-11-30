@@ -3,9 +3,48 @@
  * 
  * Frontend service for fetching synthetic EEG data from the backend API.
  * Follows the singleton pattern consistent with other services.
+ * 
+ * Supports behavior-based EEG modulation through behavior modifiers.
  */
 
 import { apiConfig } from '../config/apiConfig';
+
+/**
+ * Types for behavior-based modulation
+ */
+export type StudyPhase = 'research' | 'assessment' | 'creativity' | 'results' | 'idle';
+
+export interface BehaviorEvent {
+  type: string;
+  timestamp: number;
+  intensity: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AggregateMetrics {
+  avgResponseTime?: number;
+  totalResponses?: number;
+  correctCount?: number;
+  incorrectCount?: number;
+  clarificationCount?: number;
+  answerChangeCount?: number;
+  queryCount?: number;
+  offTopicCount?: number;
+  timeWarningCount?: number;
+}
+
+export interface BehaviorModifiers {
+  currentPhase: StudyPhase;
+  phaseProgress: number;
+  phaseStartTime?: number;
+  currentTime?: number;
+  recentEvents: BehaviorEvent[];
+  aggregateMetrics?: AggregateMetrics;
+  // Pre-calculated modulation values (from context with decay applied)
+  alphaModifier?: number;
+  betaModifier?: number;
+  thetaModifier?: number;
+}
 
 /**
  * Interface for biosignal generation request
@@ -16,6 +55,7 @@ interface BiosignalRequest {
   metrics?: ParticipantMetrics;
   platform?: 'chatgpt' | 'google' | 'unknown';
   numPoints?: number;
+  behaviorModifiers?: BehaviorModifiers;
 }
 
 /**
@@ -39,10 +79,21 @@ interface BrainwavePatterns {
 }
 
 /**
+ * Interface for behavior modulation results
+ */
+interface BehaviorModulationResult {
+  alphaModifier: number;
+  betaModifier: number;
+  thetaModifier: number;
+  phase: string;
+}
+
+/**
  * Interface for biosignal metadata
  */
 interface BiosignalMetadata {
   cognitiveLoadScore: number;
+  effectiveLoad?: number;
   loadLevel: 'natural' | 'lowlevel' | 'midlevel' | 'highlevel';
   participantId: string;
   platform: string;
@@ -50,6 +101,7 @@ interface BiosignalMetadata {
   numPoints: number;
   samplingRate: number;
   channels: string[];
+  behaviorModulation?: BehaviorModulationResult;
 }
 
 /**
@@ -146,10 +198,16 @@ class BiosignalService {
   }
 
   /**
-   * Generate biosignal data for a participant
+   * Generate biosignal data for a participant with behavior modulation
    */
   async generateBiosignal(request: BiosignalRequest): Promise<BiosignalData> {
-    const { participantId, metrics, platform = 'unknown', numPoints = 50 } = request;
+    const { 
+      participantId, 
+      metrics, 
+      platform = 'unknown', 
+      numPoints = 50,
+      behaviorModifiers 
+    } = request;
     
     // Calculate cognitive load score
     let cognitiveLoadScore = request.cognitiveLoadScore;
@@ -161,27 +219,51 @@ class BiosignalService {
       throw new Error('Either cognitiveLoadScore or metrics must be provided');
     }
 
-    // Check local cache
-    const cacheKey = this.getCacheKey(participantId, cognitiveLoadScore);
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      console.log(`[BiosignalService] Cache hit for ${cacheKey}`);
-      return cached;
+    // Don't use cache if behavior modifiers are present (real-time modulation)
+    const useCache = !behaviorModifiers || behaviorModifiers.recentEvents.length === 0;
+    
+    if (useCache) {
+      // Check local cache
+      const cacheKey = this.getCacheKey(participantId, cognitiveLoadScore);
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        console.log(`[BiosignalService] Cache hit for ${cacheKey}`);
+        return cached;
+      }
     }
 
     try {
+      // Prepare request body
+      const requestBody: Record<string, unknown> = {
+        participantId,
+        cognitiveLoadScore,
+        metrics,
+        platform,
+        numPoints,
+      };
+      
+      // Add behavior modifiers if present
+      if (behaviorModifiers) {
+        requestBody.behaviorModifiers = {
+          currentPhase: behaviorModifiers.currentPhase,
+          phaseProgress: behaviorModifiers.phaseProgress,
+          currentTime: behaviorModifiers.currentTime || Date.now(),
+          recentEvents: behaviorModifiers.recentEvents.map(e => ({
+            type: e.type,
+            timestamp: e.timestamp,
+            intensity: e.intensity,
+            metadata: e.metadata,
+          })),
+          aggregateMetrics: behaviorModifiers.aggregateMetrics,
+        };
+      }
+      
       const response = await fetch(`${this.baseUrl}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          participantId,
-          cognitiveLoadScore,
-          metrics,
-          platform,
-          numPoints,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -195,13 +277,16 @@ class BiosignalService {
         throw new Error(result.error || 'Failed to generate biosignal');
       }
 
-      // Cache the result
-      this.cache.set(cacheKey, result.data);
-      
-      // Set timeout to clear from cache
-      setTimeout(() => {
-        this.cache.delete(cacheKey);
-      }, this.cacheTimeout);
+      // Only cache if not using behavior modifiers
+      if (useCache) {
+        const cacheKey = this.getCacheKey(participantId, cognitiveLoadScore);
+        this.cache.set(cacheKey, result.data);
+        
+        // Set timeout to clear from cache
+        setTimeout(() => {
+          this.cache.delete(cacheKey);
+        }, this.cacheTimeout);
+      }
 
       return result.data;
     } catch (error) {

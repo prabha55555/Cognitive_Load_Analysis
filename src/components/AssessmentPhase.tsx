@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle, Clock, FileText, Send } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { geminiService, AssessmentQuestion as GeminiAssessmentQuestion } from '../services/geminiService';
 import { AssessmentResponse, Participant } from '../types';
+import { usePhaseTracker } from '../context/BehaviorContext';
 
 interface AssessmentPhaseProps {
   participant: Participant;
@@ -14,9 +15,13 @@ export default function AssessmentPhase({
   participant, 
   onComplete,
 }: AssessmentPhaseProps) {
+  // Behavior tracking for EEG modulation
+  const { addEvent } = usePhaseTracker('assessment');
+  
   // Use ref to track if questions have been loaded to prevent duplicate loading
   const questionsLoadedRef = useRef(false);
   const mountedRef = useRef(false);
+  const previousAnswerRef = useRef<string>('');
 
   // Use STATE instead of const - makes it reactive to participant changes
   const [researchTopic, setResearchTopic] = useState(participant?.researchTopic?.trim() || '');
@@ -239,24 +244,58 @@ This means:
       setTimeElapsed(prev => prev + 1);
       
       // Show warning if taking too long (more than 3 minutes)
-      if (timeElapsed > 180) {
+      if (timeElapsed > 180 && !showWarning) {
         setShowWarning(true);
+        // Track time warning event for EEG modulation
+        addEvent('time_warning', 0.9, { 
+          questionIndex: currentQuestionIndex,
+          timeElapsed: timeElapsed 
+        });
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeElapsed, isLoading, questions.length]);
+  }, [timeElapsed, isLoading, questions.length, showWarning, addEvent, currentQuestionIndex]);
 
   // Reset timer when moving to next question
   useEffect(() => {
     setTimeElapsed(0);
     setShowWarning(false);
-  }, [currentQuestionIndex]);
+    previousAnswerRef.current = '';
+    
+    // Track question start event for EEG modulation
+    if (questions.length > 0 && currentQuestionIndex < questions.length) {
+      const question = questions[currentQuestionIndex];
+      addEvent('question_started', 0.6, {
+        questionIndex: currentQuestionIndex,
+        difficulty: question?.difficulty,
+        cognitiveLevel: question?.cognitiveLevel,
+      });
+    }
+  }, [currentQuestionIndex, questions, addEvent]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle answer selection with behavior tracking
+  const handleAnswerChange = (newAnswer: string) => {
+    const previousAnswer = previousAnswerRef.current;
+    
+    // Track answer change if this is not the first selection
+    if (previousAnswer && previousAnswer !== newAnswer) {
+      addEvent('answer_changed', 0.6, {
+        questionIndex: currentQuestionIndex,
+        previousAnswer: previousAnswer.substring(0, 30),
+        newAnswer: newAnswer.substring(0, 30),
+        timeElapsed,
+      });
+    }
+    
+    previousAnswerRef.current = newAnswer;
+    setSelectedAnswer(newAnswer);
   };
 
   const handleSubmitAnswer = () => {
@@ -305,6 +344,14 @@ This means:
     console.log(`   Selected: ${selectedAnswer.substring(0, 40)}...`);
     console.log(`   Correct: ${isCorrect ? '✓' : '✗'}`);
     console.log(`   Time: ${timeTaken}s`);
+
+    // Track answer submission event for EEG modulation
+    addEvent(isCorrect ? 'answer_submitted_correct' : 'answer_submitted_incorrect', isCorrect ? 0.7 : 0.9, {
+      questionIndex: currentQuestionIndex,
+      timeTaken,
+      difficulty: currentQuestion.difficulty,
+      confidenceLevel: calculateConfidence(timeTaken),
+    });
 
     const newResponses = [...responses, response];
     setResponses(newResponses);
@@ -505,7 +552,7 @@ This means:
                     name="answer"
                     value={option}
                     checked={selectedAnswer === option}
-                    onChange={(e) => setSelectedAnswer(e.target.value)}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
                     className="mr-3 h-5 w-5 text-purple-600"
                   />
                   <span className="text-gray-700 font-medium">{option}</span>

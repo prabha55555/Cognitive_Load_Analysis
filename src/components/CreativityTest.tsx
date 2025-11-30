@@ -1,6 +1,7 @@
 import { AlertCircle, ArrowRight, Brain, CheckCircle, Lightbulb, Sparkles, Target, Timer, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { geminiService, CreativityQuestion, CreativityEvaluation } from '../services/geminiService';
+import { useBehavior } from '../context';
 import { TestResponse } from '../types';
 
 interface CreativityTestProps {
@@ -28,6 +29,17 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const [pulseEffect, setPulseEffect] = useState(false);
 
+  // Behavior tracking for EEG modulation
+  const { addEvent, setPhase } = useBehavior();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastResponseLengthRef = useRef(0);
+
+  // Track phase start
+  useEffect(() => {
+    setPhase('creativity');
+    addEvent('phase_started', 0.5, { phase: 'creativity', topic });
+  }, [setPhase, addEvent, topic]);
+
   // Pulse animation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -46,11 +58,21 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   useEffect(() => {
     if (timeLeft > 0 && !isCompleted && !isEvaluating) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      
+      // Track time warnings for EEG modulation
+      if (timeLeft === 60) { // 1 minute left
+        addEvent('time_warning', 0.7, { minutesRemaining: 1, phase: 'creativity', questionIndex: currentQuestionIndex });
+      } else if (timeLeft === 30) { // 30 seconds left
+        addEvent('time_warning', 0.85, { secondsRemaining: 30, phase: 'creativity', questionIndex: currentQuestionIndex });
+      } else if (timeLeft === 10) { // 10 seconds left
+        addEvent('time_warning', 0.95, { secondsRemaining: 10, phase: 'creativity', questionIndex: currentQuestionIndex });
+      }
+      
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && questions.length > 0 && !isCompleted && !isEvaluating) {
       handleSubmit();
     }
-  }, [timeLeft, isCompleted, isEvaluating]);
+  }, [timeLeft, isCompleted, isEvaluating, addEvent, currentQuestionIndex]);
 
   const generateQuestions = async () => {
     setIsLoading(true);
@@ -63,6 +85,13 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
       if (generated.length > 0) {
         setTimeLeft(generated[0].timeLimit);
         setStartTime(Date.now());
+        
+        // Track first question start for EEG modulation
+        addEvent('question_started', 0.6, {
+          questionIndex: 0,
+          questionType: generated[0].type,
+          timeLimit: generated[0].timeLimit,
+        });
       }
     } catch (error) {
       console.error('Failed to generate questions:', error);
@@ -125,6 +154,17 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
         score: evaluation.score
       };
 
+      // Track creative response submission for EEG modulation
+      addEvent('creative_response_submitted', 0.7, {
+        questionIndex: currentQuestionIndex,
+        questionType: currentQuestion.type,
+        responseLength: response.length,
+        wordCount: response.trim().split(/\s+/).length,
+        timeSpent,
+        score: evaluation.score,
+        creativityScore: evaluation.creativityScore,
+      });
+
       const newResponses = [...responses, testResponse];
       const newEvaluations = [...evaluations, evaluation];
       
@@ -141,10 +181,18 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
       // Move to next question or complete
       if (currentQuestionIndex < questions.length - 1) {
         console.log('➡️ Moving to next question:', currentQuestionIndex + 1);
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        const nextIndex = currentQuestionIndex + 1;
+        setCurrentQuestionIndex(nextIndex);
         setResponse('');
-        setTimeLeft(questions[currentQuestionIndex + 1].timeLimit);
+        setTimeLeft(questions[nextIndex].timeLimit);
         setStartTime(Date.now());
+        
+        // Track next question start for EEG modulation
+        addEvent('question_started', 0.6, {
+          questionIndex: nextIndex,
+          questionType: questions[nextIndex].type,
+          timeLimit: questions[nextIndex].timeLimit,
+        });
       } else {
         setIsCompleted(true);
         console.log('==========================================');
@@ -169,6 +217,33 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
     } finally {
       setIsEvaluating(false);
     }
+  };
+
+  // Handle response input with typing activity tracking
+  const handleResponseChange = (newResponse: string) => {
+    setResponse(newResponse);
+    
+    // Track typing bursts (debounced to avoid too many events)
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      const wordsTyped = newResponse.trim().split(/\s+/).filter(w => w).length;
+      const previousWords = lastResponseLengthRef.current;
+      const wordsDelta = wordsTyped - previousWords;
+      
+      // Only track significant typing activity (5+ new words)
+      if (wordsDelta >= 5) {
+        addEvent('creative_typing', 0.4, {
+          questionIndex: currentQuestionIndex,
+          wordCount: wordsTyped,
+          wordsDelta,
+          timeRemaining: timeLeft,
+        });
+        lastResponseLengthRef.current = wordsTyped;
+      }
+    }, 1500); // Debounce for 1.5 seconds
   };
 
   const formatTime = (seconds: number) => {
@@ -331,7 +406,7 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
               </div>
               <textarea
                 value={response}
-                onChange={(e) => setResponse(e.target.value)}
+                onChange={(e) => handleResponseChange(e.target.value)}
                 placeholder="Type your creative response here... Be as detailed and original as possible!"
                 className="w-full h-80 p-6 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-lg leading-relaxed bg-white/80 backdrop-blur-sm transition-all duration-300"
                 disabled={isEvaluating}
