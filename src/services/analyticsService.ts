@@ -24,15 +24,11 @@ export interface UserInteraction {
 export interface CognitiveLoadData {
   participantId: string;
   timestamp: number;
-  eegData?: {
-    alphaPower: number;
-    betaPower: number;
-    thetaPower: number;
-    gammaPower: number;
-  };
-  edaData?: {
-    skinConductance: number;
-    heartRate: number;
+  behavioralData?: {
+    meanResponseTime: number;
+    rageClickCount: number;
+    trajectoryDeviation: number;
+    revisitRatio: number;
   };
   selfReportedLoad?: number; // 1-10 scale
   taskComplexity: 'low' | 'medium' | 'high';

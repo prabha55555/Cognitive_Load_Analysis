@@ -2,7 +2,6 @@ import { AlertTriangle, Brain, CheckCircle, Download, Settings, TrendingUp, User
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { mockParticipants } from '../data/mockData';
-import { useEEGStream } from '../hooks/useEEGStream';
 import { Participant } from '../types';
 
 interface DashboardAnalytics {
@@ -55,10 +54,9 @@ export const AdminDashboard: React.FC = () => {
     'Sustainable Transportation'
   ];
 
-  // Get EEG data for all active participants
+  // Participant data using behavioral tracking
   const participantData = participants.map(participant => {
-    const { currentReading } = useEEGStream(participant.id, participant.isActive);
-    return { ...participant, currentReading };
+    return { ...participant, currentReading: null };
   });
 
   // Fetch real-time dashboard analytics
@@ -256,7 +254,7 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <h1 className="text-xl font-semibold text-gray-800">Research Admin Dashboard</h1>
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-500">EEG Cognitive Load vs Creativity Study</p>
+                  <p className="text-sm text-gray-500">Cognitive Load vs Creativity Study</p>
                   {dashboardData && (
                     <div className="flex items-center space-x-1">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>

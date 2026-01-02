@@ -52,7 +52,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             </div>
             <h2 className="text-4xl font-black tracking-tight bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-              EEG Research Platform
+              Cognitive Load Research
             </h2>
             <p className="mt-3 text-lg font-semibold text-slate-600">
               Cognitive Load vs Creativity Study
@@ -215,7 +215,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                <span className="font-medium">EEG monitoring: Real-time cognitive load measurement</span>
+                <span className="font-medium">Behavioral tracking: Real-time cognitive load measurement</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-orange-500 rounded-full"></div>

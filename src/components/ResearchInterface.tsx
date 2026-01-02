@@ -7,7 +7,7 @@ import { PlatformSelection } from './PlatformSelection';
 
 interface ResearchInterfaceProps {
   participant: Participant;
-  onComplete: (readingContent?: string, userNotes?: string) => void;
+  onComplete: (readingContent?: string, userNotes?: string, sessionId?: string, platform?: 'chatgpt' | 'google') => void;
   onTopicChange?: (topic: string) => void;
 }
 
@@ -23,6 +23,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const [pulseEffect, setPulseEffect] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | null>(null);
   const [currentResearchTopic, setCurrentResearchTopic] = useState(participant.researchTopic);
+  const [behavioralSessionId, setBehavioralSessionId] = useState<string | null>(null);
 
   // Animate pulse effect periodically
   useEffect(() => {
@@ -78,14 +79,17 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
 
   const handlePlatformSelect = (platform: 'chatgpt' | 'google') => {
     setSelectedPlatform(platform);
+    // Generate session ID when platform is selected
+    const sessionId = `session_${participant.id}_${Date.now()}`;
+    setBehavioralSessionId(sessionId);
   };
 
   const handleTimeUp = () => {
     setIsActive(false);
     setTimeout(() => {
-      // Pass reading content (queries joined) and notes to parent
+      // Pass reading content (queries joined), notes, session ID, and platform to parent
       const readingContent = queries.join(' | ');
-      onComplete(readingContent, notes);
+      onComplete(readingContent, notes, behavioralSessionId || undefined, selectedPlatform || undefined);
     }, 2000);
   };
 
@@ -182,6 +186,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                   participant={participant}
                   onQuerySubmit={handleQuerySubmit}
                   onTopicChange={handleTopicChange}
+                  sessionId={behavioralSessionId || undefined}
                 />
               ) : (
                 <GoogleSearchInterface
@@ -189,6 +194,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
                   onQuerySubmit={handleQuerySubmit}
                   onSearchBehavior={handleSearchBehavior}
                   onTopicChange={handleTopicChange}
+                  sessionId={behavioralSessionId || undefined}
                 />
               )}
             </div>
@@ -248,7 +254,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
               <button
             onClick={() => {
               const readingContent = queries.join(' | ');
-              onComplete(readingContent, notes);
+              onComplete(readingContent, notes, behavioralSessionId || undefined, selectedPlatform || undefined);
             }}
             className="px-4 lg:px-6 py-2 lg:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm lg:text-base"
               >

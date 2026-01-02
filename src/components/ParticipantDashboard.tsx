@@ -1,13 +1,12 @@
-import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User } from 'lucide-react';
+import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User, Activity } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useEEGStream } from '../hooks/useEEGStream';
 import { AssessmentResponse, Participant, TestResponse } from '../types';
 import AssessmentPhase from './AssessmentPhase';
 import { CognitiveLoadResults } from './CognitiveLoadResults';
 import { CreativityTest } from './CreativityTest';
-import { EEGVisualization } from './EEGVisualization';
 import { ResearchInterface } from './ResearchInterface';
 import { CreativityEvaluation } from '../services/geminiService';
+import { isTrackerActive } from '../services/interactionTracker';
 
 interface ParticipantDashboardProps {
   participant: Participant;
@@ -26,20 +25,25 @@ export const ParticipantDashboard = ({
     setParticipant(initialParticipant);
   }, [initialParticipant]);
   
-  // Use EEG stream with cognitive load score for more accurate data
-  const { eegData, currentReading, isLoading: eegLoading, error: eegError } = useEEGStream(
-    participant.id, 
-    participant.isActive,
-    {
-      cognitiveLoadScore: participant.cognitiveLoadScore || 50,
-      platform: participant.platform as 'chatgpt' | 'google',
-      useChronos: true, // Enable Chronos-based generation
-    }
-  );
+  // Track behavioral interaction status
+  const [isTrackingActive, setIsTrackingActive] = useState(false);
+  
+  // Check tracker status periodically
+  useEffect(() => {
+    const checkTracker = () => {
+      setIsTrackingActive(isTrackerActive());
+    };
+    checkTracker();
+    const interval = setInterval(checkTracker, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
   const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);
   const [creativityEvaluations, setCreativityEvaluations] = useState<CreativityEvaluation[]>([]);
   const [readingContent, setReadingContent] = useState<string>('');
   const [userNotes, setUserNotes] = useState<string>('');
+  const [behavioralSessionId, setBehavioralSessionId] = useState<string | undefined>(undefined);
+  const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | undefined>(undefined);
 
   // Log when scores change
   useEffect(() => {
@@ -206,9 +210,11 @@ export const ParticipantDashboard = ({
         return (
           <ResearchInterface
             participant={participant}
-            onComplete={(content, notes) => {
+            onComplete={(content, notes, sessionId, platform) => {
               setReadingContent(content || '');
               setUserNotes(notes || '');
+              setBehavioralSessionId(sessionId);
+              setSelectedPlatform(platform);
               onPhaseComplete('assessment');
             }}
             onTopicChange={handleTopicChange}
@@ -237,6 +243,8 @@ export const ParticipantDashboard = ({
             creativityEvaluations={creativityEvaluations}
             topic={participant.researchTopic}
             participantId={participant.id}
+            sessionId={behavioralSessionId}
+            platform={selectedPlatform}
             onComplete={handleResultsComplete}
           />
         );
@@ -406,15 +414,58 @@ export const ParticipantDashboard = ({
             </div>
           </div>
 
-          {/* Enhanced EEG Monitoring Sidebar */}
+          {/* Behavioral Tracking Sidebar */}
           <div className="xl:col-span-2">
             <div className="sticky top-8 space-y-8">
-              <EEGVisualization
-                eegData={eegData}
-                currentReading={currentReading}
-                participantName={participant.name}
-                connected={!eegError}
-              />
+              {/* Behavioral Tracking Status */}
+              <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <div className={`absolute inset-0 rounded-full blur-lg opacity-30 animate-pulse ${
+                        isTrackingActive ? 'bg-green-400' : 'bg-gray-400'
+                      }`}></div>
+                      <Activity className={`h-6 w-6 relative z-10 ${
+                        isTrackingActive ? 'text-green-600' : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">Behavioral Tracking</h3>
+                  </div>
+                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
+                    isTrackingActive 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full ${
+                      isTrackingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                    }`}></div>
+                    <span>{isTrackingActive ? 'Active' : 'Inactive'}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">Click Events</span>
+                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">Mouse Movement</span>
+                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">Scroll Behavior</span>
+                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">Navigation</span>
+                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-gray-500 mt-4 text-center">
+                  Interaction data is being collected for cognitive load analysis
+                </p>
+              </div>
               
               {/* Topic Information */}
               <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">

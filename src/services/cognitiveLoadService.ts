@@ -1,8 +1,15 @@
 // Cognitive Load Calculation Service
+// Updated to use behavioral classification backend with fallback
+// Requirements: 9.4 - Handle fallback when service unavailable
 import { AssessmentResponse, CognitiveLoadMetrics, LearningPhaseData } from '../types';
+import { behavioralClassificationService, BehavioralClassificationResult } from './behavioralClassificationService';
+import { logger } from '../utils/logger';
 
 class CognitiveLoadService {
   private static instance: CognitiveLoadService;
+  private behavioralServiceAvailable: boolean = false;
+  private lastHealthCheck: number = 0;
+  private healthCheckInterval: number = 60000; // Check every 60 seconds
 
   static getInstance(): CognitiveLoadService {
     if (!CognitiveLoadService.instance) {
@@ -12,13 +19,62 @@ class CognitiveLoadService {
   }
 
   /**
+   * Check if behavioral service is available (with caching)
+   */
+  private async checkBehavioralServiceHealth(): Promise<boolean> {
+    const now = Date.now();
+    if (now - this.lastHealthCheck < this.healthCheckInterval) {
+      return this.behavioralServiceAvailable;
+    }
+    
+    this.behavioralServiceAvailable = await behavioralClassificationService.checkHealth();
+    this.lastHealthCheck = now;
+    
+    if (this.behavioralServiceAvailable) {
+      logger.info('Behavioral classification service is available');
+    } else {
+      logger.warn('Behavioral classification service unavailable, using local fallback');
+    }
+    
+    return this.behavioralServiceAvailable;
+  }
+
+  /**
+   * Get cognitive load classification from behavioral service
+   * Falls back to local calculation if service unavailable
+   * Requirements: 9.4
+   */
+  async getBehavioralClassification(
+    sessionId: string
+  ): Promise<BehavioralClassificationResult | null> {
+    const isAvailable = await this.checkBehavioralServiceHealth();
+    
+    if (!isAvailable) {
+      logger.info('Using local cognitive load calculation (behavioral service unavailable)');
+      return null;
+    }
+    
+    try {
+      const result = await behavioralClassificationService.classifySession(sessionId, true);
+      if (result) {
+        logger.info(`Behavioral classification: ${result.cognitive_load_level} (confidence: ${result.confidence})`);
+      }
+      return result;
+    } catch (error) {
+      logger.error('Failed to get behavioral classification', error);
+      return null;
+    }
+  }
+
+  /**
    * Calculate cognitive load based on learning phase and assessment phase data
+   * This is the local fallback method when behavioral service is unavailable
    */
   calculateCognitiveLoad(
     learningData: LearningPhaseData,
     assessmentResponses: AssessmentResponse[]
   ): CognitiveLoadMetrics {
-    console.log('=== Cognitive Load Calculation Started ===');
+    console.log('=== Cognitive Load Calculation Started (Local Fallback) ===');
     console.log('Learning Data:', learningData);
     console.log('Assessment Responses:', assessmentResponses);
 
@@ -50,6 +106,50 @@ class CognitiveLoadService {
       cognitiveLoadCategory,
       timestamp: new Date()
     };
+  }
+
+  /**
+   * Calculate cognitive load with behavioral service integration
+   * Attempts to use behavioral service first, falls back to local calculation
+   * Requirements: 9.4
+   */
+  async calculateCognitiveLoadWithBehavioral(
+    learningData: LearningPhaseData,
+    assessmentResponses: AssessmentResponse[],
+    sessionId?: string
+  ): Promise<CognitiveLoadMetrics> {
+    // Try behavioral service first if session ID is provided
+    if (sessionId) {
+      const behavioralResult = await this.getBehavioralClassification(sessionId);
+      
+      if (behavioralResult) {
+        // Convert behavioral result to CognitiveLoadMetrics format
+        const behavioralScore = behavioralClassificationService.levelToScore(
+          behavioralResult.cognitive_load_level
+        );
+        
+        // Calculate local metrics for additional context
+        const learningMetrics = this.calculateLearningMetrics(learningData);
+        const assessmentMetrics = this.calculateAssessmentMetrics(assessmentResponses);
+        
+        // Blend behavioral and assessment-based scores (70% behavioral, 30% assessment)
+        const assessmentScore = this.calculateOverallScore(learningMetrics, assessmentMetrics);
+        const blendedScore = behavioralScore * 0.7 + assessmentScore * 0.3;
+        
+        return {
+          participantId: learningData.participantId,
+          topic: learningData.topic,
+          learningPhase: learningMetrics,
+          assessmentPhase: assessmentMetrics,
+          overallCognitiveLoad: blendedScore,
+          cognitiveLoadCategory: this.categorizeCognitiveLoad(blendedScore),
+          timestamp: new Date()
+        };
+      }
+    }
+    
+    // Fallback to local calculation
+    return this.calculateCognitiveLoad(learningData, assessmentResponses);
   }
 
   /**

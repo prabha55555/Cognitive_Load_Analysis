@@ -4,15 +4,15 @@ A research platform for studying cognitive load differences between AI chatbots 
 
 ## 🎯 Overview
 
-This platform enables researchers to conduct studies comparing how users learn and retain information when using AI chatbots (like ChatGPT) versus Google Search. It measures cognitive load through **synthetic EEG data generated using Amazon Chronos foundation model** trained on the Mendeley cognitive load EEG dataset, knowledge assessments, and creativity tests.
+This platform enables researchers to conduct studies comparing how users learn and retain information when using AI chatbots (like ChatGPT) versus Google Search. It measures cognitive load through **behavioral interaction analysis** - capturing user interaction patterns (clicks, mouse movements, keystrokes, navigation) and using machine learning classification to infer cognitive load levels.
 
 ## ✨ Features
 
 - **Multi-Platform Research**: Compare learning outcomes between AI chatbots and Google Search
-- **Synthetic EEG Generation**: Real-time brainwave patterns generated using Amazon Chronos time-series foundation model
+- **Behavioral Cognitive Load Analysis**: Real-time cognitive load inference from user interaction patterns
 - **Dynamic Assessments**: AI-generated questions based on research topics
 - **Creativity Evaluation**: Divergent thinking tests with automated scoring
-- **Cognitive Load Metrics**: NASA-TLX based scoring system
+- **Cognitive Load Metrics**: Behavioral-based scoring system with confidence levels
 - **Admin Dashboard**: Manage participants and view aggregated results
 
 ## 🛠️ Tech Stack
@@ -21,21 +21,33 @@ This platform enables researchers to conduct studies comparing how users learn a
 - **Styling**: Tailwind CSS
 - **AI Integration**: Google Gemini API (with dual API key system)
 - **Backend**: Node.js + Express + Redis
-- **Biosignal Service**: Python + Flask + Amazon Chronos (time-series foundation model)
-- **Containerization**: Docker + Docker Compose
-- **Testing**: Vitest + React Testing Library
+- **Behavioral Service**: Python + FastAPI (behavioral data processing and ML classification)
+- **Testing**: Vitest + React Testing Library + Hypothesis (property-based testing)
 
 ## 📁 Project Structure
 
 ```
 Cognitive_Load_Analysis/
-├── biosignal-service/              # Python EEG generation microservice
+├── behavioral-service/             # Python FastAPI behavioral analysis service
 │   ├── src/
-│   │   ├── app.py                  # Flask API server
-│   │   ├── generator.py            # Chronos-based EEG generator
-│   │   ├── preprocessing.py        # Mendeley dataset preprocessing
-│   │   └── config.py               # Service configuration
-│   ├── Dockerfile
+│   │   ├── main.py                 # FastAPI app entry point
+│   │   ├── models.py               # Pydantic request/response models
+│   │   ├── classifier/             # Cognitive load classification
+│   │   │   ├── classifier.py       # Main classifier facade
+│   │   │   ├── rule_based.py       # Rule-based classifier (primary)
+│   │   │   └── ml_classifier.py    # ML classifier (optional fallback)
+│   │   ├── features/               # Feature extraction modules
+│   │   │   ├── aggregator.py       # Feature aggregation
+│   │   │   ├── click_analysis.py   # Click pattern analysis
+│   │   │   ├── mouse_analysis.py   # Mouse movement analysis
+│   │   │   ├── navigation_analysis.py
+│   │   │   └── response_time.py    # Response time metrics
+│   │   └── middleware/             # Error handling middleware
+│   ├── data/
+│   │   ├── raw/                    # Training data (optional)
+│   │   ├── processed/              # Processed features
+│   │   └── models/                 # Trained ML models (optional)
+│   ├── tests/                      # Property-based tests
 │   └── requirements.txt
 │
 ├── docs/                           # Documentation
@@ -47,119 +59,33 @@ Cognitive_Load_Analysis/
 ├── server/                         # Node.js Backend API
 │   ├── src/
 │   │   ├── controllers/            # Request handlers
-│   │   │   ├── aiController.ts     # AI proxy endpoints
-│   │   │   ├── assessmentController.ts
-│   │   │   ├── authController.ts   # Authentication logic
-│   │   │   └── sessionController.ts
 │   │   ├── middleware/             # Express middleware
-│   │   │   ├── auth.ts             # JWT verification
-│   │   │   ├── rateLimit.ts        # Request throttling
-│   │   │   └── validation.ts       # Input validation
 │   │   ├── routes/                 # API routes
-│   │   │   ├── ai.ts               # /api/ai/*
-│   │   │   ├── assessments.ts      # /api/assessments/*
-│   │   │   ├── auth.ts             # /api/auth/*
-│   │   │   └── sessions.ts         # /api/sessions/*
-│   │   ├── validators/             # Zod schemas
-│   │   │   └── auth.ts
 │   │   └── index.ts                # Server entry point
-│   ├── .env.example
-│   ├── package.json
-│   └── tsconfig.json
+│   └── package.json
 │
 ├── src/                            # Frontend source
-│   ├── __tests__/                  # Test files
-│   │   ├── components/             # Component tests
-│   │   │   └── Login.test.tsx
-│   │   ├── authService.test.ts
-│   │   ├── validation.test.ts
-│   │   └── setup.ts                # Test setup
-│   │
 │   ├── components/                 # React components
 │   │   ├── common/                 # Shared components
-│   │   │   ├── Button.tsx          # Accessible button
-│   │   │   ├── ErrorBoundary.tsx   # Error handling
-│   │   │   ├── Input.tsx           # Accessible input
-│   │   │   ├── LoadingSpinner.tsx  # Loading states
-│   │   │   └── index.ts
 │   │   ├── AdminDashboard.tsx
-│   │   ├── ApiKeyStatus.tsx
-│   │   ├── AssessmentPhase.tsx
 │   │   ├── ChatGPTInterface.tsx
 │   │   ├── CognitiveLoadResults.tsx
-│   │   ├── CreativityTest.tsx
-│   │   ├── EEGVisualization.tsx
 │   │   ├── GoogleSearchInterface.tsx
-│   │   ├── LandingPage.tsx
-│   │   ├── Login.tsx
-│   │   ├── ParticipantDashboard.tsx
-│   │   ├── PlatformSelection.tsx
-│   │   └── ResearchInterface.tsx
-│   │
-│   ├── config/                     # Configuration
-│   │   ├── api.ts
-│   │   └── apiConfig.ts
-│   │
-│   ├── context/                    # React Context (TODO)
-│   │   ├── AuthContext.tsx         # Authentication state
-│   │   ├── SessionContext.tsx      # Session persistence
-│   │   └── index.ts
-│   │
-│   ├── data/                       # Static data
-│   │   ├── mockData.ts
-│   │   └── questionsData.ts
-│   │
-│   ├── hooks/                      # Custom hooks
-│   │   ├── useDebounce.ts          # Input debouncing
-│   │   ├── useEEGStream.ts         # EEG simulation
-│   │   ├── useStorage.ts           # localStorage/sessionStorage
-│   │   ├── useTimer.ts             # Timer with visibility handling
-│   │   └── index.ts
-│   │
-│   ├── services/                   # API services
-│   │   ├── analyticsService.ts
-│   │   ├── apiClient.ts            # Unified HTTP client
-│   │   ├── assessmentGenerationService.ts
-│   │   ├── authService.ts          # Authentication API
-│   │   ├── chatgptService.ts
+│   │   └── ...
+│   ├── services/
+│   │   ├── interactionTracker.ts   # Behavioral event capture
+│   │   ├── behavioralClassificationService.ts
 │   │   ├── cognitiveLoadService.ts
-│   │   ├── dataPersistenceService.ts # Data storage
-│   │   ├── geminiService.ts
-│   │   ├── grokService.ts
-│   │   ├── llmService.ts
-│   │   ├── retryService.ts         # Retry with circuit breaker
-│   │   ├── topicValidationService.ts
-│   │   └── validationService.ts    # Response validation
-│   │
+│   │   └── ...
+│   ├── context/                    # React Context
+│   ├── hooks/                      # Custom hooks
 │   ├── types/                      # TypeScript types
-│   │   └── index.ts
-│   │
-│   ├── utils/                      # Utility functions
-│   │   ├── errorHandler.ts         # Custom error classes
-│   │   ├── logger.ts               # Logging service
-│   │   ├── rateLimiter.ts          # Client-side throttling
-│   │   ├── validation.ts           # Input sanitization
-│   │   └── index.ts
-│   │
-│   ├── App.tsx                     # Main app component
-│   ├── main.tsx                    # Entry point
-│   └── index.css                   # Global styles
+│   └── utils/                      # Utility functions
 │
 ├── .env.example                    # Environment template
-├── .gitignore
 ├── ARCHITECTURE.md                 # System architecture
-├── CHANGELOG.md                    # Version history
-├── DUAL_API_KEY_SETUP.md           # API configuration guide
-├── QUICK_START.md                  # Getting started
-├── README.md                       # This file
-├── eslint.config.js
-├── index.html
-├── package.json
-├── postcss.config.js
-├── tailwind.config.js
-├── tsconfig.json
-├── vite.config.ts
-└── vitest.config.ts                # Test configuration
+├── docker-compose.yml              # Docker services (Redis, Backend)
+└── README.md                       # This file
 ```
 
 ## 🚀 Quick Start
@@ -167,10 +93,9 @@ Cognitive_Load_Analysis/
 ### Prerequisites
 
 - Node.js 18+
+- Python 3.9+
 - npm or yarn
-- Docker & Docker Compose
 - Google Gemini API key(s)
-- Mendeley EEG Dataset (for biosignal generation)
 
 ### Installation
 
@@ -179,7 +104,7 @@ Cognitive_Load_Analysis/
 git clone https://github.com/yourusername/Cognitive_Load_Analysis.git
 cd Cognitive_Load_Analysis
 
-# Install dependencies
+# Install frontend dependencies
 npm install
 
 # Copy environment template
@@ -189,99 +114,125 @@ cp .env.example .env
 # VITE_GEMINI_API_KEY=your-api-key
 ```
 
-### Running with Docker (Recommended)
+### Running the Services
+
+#### 1. Start the Behavioral Service (FastAPI)
 
 ```bash
-# Download Mendeley EEG dataset and place in raw_data/
-# Dataset: https://data.mendeley.com/datasets/kt38js3jv7/1
+cd behavioral-service
 
-# Start all services (Redis, Biosignal Service, Backend)
-docker-compose up -d
+# Create virtual environment
+python -m venv venv
 
-# Start frontend development server
+# Activate virtual environment
+# Windows:
+.\venv\Scripts\activate
+# Unix/macOS:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the service
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 2. Start the Backend (Express.js)
+
+```bash
+cd server
+npm install
 npm run dev
 ```
 
-### Running without Docker
+#### 3. Start the Frontend (React + Vite)
 
 ```bash
-# Start frontend only (no EEG generation)
+# From project root
+npm run dev
+```
+
+### Running with Docker (Optional - for Redis and Backend)
+
+```bash
+# Start Redis and Express backend
+docker-compose up -d
+
+# Start behavioral service separately (outside Docker)
+cd behavioral-service
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Start frontend
 npm run dev
 ```
 
 ### Running Tests
 
 ```bash
-# Run tests
+# Frontend tests
 npm test
 
-# Run tests with coverage
+# Frontend tests with coverage
 npm run test:coverage
+
+# Behavioral service tests
+cd behavioral-service
+pytest tests/ -v
 ```
 
-## 📋 Known Issues & Roadmap
+## 🔧 Environment Configuration
 
-See [FLAWS_AND_ISSUES.md](./docs/FLAWS_AND_ISSUES.md) for a comprehensive list of:
-- 🔴 5 Critical issues
-- 🟠 10 High priority issues
-- 🟡 12 Medium priority issues
-- 🟢 2 Low priority issues
+Create a `.env` file in the project root:
 
-### Priority Action Plan
+```env
+# API Keys
+VITE_GEMINI_API_KEY=your-gemini-api-key
+VITE_OPENAI_API_KEY=your-openai-api-key  # Optional
+VITE_GROK_API_KEY=your-grok-api-key      # Optional
 
-| Phase | Focus | Status |
-|-------|-------|--------|
-| Week 1 | Critical Security (Auth, API keys, Input sanitization) | ⬜ Todo |
-| Week 2 | Data Integrity (Backend, Database, Validation) | ⬜ Todo |
-| Week 3 | User Experience (Timer, Loading, Accessibility) | ⬜ Todo |
-| Week 4 | Code Quality (Tests, Logging, Refactoring) | ⬜ Todo |
-| Week 5 | Performance (Code splitting, Optimization) | ⬜ Todo |
+# Backend URLs
+VITE_API_BASE_URL=http://localhost:3001
+VITE_BEHAVIORAL_SERVICE_URL=http://localhost:8000
+
+# Feature Flags
+VITE_ENABLE_ANALYTICS=false
+VITE_ENABLE_REAL_TIME=false
+```
+
+## 📊 Architecture Overview
+
+The platform uses a dual-service architecture:
+
+- **FastAPI Service (Port 8000)**: Handles behavioral data collection, feature extraction, and cognitive load classification
+- **Express.js Server (Port 3001)**: Handles authentication, session management, and assessment data
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND (React + Vite)                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Interaction Tracker  │  Platform Components  │  Results Display        │
+└───────────────────────┼───────────────────────┼─────────────────────────┘
+                        │                       │
+           ┌────────────┴───────────┐           │
+           ▼                        ▼           │
+┌──────────────────────┐  ┌────────────────────┐│
+│  FastAPI Service     │  │  Express.js Server ││
+│  Port: 8000          │  │  Port: 3001        ││
+│  - /api/interactions │  │  - /api/auth       ││
+│  - /api/classify     │  │  - /api/sessions   ││
+│  - /health           │  │  - /api/assessments││
+└──────────────────────┘  └────────────────────┘│
+```
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
 
 ## 📚 Documentation
 
-- [Codebase Index](./docs/CODEBASE_INDEX.md) - Complete code reference
+- [Architecture](./ARCHITECTURE.md) - System design and data flow
 - [Application Flow](./docs/APPLICATION_FLOW.md) - User journey documentation
+- [Codebase Index](./docs/CODEBASE_INDEX.md) - Complete code reference
 - [UI Components](./docs/UI_COMPONENTS.md) - Component documentation
-- [Architecture](./ARCHITECTURE.md) - System design
-- [API Setup](./DUAL_API_KEY_SETUP.md) - API configuration
-
-## 🔧 New File Structure for Fixes
-
-The following folders/files have been added to support fixing identified issues:
-
-### Authentication & Sessions (`src/context/`)
-- `AuthContext.tsx` - Authentication state management
-- `SessionContext.tsx` - Session persistence
-
-### Common Components (`src/components/common/`)
-- `ErrorBoundary.tsx` - Catch and display errors gracefully
-- `LoadingSpinner.tsx` - Loading state indicators
-- `Button.tsx` - Accessible button component
-- `Input.tsx` - Accessible input component
-
-### Utilities (`src/utils/`)
-- `validation.ts` - Input sanitization & validation
-- `errorHandler.ts` - Standardized error handling
-- `logger.ts` - Environment-aware logging
-- `rateLimiter.ts` - Client-side request throttling
-
-### Custom Hooks (`src/hooks/`)
-- `useTimer.ts` - Timer with visibility handling
-- `useStorage.ts` - Persistent storage hooks
-- `useDebounce.ts` - Input debouncing
-
-### Services (`src/services/`)
-- `apiClient.ts` - Unified HTTP client
-- `authService.ts` - Authentication API calls
-- `retryService.ts` - Retry with circuit breaker
-- `dataPersistenceService.ts` - Data storage service
-- `validationService.ts` - Response validation
-
-### Backend (`server/`)
-Complete Express.js backend structure ready for implementation.
-
-### Testing (`src/__tests__/`)
-Vitest test setup with placeholder tests.
+- [API Setup](./DUAL_API_KEY_SETUP.md) - API configuration guide
 
 ## 🤝 Contributing
 
@@ -300,3 +251,4 @@ This project is licensed under the MIT License.
 - Google Gemini API for AI capabilities
 - React and Vite teams for excellent developer experience
 - Tailwind CSS for rapid UI development
+- FastAPI for high-performance Python web framework

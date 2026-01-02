@@ -15,8 +15,6 @@ import { authRoutes } from './routes/auth';
 import { sessionRoutes } from './routes/sessions';
 import { assessmentRoutes } from './routes/assessments';
 import { aiRoutes } from './routes/ai';
-// Active routes
-import biosignalRoutes from './routes/biosignal';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { getRedisClient, initRedis } from './services/redisService';
@@ -98,7 +96,7 @@ app.get('/health', async (req, res) => {
     version: '1.0.0',
     components: {
       redis: redisStatus,
-      biosignalService: process.env.BIOSIGNAL_SERVICE_URL ? 'configured' : 'not-configured',
+      behavioralService: process.env.BEHAVIORAL_SERVICE_URL ? 'configured' : 'not-configured',
     },
   });
 });
@@ -108,7 +106,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionRouter);
 app.use('/api/assessments', assessmentRouter);
 app.use('/api/ai', aiRouter);
-app.use('/api/biosignal', biosignalRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -119,7 +116,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`🧠 Biosignal Service: ${process.env.BIOSIGNAL_SERVICE_URL || 'http://localhost:5000'}`);
+  console.log(`🧠 Behavioral Service: ${process.env.BEHAVIORAL_SERVICE_URL || 'http://localhost:8000'}`);
 });
 
 export default app;

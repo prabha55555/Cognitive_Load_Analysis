@@ -1,6 +1,7 @@
-import { Award, Brain, CheckCircle, Clock, Lightbulb, Sparkles, Target, TrendingDown, TrendingUp, Zap } from 'lucide-react';
-import React from 'react';
+import { Award, Brain, CheckCircle, Clock, Lightbulb, Sparkles, Target, TrendingDown, TrendingUp, Zap, BarChart3 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { cognitiveLoadService } from '../services/cognitiveLoadService';
+import { behavioralClassificationService, BehavioralClassificationResult, PlatformComparisonResult } from '../services/behavioralClassificationService';
 import { AssessmentResponse, CognitiveLoadMetrics } from '../types';
 import { CreativityEvaluation } from '../services/geminiService';
 
@@ -10,6 +11,8 @@ interface CognitiveLoadResultsProps {
   onComplete: (cognitiveLoadScore: number) => void;
   topic?: string;
   participantId?: string;
+  sessionId?: string; // Session ID for behavioral classification
+  platform?: 'chatgpt' | 'google'; // Platform used during the session
 }
 
 export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
@@ -17,8 +20,44 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
   creativityEvaluations = [],
   onComplete,
   topic = '',
-  participantId = ''
+  participantId = '',
+  sessionId = '',
+  platform
 }) => {
+  // State for behavioral classification results
+  const [behavioralResult, setBehavioralResult] = useState<BehavioralClassificationResult | null>(null);
+  const [platformComparison, setPlatformComparison] = useState<PlatformComparisonResult | null>(null);
+  const [isLoadingBehavioral, setIsLoadingBehavioral] = useState(false);
+  const [behavioralServiceAvailable, setBehavioralServiceAvailable] = useState(false);
+
+  // Fetch behavioral classification on mount
+  useEffect(() => {
+    const fetchBehavioralData = async () => {
+      setIsLoadingBehavioral(true);
+      
+      // Check if service is available
+      const isAvailable = await behavioralClassificationService.checkHealth();
+      setBehavioralServiceAvailable(isAvailable);
+      
+      if (isAvailable && sessionId) {
+        // Fetch classification for this session
+        const classification = await behavioralClassificationService.classifySession(sessionId, true);
+        if (classification) {
+          setBehavioralResult(classification);
+        }
+        
+        // Fetch platform comparison
+        const comparison = await behavioralClassificationService.comparePlatforms();
+        if (comparison) {
+          setPlatformComparison(comparison);
+        }
+      }
+      
+      setIsLoadingBehavioral(false);
+    };
+    
+    fetchBehavioralData();
+  }, [sessionId]);
   // Guard: Check if assessmentResponses is empty
   if (!assessmentResponses || assessmentResponses.length === 0) {
     return (
@@ -127,6 +166,179 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Behavioral Classification Results - Requirements: 7.2 */}
+        {behavioralServiceAvailable && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-3 bg-indigo-100 rounded-xl">
+                <BarChart3 className="h-6 w-6 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Behavioral Analysis</h3>
+              {platform && (
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  platform === 'chatgpt' 
+                    ? 'bg-emerald-100 text-emerald-700' 
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {platform === 'chatgpt' ? 'ChatGPT' : 'Google Search'}
+                </span>
+              )}
+            </div>
+            
+            {isLoadingBehavioral ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span className="ml-3 text-gray-600">Analyzing behavioral patterns...</span>
+              </div>
+            ) : behavioralResult ? (
+              <div className="space-y-4">
+                {/* Behavioral Cognitive Load Level */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <Brain className="h-5 w-5 text-indigo-600" />
+                    <span className="font-medium text-gray-700">Behavioral Cognitive Load</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                      behavioralResult.cognitive_load_level === 'Low' ? 'bg-green-100 text-green-700' :
+                      behavioralResult.cognitive_load_level === 'Moderate' ? 'bg-blue-100 text-blue-700' :
+                      behavioralResult.cognitive_load_level === 'High' ? 'bg-orange-100 text-orange-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {behavioralResult.cognitive_load_level}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Confidence Score */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <Target className="h-5 w-5 text-purple-600" />
+                    <span className="font-medium text-gray-700">Classification Confidence</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-32 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
+                        style={{ width: `${behavioralResult.confidence * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-lg font-bold text-purple-600">
+                      {Math.round(behavioralResult.confidence * 100)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Behavioral Features Summary */}
+                {behavioralResult.features && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Response Time</div>
+                      <div className="text-lg font-bold text-gray-700">
+                        {behavioralResult.features.mean_response_time.toFixed(1)}s
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Total Clicks</div>
+                      <div className="text-lg font-bold text-gray-700">
+                        {behavioralResult.features.total_clicks}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Rage Clicks</div>
+                      <div className={`text-lg font-bold ${
+                        behavioralResult.features.rage_click_count > 2 ? 'text-red-600' : 'text-gray-700'
+                      }`}>
+                        {behavioralResult.features.rage_click_count}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Active Time</div>
+                      <div className="text-lg font-bold text-gray-700">
+                        {Math.round(behavioralResult.features.active_time_ratio * 100)}%
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Sections Visited</div>
+                      <div className="text-lg font-bold text-gray-700">
+                        {behavioralResult.features.sections_visited}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <div className="text-xs text-gray-500 mb-1">Scroll Depth</div>
+                      <div className="text-lg font-bold text-gray-700">
+                        {Math.round(behavioralResult.features.scroll_depth * 100)}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                <Brain className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>No behavioral data available for this session</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Platform Comparison - Requirements: 7.2 */}
+        {platformComparison && platformComparison.sample_sizes.chatgpt > 0 && platformComparison.sample_sizes.google > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-3 bg-cyan-100 rounded-xl">
+                <BarChart3 className="h-6 w-6 text-cyan-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Platform Comparison</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              {/* ChatGPT Stats */}
+              <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-emerald-700 mb-2">ChatGPT</div>
+                  <div className="text-3xl font-bold text-emerald-600">
+                    {Math.round(platformComparison.chatgpt_mean_load)}
+                  </div>
+                  <div className="text-xs text-emerald-600 mt-1">
+                    Mean Cognitive Load
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {platformComparison.sample_sizes.chatgpt} sessions
+                  </div>
+                </div>
+              </div>
+
+              {/* Google Stats */}
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-blue-700 mb-2">Google Search</div>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {Math.round(platformComparison.google_mean_load)}
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    Mean Cognitive Load
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {platformComparison.sample_sizes.google} sessions
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistical Significance */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-center">
+              <span className="text-sm text-gray-600">Statistical Significance: </span>
+              <span className={`font-bold ${
+                platformComparison.statistical_significance < 0.05 ? 'text-green-600' : 'text-gray-600'
+              }`}>
+                p = {platformComparison.statistical_significance.toFixed(4)}
+                {platformComparison.statistical_significance < 0.05 && ' (Significant)'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 gap-6 mb-8">

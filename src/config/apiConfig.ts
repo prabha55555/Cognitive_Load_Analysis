@@ -46,18 +46,13 @@ export const API_CONFIG = {
     TIMEOUT: 15000 // 15 seconds
   },
 
-  // Biosignal Service Configuration
-  BIOSIGNAL: {
-    BASE_URL: import.meta.env.VITE_BIOSIGNAL_URL || 'http://localhost:3001/api/biosignal',
-    TIMEOUT: 30000, // 30 seconds (generation can take time)
-    CACHE_TTL: 300000, // 5 minutes local cache
-  },
-
-  // EEG Service Configuration
-  EEG: {
-    WEBSOCKET_URL: import.meta.env.VITE_EEG_WEBSOCKET_URL || 'ws://localhost:8080',
-    SAMPLE_RATE: 256,
-    CHANNELS: ['Fp1', 'Fp2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2']
+  // Behavioral Service Configuration (FastAPI)
+  BEHAVIORAL: {
+    BASE_URL: import.meta.env.VITE_BEHAVIORAL_SERVICE_URL || 'http://localhost:8000',
+    TIMEOUT: 10000, // 10 seconds
+    BATCH_SIZE: 50,
+    FLUSH_INTERVAL: 5000, // 5 seconds
+    MOUSE_SAMPLE_RATE: 100, // 100ms
   },
 
   // Environment Configuration
@@ -65,8 +60,6 @@ export const API_CONFIG = {
   
   // Feature Flags
   FEATURES: {
-    ENABLE_EEG: import.meta.env.VITE_ENABLE_EEG === 'true',
-    ENABLE_CHRONOS: import.meta.env.VITE_ENABLE_CHRONOS === 'true',
     ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
     ENABLE_REAL_TIME: import.meta.env.VITE_ENABLE_REAL_TIME === 'true'
   },
@@ -300,10 +293,166 @@ export const createFetchConfig = (
 // Convenience export with typed interface
 export const apiConfig = {
   BACKEND_URL: API_CONFIG.BACKEND.BASE_URL,
-  BIOSIGNAL_URL: API_CONFIG.BIOSIGNAL.BASE_URL,
+  BEHAVIORAL_URL: API_CONFIG.BEHAVIORAL.BASE_URL,
   FEATURES: API_CONFIG.FEATURES,
   TIMEOUTS: API_CONFIG.TIMEOUTS,
 };
+
+// ============================================================================
+// Service Routing Configuration
+// Requirements: 9.2 - Route behavioral data requests to FastAPI and auth requests to Express
+// ============================================================================
+
+/**
+ * Service type for request routing
+ */
+export type ServiceType = 'auth' | 'sessions' | 'assessments' | 'behavioral' | 'ai';
+
+/**
+ * Get the base URL for a specific service type
+ * Routes requests to the appropriate backend service:
+ * - auth, sessions, assessments → Express.js server (port 3001)
+ * - behavioral → FastAPI service (port 8000)
+ * - ai → External AI APIs (OpenAI, Gemini, Grok)
+ * 
+ * Requirements: 9.2
+ */
+export function getServiceUrl(service: ServiceType): string {
+  switch (service) {
+    case 'behavioral':
+      return API_CONFIG.BEHAVIORAL.BASE_URL;
+    case 'auth':
+    case 'sessions':
+    case 'assessments':
+      return API_CONFIG.BACKEND.BASE_URL;
+    case 'ai':
+      // AI services use their own URLs, this returns the default backend
+      return API_CONFIG.BACKEND.BASE_URL;
+    default:
+      return API_CONFIG.BACKEND.BASE_URL;
+  }
+}
+
+/**
+ * Get the full endpoint URL for a specific service and path
+ * 
+ * @param service - The service type to route to
+ * @param path - The API path (e.g., '/api/interactions/ingest')
+ * @returns Full URL for the endpoint
+ * 
+ * Requirements: 9.2
+ */
+export function getEndpointUrl(service: ServiceType, path: string): string {
+  const baseUrl = getServiceUrl(service);
+  // Ensure path starts with /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${normalizedPath}`;
+}
+
+/**
+ * Route configuration for different API endpoints
+ * Maps endpoint patterns to their target services
+ * 
+ * Requirements: 9.2
+ */
+export const ENDPOINT_ROUTING: Record<string, ServiceType> = {
+  // Authentication endpoints → Express.js
+  '/api/auth': 'auth',
+  '/auth': 'auth',
+  
+  // Session management → Express.js
+  '/api/sessions': 'sessions',
+  '/sessions': 'sessions',
+  
+  // Assessment endpoints → Express.js
+  '/api/assessments': 'assessments',
+  '/assessments': 'assessments',
+  
+  // Behavioral/interaction endpoints → FastAPI
+  '/api/interactions': 'behavioral',
+  '/interactions': 'behavioral',
+  '/api/behavioral': 'behavioral',
+  '/behavioral': 'behavioral',
+  
+  // AI endpoints → Express.js (proxied) or direct
+  '/api/ai': 'ai',
+  '/ai': 'ai',
+};
+
+/**
+ * Determine which service should handle a given endpoint path
+ * 
+ * @param path - The API path to route
+ * @returns The service type that should handle this path
+ * 
+ * Requirements: 9.2
+ */
+export function routeEndpoint(path: string): ServiceType {
+  // Normalize path
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // Check for exact matches first
+  for (const [pattern, service] of Object.entries(ENDPOINT_ROUTING)) {
+    if (normalizedPath.startsWith(pattern)) {
+      return service;
+    }
+  }
+  
+  // Default to backend (Express.js)
+  return 'auth';
+}
+
+/**
+ * Create a fetch wrapper that automatically routes to the correct service
+ * 
+ * @param path - The API path
+ * @param options - Fetch options
+ * @returns Promise with the fetch response
+ * 
+ * Requirements: 9.2
+ */
+export async function routedFetch(
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const service = routeEndpoint(path);
+  const url = getEndpointUrl(service, path);
+  
+  // Get timeout for the service
+  const timeout = service === 'behavioral' 
+    ? API_CONFIG.BEHAVIORAL.TIMEOUT 
+    : API_CONFIG.BACKEND.TIMEOUT;
+  
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Check if the behavioral service is configured and available
+ */
+export function isBehavioralServiceConfigured(): boolean {
+  return !!API_CONFIG.BEHAVIORAL.BASE_URL && 
+         API_CONFIG.BEHAVIORAL.BASE_URL !== 'http://localhost:8000' || 
+         import.meta.env.VITE_BEHAVIORAL_SERVICE_URL !== undefined;
+}
 
 // Export default configuration
 export default API_CONFIG;

@@ -1,4 +1,4 @@
-// Core data types for the EEG research platform
+// Core data types for the Cognitive Load Research Platform
 
 export interface Participant {
   id: string;
@@ -13,19 +13,24 @@ export interface Participant {
   isActive: boolean;
   assessmentResponses?: AssessmentResponse[];
   cognitiveLoadMetrics?: CognitiveLoadMetrics;
+  // Behavioral tracking session ID for cognitive load classification
+  behavioralSessionId?: string;
+  // Selected platform during research phase (may differ from assignedPlatform)
+  selectedPlatform?: 'chatgpt' | 'google';
 }
 
-export interface EEGData {
+export interface BehavioralData {
   participantId: string;
   timestamp: number;
-  channels: {
-    [key: string]: number; // Channel name to value mapping
-  };
   cognitiveLoad: number; // 0-100 scale
-  thetaPower: number;
-  alphaPower: number;
-  betaPower: number;
+  confidence: number; // 0-1 scale
   engagement: number;
+  features?: {
+    meanResponseTime: number;
+    rageClickCount: number;
+    trajectoryDeviation: number;
+    revisitRatio: number;
+  };
 }
 
 export interface CreativityTest {
@@ -53,7 +58,7 @@ export interface ExperimentSession {
   endTime?: Date;
   searchQueries: string[];
   timeSpent: number;
-  cognitiveLoadData: EEGData[];
+  behavioralData: BehavioralData[];
 }
 
 export interface ResearchTopic {

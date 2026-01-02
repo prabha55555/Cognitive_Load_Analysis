@@ -2,6 +2,7 @@ import { AlertTriangle, Bot, Edit, RotateCcw, Send, Sparkles, StopCircle, User }
 import { useCallback, useEffect, useRef, useState } from 'react';
 import llmService, { ChatMessage } from '../services/llmService';
 import { topicValidator } from '../services/topicValidationService';
+import { getInteractionTracker, stopInteractionTracker, Platform } from '../services/interactionTracker';
 import { Participant } from '../types';
 
 interface Message {
@@ -21,12 +22,14 @@ interface ChatGPTInterfaceProps {
   participant: Participant;
   onQuerySubmit: (query: string, analytics?: any) => void;
   onTopicChange?: (topic: string) => void; // Callback to notify parent of topic changes
+  sessionId?: string; // Session ID for behavioral tracking
 }
 
 export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
   participant,
   onQuerySubmit,
-  onTopicChange
+  onTopicChange,
+  sessionId: propSessionId
 }) => {
   const [currentInput, setCurrentInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,6 +104,26 @@ What would you like to know about ${participant.researchTopic}?`,
       llmService.stopStreaming();
     };
   }, []);
+
+  // Initialize InteractionTracker for behavioral cognitive load analysis
+  // Requirements: 7.1 - Tag session with platform type
+  useEffect(() => {
+    const platform: Platform = 'chatgpt';
+    // Use session ID from props if available, otherwise generate one
+    const sessionId = propSessionId || `session_${participant.id}_${Date.now()}`;
+    
+    // Initialize and start the tracker
+    const tracker = getInteractionTracker(sessionId, participant.id, platform);
+    tracker.start();
+    
+    // Track initial navigation to ChatGPT interface
+    tracker.trackNavigation('chatgpt-interface');
+    
+    // Cleanup on unmount - stop tracker and flush events
+    return () => {
+      stopInteractionTracker();
+    };
+  }, [participant.id, propSessionId]);
 
   // Function to create streaming message DOM element
   const createStreamingMessage = (messageId: string, relevanceScore: number): HTMLDivElement => {

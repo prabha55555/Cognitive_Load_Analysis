@@ -1,6 +1,7 @@
 import { BookOpen, Clock, Edit, ExternalLink, FileText, Globe, MapPin, RotateCcw, Search, TrendingUp, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { analyticsService } from '../services/analyticsService';
+import { getInteractionTracker, stopInteractionTracker, Platform } from '../services/interactionTracker';
 import { Participant } from '../types';
 
 interface SearchResult {
@@ -22,13 +23,15 @@ interface GoogleSearchInterfaceProps {
     scrollDepth: number;
   }) => void;
   onTopicChange?: (topic: string) => void; // Callback to notify parent of topic changes
+  sessionId?: string; // Session ID for behavioral tracking
 }
 
 export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
   participant,
   onQuerySubmit,
   onSearchBehavior,
-  onTopicChange
+  onTopicChange,
+  sessionId: propSessionId
 }) => {
   const [currentQuery, setCurrentQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -69,6 +72,26 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
       }
     };
   }, [participant.id, participant.researchTopic]);
+
+  // Initialize InteractionTracker for behavioral cognitive load analysis
+  // Requirements: 7.1 - Tag session with platform type
+  useEffect(() => {
+    const platform: Platform = 'google';
+    // Use session ID from props if available, otherwise generate one
+    const trackerSessionId = propSessionId || `session_${participant.id}_${Date.now()}`;
+    
+    // Initialize and start the tracker
+    const tracker = getInteractionTracker(trackerSessionId, participant.id, platform);
+    tracker.start();
+    
+    // Track initial navigation to Google Search interface
+    tracker.trackNavigation('google-search-interface');
+    
+    // Cleanup on unmount - stop tracker and flush events
+    return () => {
+      stopInteractionTracker();
+    };
+  }, [participant.id, propSessionId]);
 
   // Custom topic handlers
   const handleCustomTopicToggle = () => {

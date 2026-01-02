@@ -16,34 +16,6 @@ services:
     networks:
       - cognitive-load-network
 
-  # Python Biosignal Service (Chronos)
-  biosignal-service:
-    build:
-      context: ./biosignal-service
-      dockerfile: Dockerfile
-    container_name: cognitive-load-biosignal
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=production
-      - REDIS_URL=redis://redis:6379/0
-      - CHRONOS_MODEL=amazon/chronos-t5-mini
-      - USE_GPU=false
-    volumes:
-      - ./biosignal-service/raw_data:/app/raw_data
-      - ./biosignal-service/processed_patterns:/app/processed_patterns
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - cognitive-load-network
-
   # Node.js Backend API
   backend:
     build:
@@ -56,13 +28,10 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - REDIS_URL=redis://redis:6379/0
-      - BIOSIGNAL_SERVICE_URL=http://biosignal-service:5000
       - FRONTEND_URL=http://localhost:5173
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
     depends_on:
       redis:
-        condition: service_healthy
-      biosignal-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
@@ -82,9 +51,7 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_BASE_URL=http://localhost:3001
-      - VITE_BIOSIGNAL_URL=http://localhost:3001/api/biosignal
-      - VITE_ENABLE_EEG=true
-      - VITE_ENABLE_CHRONOS=true
+      - VITE_BEHAVIORAL_SERVICE_URL=http://localhost:8000
     volumes:
       - ./src:/app/src
       - ./public:/app/public

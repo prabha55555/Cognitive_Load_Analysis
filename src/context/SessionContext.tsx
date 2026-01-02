@@ -9,9 +9,12 @@
  * 
  * Related Flaw: Module 1 - Session State Lost on Refresh (HIGH)
  * @see docs/FLAWS_AND_ISSUES.md
+ * 
+ * Requirements: 9.3 - Session context sharing through JWT tokens
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/authService';
 
 interface SessionData {
   currentPhase: string;
@@ -20,6 +23,8 @@ interface SessionData {
   startTime: number | null;
   assessmentResponses: Record<string, any>;
   creativityResponses: Record<string, any>;
+  sessionId: string;
+  participantId: string;
 }
 
 interface SessionContextType {
@@ -27,6 +32,21 @@ interface SessionContextType {
   updateSession: (updates: Partial<SessionData>) => void;
   clearSession: () => void;
   restoreSession: () => boolean;
+  getSessionToken: () => string | null;
+}
+
+/**
+ * Generate a unique session ID
+ */
+function generateSessionId(): string {
+  return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
+
+/**
+ * Generate a unique participant ID
+ */
+function generateParticipantId(): string {
+  return `part_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 const defaultSession: SessionData = {
@@ -36,6 +56,8 @@ const defaultSession: SessionData = {
   startTime: null,
   assessmentResponses: {},
   creativityResponses: {},
+  sessionId: generateSessionId(),
+  participantId: generateParticipantId(),
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -55,14 +77,20 @@ interface SessionProviderProps {
 export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
   const [session, setSession] = useState<SessionData>(defaultSession);
 
-  // TODO: Load session from storage on mount
+  // Load session from storage on mount
   useEffect(() => {
     restoreSession();
   }, []);
 
-  // TODO: Auto-save session on changes
+  // Auto-save session on changes and generate session token
+  // Requirements: 9.3 - Session context sharing through JWT
   useEffect(() => {
     localStorage.setItem('cognitiveLoadSession', JSON.stringify(session));
+    
+    // Generate/update session token for cross-service communication
+    if (session.sessionId && session.participantId) {
+      authService.generateSessionToken(session.sessionId, session.participantId);
+    }
   }, [session]);
 
   const updateSession = (updates: Partial<SessionData>) => {
@@ -70,21 +98,43 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   };
 
   const clearSession = () => {
-    setSession(defaultSession);
+    const newSession = {
+      ...defaultSession,
+      sessionId: generateSessionId(),
+      participantId: generateParticipantId(),
+    };
+    setSession(newSession);
     localStorage.removeItem('cognitiveLoadSession');
+    authService.clearTokens();
   };
 
   const restoreSession = (): boolean => {
     try {
       const saved = localStorage.getItem('cognitiveLoadSession');
       if (saved) {
-        setSession(JSON.parse(saved));
+        const parsedSession = JSON.parse(saved);
+        // Ensure sessionId and participantId exist
+        if (!parsedSession.sessionId) {
+          parsedSession.sessionId = generateSessionId();
+        }
+        if (!parsedSession.participantId) {
+          parsedSession.participantId = generateParticipantId();
+        }
+        setSession(parsedSession);
         return true;
       }
     } catch (error) {
       console.error('Failed to restore session:', error);
     }
     return false;
+  };
+
+  /**
+   * Get the current session token for API requests
+   * Requirements: 9.3 - Session context sharing through JWT
+   */
+  const getSessionToken = (): string | null => {
+    return authService.getToken();
   };
 
   return (
@@ -94,6 +144,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         updateSession,
         clearSession,
         restoreSession,
+        getSessionToken,
       }}
     >
       {children}

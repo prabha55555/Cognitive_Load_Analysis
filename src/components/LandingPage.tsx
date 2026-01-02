@@ -28,8 +28,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
     },
     {
       icon: <Brain className="h-8 w-8" />,
-      title: 'EEG Setup',
-      description: 'Connect to EEG device for real-time brain monitoring',
+      title: 'Behavioral Setup',
+      description: 'Initialize interaction tracking for cognitive load monitoring',
       color: 'text-purple-600 bg-purple-100 border-purple-200',
       gradient: 'from-purple-400 to-purple-600'
     },
@@ -80,7 +80,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-slate-800 tracking-wide">
-                    EEG Research Platform
+                    Cognitive Load Research
                   </h1>
                   <p className="text-sm font-medium text-slate-600">Cognitive Load vs Creativity Study</p>
                 </div>
@@ -156,8 +156,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                 <div className="flex items-center justify-center mb-4">
                   <Brain className="h-8 w-8 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">Real-time EEG</h3>
-                <p className="text-slate-600 font-medium">Live brain monitoring</p>
+              <h3 className="text-2xl font-bold text-slate-800 mb-2">Behavioral Analysis</h3>
+                <p className="text-slate-600 font-medium">Live cognitive load monitoring</p>
               </div>
               <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 shadow-xl">
                 <div className="flex items-center justify-center mb-4">
@@ -196,8 +196,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
                 <Brain className="h-12 w-12 text-purple-600 relative z-10 mx-auto" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-3">Real-time EEG</h3>
-              <p className="text-slate-600 font-medium">Live brain activity monitoring</p>
+              <h3 className="text-2xl font-bold text-slate-800 mb-3">Behavioral Analysis</h3>
+              <p className="text-slate-600 font-medium">Live cognitive load monitoring</p>
             </div>
             <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-emerald-100/80 border border-emerald-200/60 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
               <div className="relative mb-6">
@@ -329,11 +329,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-40 animate-pulse"></div>
                 <Brain className="h-10 w-10 text-blue-400 relative z-10" />
               </div>
-              <span className="text-2xl font-bold">EEG Research Platform</span>
+              <span className="text-2xl font-bold">Cognitive Load Research</span>
             </div>
             <p className="text-slate-300 mb-6 text-lg max-w-2xl mx-auto leading-relaxed font-normal">
               Advancing our understanding of cognitive load and creativity in the digital age through 
-              cutting-edge EEG technology and innovative research methodologies.
+              behavioral analysis technology and innovative research methodologies.
             </p>
             <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/60 max-w-2xl mx-auto">
               <p className="text-sm text-slate-400 leading-relaxed font-normal">

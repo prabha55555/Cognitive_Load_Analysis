@@ -61,7 +61,7 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
       features: [
         'Real Google search interface',
         'Search behavior analytics',
-        'EEG/EDA data integration ready',
+        'Behavioral data integration ready',
         'Comprehensive search tracking'
       ],
       setupTime: '1-2 minutes',
