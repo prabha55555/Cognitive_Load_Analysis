@@ -21,10 +21,11 @@ export const API_CONFIG = {
   },
 
   // Google Gemini API - Chat (for chatbot interactions)
+  // Using gemini-2.5-flash-lite for cost-efficiency and high throughput in QA chatbot
   GEMINI_CHAT: {
     API_KEY: import.meta.env.VITE_GEMINI_CHAT_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '',
-    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-    MODEL: 'gemini-2.0-flash',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    MODEL: 'gemini-2.5-flash-lite',
     MAX_TOKENS: 2048,
     TEMPERATURE: 0.7
   },
@@ -32,8 +33,8 @@ export const API_CONFIG = {
   // Google Gemini API - Questions (for question generation & evaluation)
   GEMINI_QUESTIONS: {
     API_KEY: import.meta.env.VITE_GEMINI_QUESTIONS_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '',
-    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-    MODEL: 'gemini-2.0-flash',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    MODEL: 'gemini-2.5-flash-lite',
     MAX_TOKENS: 4096,
     TEMPERATURE: 0.8
   },
@@ -41,8 +42,8 @@ export const API_CONFIG = {
   // Google Gemini API - Main (fallback/general use)
   GEMINI: {
     API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
-    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-    MODEL: 'gemini-2.0-flash',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    MODEL: 'gemini-2.5-flash-lite',
     MAX_TOKENS: 2048,
     TEMPERATURE: 0.7
   },

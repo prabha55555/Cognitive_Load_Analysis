@@ -154,7 +154,7 @@ npm run dev
 
 ### Running with Docker (Optional - for Redis and Backend)
 
-```bash
+```bash"
 # Start Redis and Express backend
 docker-compose up -d
 

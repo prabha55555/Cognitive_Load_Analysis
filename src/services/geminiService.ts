@@ -37,7 +37,7 @@ const getModel = (purpose: 'chat' | 'questions' | 'evaluation' = 'chat') => {
         // HIGH FREQUENCY: Use dedicated CHAT API key
         console.log('✅ Using VITE_GEMINI_CHAT_API_KEY for chat interactions');
         return genAIChat.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash-lite',
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 1000,
@@ -49,7 +49,7 @@ const getModel = (purpose: 'chat' | 'questions' | 'evaluation' = 'chat') => {
         // MEDIUM FREQUENCY: Use dedicated QUESTIONS API key
         console.log('✅ Using VITE_GEMINI_QUESTIONS_API_KEY for assessment generation');
         return genAIQuestions.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash-lite',
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens: 2500,
@@ -61,7 +61,7 @@ const getModel = (purpose: 'chat' | 'questions' | 'evaluation' = 'chat') => {
         // MEDIUM FREQUENCY: Use QUESTIONS API key (shared with assessments)
         console.log('✅ Using VITE_GEMINI_QUESTIONS_API_KEY for creativity evaluation');
         return genAIQuestions.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash-lite',
           generationConfig: {
             temperature: 0.5,
             maxOutputTokens: 1500,
@@ -71,7 +71,7 @@ const getModel = (purpose: 'chat' | 'questions' | 'evaluation' = 'chat') => {
         
       default:
         console.log('⚠️ Using PRIMARY API KEY (fallback)');
-        return genAIPrimary.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        return genAIPrimary.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
     }
   } catch (error) {
     console.error('❌ Error initializing model:', error);
@@ -90,7 +90,7 @@ async function retryWithFallback<T>(
 ): Promise<T> {
   const apiKeys = [
     { name: 'Dedicated', model: getModel(purpose) },
-    { name: 'Primary', model: genAIPrimary.getGenerativeModel({ model: 'gemini-2.0-flash' }) },
+    { name: 'Primary', model: genAIPrimary.getGenerativeModel({ model: 'gemini-2.5-flash-lite' }) },
   ];
 
   for (let i = 0; i < apiKeys.length; i++) {
@@ -521,7 +521,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 
       console.log('� Sending evaluation request to Gemini AI...');
       console.log('Using EVALUATION API key with retry mechanism');
-      console.log('Model: gemini-2.0-flash-exp');
+      console.log('Model: gemini-2.5-flash-lite');
       
       const result = await model.generateContent(prompt);
       const responseObj = await result.response;

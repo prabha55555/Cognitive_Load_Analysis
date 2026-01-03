@@ -26,7 +26,7 @@ export const API_CONFIG = {
   // Google Gemini API Configuration
   GEMINI: {
     API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
-    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
     MAX_TOKENS: 1000,
     TEMPERATURE: 0.7,
     TIMEOUT: 10000 // 10 seconds
