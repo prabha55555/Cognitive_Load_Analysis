@@ -2,6 +2,7 @@
 // This service handles communication with OpenAI's ChatGPT API
 
 import { API_CONFIG, isApiKeyAvailable } from '../config/api';
+import { PROMPTS } from './prompts';
 
 interface ChatGPTMessage {
   role: 'system' | 'user' | 'assistant';
@@ -54,10 +55,7 @@ export class ChatGPTService {
     // Create system message for research context
     const systemMessage: ChatGPTMessage = {
       role: 'system',
-      content: `You are a helpful research assistant specializing in ${researchTopic}. 
-      Provide detailed, accurate, and well-structured responses to help users understand this topic. 
-      Include relevant examples, cite sources when possible, and maintain a professional yet accessible tone. 
-      Focus on providing comprehensive information that would be useful for academic or professional research.`
+      content: PROMPTS.CHATGPT_SYSTEM(researchTopic)
     };
 
     // Prepare messages array

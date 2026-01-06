@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { API_CONFIG } from '../config/api';
+import { PROMPTS } from './prompts';
 
 // ========================================
 // API KEY CONFIGURATION & LOAD BALANCING
@@ -174,65 +175,8 @@ export const geminiService = {
     console.log(`📝 GENERATING ASSESSMENT QUESTIONS for topic: "${topic}"`);
     
     return retryWithFallback(async (model) => {
-      // More forceful prompt that emphasizes the EXACT topic
-      const prompt = `You are an expert educational assessment designer. Create ${count} multiple-choice questions SPECIFICALLY AND EXCLUSIVELY about: "${topic}"
-
-🎯 CRITICAL REQUIREMENTS:
-1. EVERY question must be DIRECTLY about "${topic}" - use the exact topic name in questions
-2. Questions MUST test knowledge of "${topic}" concepts, applications, and principles
-3. DO NOT create generic questions - make them specific to "${topic}"
-4. Each question has 4 options - one correct, three plausible but wrong
-5. Use simple, clear language that students can understand
-6. Make questions practical and applicable to understanding "${topic}"
-
-📚 TOPIC: ${topic}
-
-⚠️ IMPORTANT: If the topic is "${topic}", then questions should explicitly mention or be clearly about "${topic}". For example:
-- If topic is "Quantum Computing": Ask "What is a qubit in Quantum Computing?"
-- If topic is "Climate Change": Ask "What is the primary cause of Climate Change?"
-- If topic is "Machine Learning": Ask "What is supervised learning in Machine Learning?"
-
-📊 DIFFICULTY MIX:
-- 2 EASY questions: Basic facts and definitions of "${topic}"
-- 2 MEDIUM questions: Understanding how "${topic}" works
-- 1 HARD question: Applying "${topic}" knowledge to solve problems
-
-🧠 COGNITIVE LEVELS:
-- Remembering: Basic facts about "${topic}"
-- Understanding: Explaining "${topic}" concepts
-- Application: Using "${topic}" in real scenarios
-- Analysis: Analyzing "${topic}" components
-
-EXAMPLE for "Blockchain Technology":
-{
-  "id": "q1",
-  "question": "What is the primary purpose of Blockchain Technology?",
-  "options": [
-    "To create a secure, decentralized ledger for recording transactions",
-    "To store files in the cloud",
-    "To send emails securely",
-    "To compress video files"
-  ],
-  "correctAnswer": "To create a secure, decentralized ledger for recording transactions",
-  "difficulty": "easy",
-  "topic": "Blockchain Technology",
-  "cognitiveLevel": "remembering"
-}
-
-NOW CREATE ${count} QUESTIONS SPECIFICALLY ABOUT: "${topic}"
-
-RESPOND WITH ONLY THIS JSON ARRAY (NO MARKDOWN, NO CODE BLOCKS, NO EXTRA TEXT):
-[
-  {
-    "id": "q1",
-    "question": "What is [specific aspect of ${topic}]?",
-    "options": ["Correct answer about ${topic}", "Wrong but plausible", "Wrong but plausible", "Wrong but plausible"],
-    "correctAnswer": "Correct answer about ${topic}",
-    "difficulty": "easy",
-    "topic": "${topic}",
-    "cognitiveLevel": "remembering"
-  }
-]`;
+      // Use centralized assessment questions prompt
+      const prompt = PROMPTS.ASSESSMENT_QUESTIONS(topic, count);
 
       try {
         console.log('==========================================');
@@ -347,42 +291,7 @@ RESPOND WITH ONLY THIS JSON ARRAY (NO MARKDOWN, NO CODE BLOCKS, NO EXTRA TEXT):
   ): Promise<CreativityQuestion[]> {
     const model = questionsGenAI.getGenerativeModel({ model: API_CONFIG.GEMINI_QUESTIONS.MODEL });
 
-    const prompt = `You are an expert educational psychologist specializing in creativity assessment and cognitive load measurement.
-
-Topic: ${topic}
-
-Student's Notes/Content:
-${notes}
-
-Generate 3 creativity assessment questions specifically related to this topic. Each question should test different aspects of creative thinking:
-
-1. **Fluency Question** (Easy-Medium): Tests ability to generate multiple ideas quickly
-2. **Originality Question** (Medium): Tests uniqueness and novel thinking
-3. **Divergent Thinking Question** (Hard): Tests ability to see multiple perspectives and make connections
-
-Requirements:
-- Questions MUST be directly related to the topic content
-- Questions should be open-ended
-- Include time limits appropriate for cognitive load measurement
-- Provide evaluation criteria weights
-
-Return ONLY a valid JSON array with this exact structure (no markdown, no code blocks):
-[
-  {
-    "id": "unique-id-1",
-    "question": "question text here",
-    "type": "fluency",
-    "difficulty": "medium",
-    "timeLimit": 180,
-    "topic": "${topic}",
-    "evaluationCriteria": {
-      "relevance": 30,
-      "creativity": 25,
-      "depth": 20,
-      "coherence": 25
-    }
-  }
-]`;
+    const prompt = PROMPTS.CREATIVITY_QUESTIONS(topic, notes);
 
     try {
       console.log('🔑 Generating creativity questions using QUESTIONS API key');
@@ -455,69 +364,7 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no code b
       console.log('⏱️ Time Analysis:', timeUsageDescription);
       console.log('Time Ratio:', (timeRatio * 100).toFixed(1) + '%');
 
-      const prompt = `You are an expert in creativity assessment and cognitive load analysis.
-
-**Topic**: ${question.topic}
-**Question Type**: ${question.type}
-**Question**: ${question.question}
-
-**Student Response**:
-${response}
-
-**Time Analysis**:
-- Time Spent: ${timeSpent} seconds
-- Time Limit: ${question.timeLimit} seconds
-- Time Usage: ${timeUsageDescription}
-
-**Evaluation Criteria Weights**:
-- Relevance: ${question.evaluationCriteria.relevance}%
-- Creativity: ${question.evaluationCriteria.creativity}%
-- Depth: ${question.evaluationCriteria.depth}%
-- Coherence: ${question.evaluationCriteria.coherence}%
-
-**CRITICAL EVALUATION REQUIREMENTS**:
-1. **Relevance Score (0-100)**: Does the response ACTUALLY answer the question? Is it related to "${question.topic}"?
-   - 0-30: Off-topic or irrelevant
-   - 31-60: Somewhat related but missing key points
-   - 61-85: Good relevance to the question
-   - 86-100: Perfectly addresses the question and topic
-
-2. **Creativity Score (0-100)**: How original and innovative is the thinking?
-   - Check for unique ideas, not generic responses
-   - Look for novel connections and perspectives
-
-3. **Depth Score (0-100)**: How thorough is the analysis?
-   - Count specific examples, details, explanations
-   - Evaluate complexity of thinking
-
-4. **Coherence Score (0-100)**: How well-structured is the response?
-   - Check logical flow, grammar, clarity
-
-5. **Time Efficiency Score (0-100)**: Quality achieved relative to time spent
-
-**Cognitive Load Indicators** (0-100 scale):
-- **Processing Speed**: How quickly did they generate ideas? (faster with good quality = lower cognitive load)
-- **Mental Effort**: How much cognitive resources were required? (complex response in short time = high effort)
-- **Cognitive Strain**: Overall cognitive demand experienced
-
-**YOU MUST BE STRICT ABOUT RELEVANCE**: If the response doesn't answer the question or relate to the topic, score low on relevance!
-
-Return ONLY a valid JSON object (no markdown, no code blocks):
-{
-  "relevanceScore": 0-100,
-  "creativityScore": 0-100,
-  "depthScore": 0-100,
-  "coherenceScore": 0-100,
-  "timeEfficiencyScore": 0-100,
-  "feedback": "2-3 sentences explaining why you gave these scores, focusing on relevance to the question",
-  "strengths": ["specific strength 1", "specific strength 2", "specific strength 3"],
-  "improvements": ["specific improvement 1", "specific improvement 2"],
-  "cognitiveLoadIndicators": {
-    "processingSpeed": 0-100,
-    "mentalEffort": 0-100,
-    "cognitiveStrain": 0-100
-  }
-}`;
+      const prompt = PROMPTS.CREATIVITY_EVALUATION(question, response, timeSpent, timeRatio, timeUsageDescription);
 
       console.log('� Sending evaluation request to Gemini AI...');
       console.log('Using EVALUATION API key with retry mechanism');

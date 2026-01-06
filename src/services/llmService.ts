@@ -1,6 +1,7 @@
 // LLM Service for handling Gemini and Grok API calls
 import { API_CONFIG } from '../config/api';
 import { TopicValidationResult, topicValidator } from './topicValidationService';
+import { PROMPTS } from './prompts';
 
 export interface LLMResponse {
   response: string;
@@ -487,7 +488,7 @@ What specific aspect of ${researchTopic} would you like to learn about? For exam
       ? `\n\nPrevious conversation context:\n${conversationHistory.slice(-3).map(msg => `${msg.role}: ${msg.content}`).join('\n')}\n`
       : '';
 
-    return `${systemPrompt}${context}\n\nResearch Topic: ${researchTopic}\nUser Question: ${query}\n\nPlease provide a comprehensive, accurate response:`;
+    return PROMPTS.CONTEXTUAL_RESPONSE(systemPrompt, context, researchTopic, query);
   }
 }
 

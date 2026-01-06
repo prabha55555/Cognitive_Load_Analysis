@@ -1,5 +1,7 @@
 // Topic validation service to ensure user queries are relevant to assigned research topics
 
+import { PROMPTS } from './prompts';
+
 export interface TopicValidationResult {
   isRelevant: boolean;
   confidence: number;
@@ -219,12 +221,7 @@ export class TopicValidationService {
    * Generate a contextual system prompt for LLM
    */
   generateSystemPrompt(researchTopic: string): string {
-    return `You are a research assistant specialized in ${researchTopic}. 
-    - Only answer questions related to ${researchTopic}
-    - Provide detailed, accurate, and up-to-date information
-    - If asked about unrelated topics, politely redirect to ${researchTopic}
-    - Use academic language but keep explanations accessible
-    - Include relevant examples and current research when possible`;
+    return PROMPTS.TOPIC_VALIDATION_SYSTEM(researchTopic);
   }
 
   /**
