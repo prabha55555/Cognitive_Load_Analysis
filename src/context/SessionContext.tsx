@@ -1,19 +1,19 @@
 /**
  * Session Context
  * 
- * TODO: Implement session management with persistence
- * - Store session state in localStorage/sessionStorage
- * - Auto-save on state changes
- * - Recover session on page refresh
- * - Handle session expiry
+ * ✅ IMPLEMENTED: Session management with persistence (Phase 1)
+ * - Auto-save every 10 seconds
+ * - Before-unload warnings for active sessions
+ * - Session recovery on page refresh
+ * - Session expiry handling (24 hours)
  * 
- * Related Flaw: Module 1 - Session State Lost on Refresh (HIGH)
- * @see docs/FLAWS_AND_ISSUES.md
+ * Related Flaw: Module 1 - Session State Lost on Refresh (HIGH) - FIXED
+ * @see docs/FLOW_IMPROVEMENTS.md - Issue #3
  * 
  * Requirements: 9.3 - Session context sharing through JWT tokens
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { authService } from '../services/authService';
 
 interface SessionData {
@@ -25,6 +25,8 @@ interface SessionData {
   creativityResponses: Record<string, any>;
   sessionId: string;
   participantId: string;
+  lastSaved?: string; // ISO timestamp of last save
+  createdAt?: string; // ISO timestamp of session creation
 }
 
 interface SessionContextType {
@@ -33,6 +35,8 @@ interface SessionContextType {
   clearSession: () => void;
   restoreSession: () => boolean;
   getSessionToken: () => string | null;
+  hasRecoverableSession: () => boolean;
+  isSessionExpired: () => boolean;
 }
 
 /**
@@ -76,22 +80,91 @@ interface SessionProviderProps {
 
 export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
   const [session, setSession] = useState<SessionData>(defaultSession);
+  const autoSaveInterval = useRef<NodeJS.Timeout>();
+  const saveDebounceTimeout = useRef<NodeJS.Timeout>();
 
-  // Load session from storage on mount
-  useEffect(() => {
-    restoreSession();
-  }, []);
-
-  // Auto-save session on changes and generate session token
-  // Requirements: 9.3 - Session context sharing through JWT
-  useEffect(() => {
-    localStorage.setItem('cognitiveLoadSession', JSON.stringify(session));
-    
-    // Generate/update session token for cross-service communication
-    if (session.sessionId && session.participantId) {
-      authService.generateSessionToken(session.sessionId, session.participantId);
+  // Persist session to localStorage with timestamp
+  const persistSession = (sessionData: SessionData) => {
+    try {
+      const dataWithTimestamp = {
+        ...sessionData,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem('cognitiveLoadSession', JSON.stringify(dataWithTimestamp));
+    } catch (error) {
+      console.error('Failed to save session:', error);
     }
-  }, [session]);
+  };
+
+  // Check if session is expired (24 hours)
+  const isSessionExpired = (): boolean => {
+    try {
+      const saved = localStorage.getItem('cognitiveLoadSession');
+      if (!saved) return false;
+      
+      const parsed = JSON.parse(saved);
+      const lastSaved = new Date(parsed.lastSaved || parsed.createdAt);
+      const hoursSinceLastSave = (Date.now() - lastSaved.getTime()) / (1000 * 60 * 60);
+      
+      return hoursSinceLastSave > 24;
+    } catch {
+      return false;
+    }
+  };
+
+  // Check if there's a recoverable session
+  const hasRecoverableSession = (): boolean => {
+    try {
+      const saved = localStorage.getItem('cognitiveLoadSession');
+      if (!saved) return false;
+      
+      const parsed = JSON.parse(saved);
+      const hoursSinceLastSave = (Date.now() - new Date(parsed.lastSaved).getTime()) / (1000 * 60 * 60);
+      
+      // Session is recoverable if:
+      // - Not expired (< 24 hours)
+      // - Not completed
+      // - Has been active (< 2 hours since last save)
+      return hoursSinceLastSave < 24 && 
+             parsed.currentPhase !== 'completed' && 
+             hoursSinceLastSave < 2;
+    } catch {
+      return false;
+    }
+  };
+
+  const restoreSession = (): boolean => {
+    try {
+      const saved = localStorage.getItem('cognitiveLoadSession');
+      if (saved) {
+        const parsedSession = JSON.parse(saved);
+        
+        // Check if session is expired
+        if (isSessionExpired()) {
+          console.warn('Session expired, starting fresh');
+          localStorage.removeItem('cognitiveLoadSession');
+          return false;
+        }
+        
+        // Ensure sessionId and participantId exist
+        if (!parsedSession.sessionId) {
+          parsedSession.sessionId = generateSessionId();
+        }
+        if (!parsedSession.participantId) {
+          parsedSession.participantId = generateParticipantId();
+        }
+        if (!parsedSession.createdAt) {
+          parsedSession.createdAt = new Date().toISOString();
+        }
+        
+        setSession(parsedSession);
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to restore session:', error);
+    }
+    return false;
+  };
 
   const updateSession = (updates: Partial<SessionData>) => {
     setSession(prev => ({ ...prev, ...updates }));
@@ -108,27 +181,6 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     authService.clearTokens();
   };
 
-  const restoreSession = (): boolean => {
-    try {
-      const saved = localStorage.getItem('cognitiveLoadSession');
-      if (saved) {
-        const parsedSession = JSON.parse(saved);
-        // Ensure sessionId and participantId exist
-        if (!parsedSession.sessionId) {
-          parsedSession.sessionId = generateSessionId();
-        }
-        if (!parsedSession.participantId) {
-          parsedSession.participantId = generateParticipantId();
-        }
-        setSession(parsedSession);
-        return true;
-      }
-    } catch (error) {
-      console.error('Failed to restore session:', error);
-    }
-    return false;
-  };
-
   /**
    * Get the current session token for API requests
    * Requirements: 9.3 - Session context sharing through JWT
@@ -136,6 +188,65 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   const getSessionToken = (): string | null => {
     return authService.getToken();
   };
+
+  // Load session from storage on mount
+  useEffect(() => {
+    restoreSession();
+  }, []);
+
+  // Auto-save session every 10 seconds
+  useEffect(() => {
+    autoSaveInterval.current = setInterval(() => {
+      persistSession(session);
+    }, 10000); // 10 seconds
+
+    return () => {
+      if (autoSaveInterval.current) {
+        clearInterval(autoSaveInterval.current);
+      }
+    };
+  }, [session]);
+
+  // Debounced save on session changes (1 second)
+  useEffect(() => {
+    if (saveDebounceTimeout.current) {
+      clearTimeout(saveDebounceTimeout.current);
+    }
+
+    saveDebounceTimeout.current = setTimeout(() => {
+      persistSession(session);
+      
+      // Generate/update session token for cross-service communication
+      // Requirements: 9.3 - Session context sharing through JWT
+      if (session.sessionId && session.participantId) {
+        authService.generateSessionToken(session.sessionId, session.participantId);
+      }
+    }, 1000);
+
+    return () => {
+      if (saveDebounceTimeout.current) {
+        clearTimeout(saveDebounceTimeout.current);
+      }
+    };
+  }, [session]);
+
+  // Before-unload warning for active sessions
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Save one final time before unload
+      persistSession(session);
+      
+      // Warn user if session is active (not completed)
+      if (session.currentPhase !== 'completed' && session.currentPhase !== 'login') {
+        e.preventDefault();
+        e.returnValue = 'You have an active research session. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session]);
 
   return (
     <SessionContext.Provider
@@ -145,6 +256,8 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         clearSession,
         restoreSession,
         getSessionToken,
+        hasRecoverableSession,
+        isSessionExpired,
       }}
     >
       {children}

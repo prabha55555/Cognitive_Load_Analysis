@@ -1,45 +1,305 @@
 /**
- * Assessment Routes
+ * Assessment & Creativity Routes
  * 
- * TODO: Implement assessment endpoints
- * - POST /assessments - Save assessment result
- * - GET /assessments - List assessments
- * - POST /creativity - Save creativity result
+ * Phase 2: Database Integration
+ * Handles assessment responses, creativity responses, and cognitive load metrics
  * 
- * Note: Run `cd server && npm install` first
- * 
- * Related Flaw: Module 2 - No Data Persistence (HIGH)
- * @see docs/FLAWS_AND_ISSUES.md
+ * @see docs/DATABASE_PLAN.md
  */
 
-// Uncomment after running: cd server && npm install
-/*
-import { Router } from 'express';
-import { assessmentController } from '../controllers/assessmentController';
-import { authenticate } from '../middleware/auth';
+import { Router, Response } from 'express';
+import { supabaseAdmin } from '../config/supabase';
+import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// All routes require authentication
-router.use(authenticate);
+/**
+ * POST /api/assessments/responses
+ * Save assessment response
+ */
+router.post('/responses', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { sessionId, questionId, questionText, difficulty, answerIndex, isCorrect, score, earnedPoints, startTime, endTime, confidenceLevel } = req.body;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Insert assessment response
+    const { data, error } = await supabaseAdmin
+      .from('assessment_responses')
+      .insert({
+        session_id: sessionId,
+        question_id: questionId,
+        question_text: questionText,
+        difficulty,
+        answer_index: answerIndex,
+        is_correct: isCorrect,
+        score,
+        earned_points: earnedPoints,
+        start_time: startTime,
+        end_time: endTime,
+        confidence_level: confidenceLevel,
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Save assessment error:', error);
+      return res.status(500).json({ error: 'Failed to save assessment response' });
+    }
+    
+    res.status(201).json({ response: data });
+  } catch (error) {
+    console.error('Save assessment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-// POST /api/assessments - Save assessment result
-router.post('/', assessmentController.saveAssessment);
+/**
+ * GET /api/assessments/:sessionId
+ * Get all assessment responses for a session
+ */
+router.get('/:sessionId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user?.id;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { data, error } = await supabaseAdmin
+      .from('assessment_responses')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Get assessments error:', error);
+      return res.status(500).json({ error: 'Failed to fetch assessments' });
+    }
+    
+    res.json({ responses: data });
+  } catch (error) {
+    console.error('Get assessments error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-// GET /api/assessments - List user's assessments
-router.get('/', assessmentController.listAssessments);
+/**
+ * POST /api/assessments/creativity
+ * Save creativity response
+ */
+router.post('/creativity', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { sessionId, questionId, questionText, responseText, scores, aiFeedback, timeTaken } = req.body;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Insert creativity response
+    const { data, error } = await supabaseAdmin
+      .from('creativity_responses')
+      .insert({
+        session_id: sessionId,
+        question_id: questionId,
+        question_text: questionText,
+        response_text: responseText,
+        overall_score: scores?.overall,
+        relevance_score: scores?.relevance,
+        creativity_score: scores?.creativity,
+        depth_score: scores?.depth,
+        coherence_score: scores?.coherence,
+        time_efficiency_score: scores?.timeEfficiency,
+        ai_feedback: aiFeedback,
+        time_taken: timeTaken,
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Save creativity error:', error);
+      return res.status(500).json({ error: 'Failed to save creativity response' });
+    }
+    
+    res.status(201).json({ response: data });
+  } catch (error) {
+    console.error('Save creativity error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-// GET /api/assessments/:id - Get assessment by ID
-router.get('/:id', assessmentController.getAssessment);
+/**
+ * GET /api/assessments/creativity/:sessionId
+ * Get all creativity responses for a session
+ */
+router.get('/creativity/:sessionId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user?.id;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { data, error } = await supabaseAdmin
+      .from('creativity_responses')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Get creativity responses error:', error);
+      return res.status(500).json({ error: 'Failed to fetch creativity responses' });
+    }
+    
+    res.json({ responses: data });
+  } catch (error) {
+    console.error('Get creativity responses error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-// POST /api/assessments/creativity - Save creativity result
-router.post('/creativity', assessmentController.saveCreativity);
+/**
+ * POST /api/assessments/cognitive-load
+ * Save cognitive load metrics
+ */
+router.post('/cognitive-load', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { sessionId, overallScore, category, assessmentScore, behavioralScore, blendedScore, behavioralFeatures, source } = req.body;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Insert or update cognitive load metrics (upsert)
+    const { data, error } = await supabaseAdmin
+      .from('cognitive_load_metrics')
+      .upsert({
+        session_id: sessionId,
+        overall_score: overallScore,
+        category,
+        assessment_score: assessmentScore,
+        behavioral_score: behavioralScore,
+        blended_score: blendedScore,
+        behavioral_features: behavioralFeatures,
+        source,
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Save cognitive load error:', error);
+      return res.status(500).json({ error: 'Failed to save cognitive load metrics' });
+    }
+    
+    res.status(201).json({ metrics: data });
+  } catch (error) {
+    console.error('Save cognitive load error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-// GET /api/assessments/creativity - List creativity results
-router.get('/creativity', assessmentController.listCreativity);
+/**
+ * GET /api/assessments/cognitive-load/:sessionId
+ * Get cognitive load metrics for a session
+ */
+router.get('/cognitive-load/:sessionId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user?.id;
+    
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .select('participant_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.participant_id !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { data, error } = await supabaseAdmin
+      .from('cognitive_load_metrics')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+      console.error('Get cognitive load error:', error);
+      return res.status(500).json({ error: 'Failed to fetch cognitive load metrics' });
+    }
+    
+    res.json({ metrics: data || null });
+  } catch (error) {
+    console.error('Get cognitive load error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
-*/
-
-// Placeholder export
-export const assessmentRoutes = { path: '/api/assessments', status: 'not-installed' };

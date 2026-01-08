@@ -46,7 +46,9 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
           setBehavioralResult(classification);
         }
         
-        // Fetch platform comparison
+        // Fetch platform comparison (only if we have data from both platforms)
+        // This will return null with a logged error if insufficient data, which is expected
+        // The comparison is optional and won't block the results page
         const comparison = await behavioralClassificationService.comparePlatforms();
         if (comparison) {
           setPlatformComparison(comparison);

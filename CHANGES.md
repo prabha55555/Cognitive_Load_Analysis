@@ -1,183 +1,214 @@
-# Changes Log
+# Changelog
 
-## November 29-30, 2025 - Synthetic EEG Generation System Implementation
+All notable changes to the Cognitive Load Analysis project will be documented in this file.
 
-### Overview
-Implemented a complete synthetic EEG generation system using Amazon Chronos foundation model trained on the Mendeley cognitive load EEG dataset, enabling real-time brainwave visualization without hardware requirements.
-
----
-
-### 🆕 New Files Created
-
-#### Biosignal Service (Python Microservice)
-| Timestamp | File | Description |
-|-----------|------|-------------|
-| Nov 29, 2025 | `biosignal-service/Dockerfile` | Docker container for Python Flask service |
-| Nov 29, 2025 | `biosignal-service/requirements.txt` | Python dependencies (Flask, PyTorch, Chronos, scipy, redis) |
-| Nov 29, 2025 | `biosignal-service/src/__init__.py` | Package initializer |
-| Nov 29, 2025 | `biosignal-service/src/app.py` | Flask API server with Redis caching |
-| Nov 29, 2025 | `biosignal-service/src/config.py` | Service configuration settings |
-| Nov 29, 2025 | `biosignal-service/src/generator.py` | Chronos-based EEG signal generator |
-| Nov 29, 2025 | `biosignal-service/src/preprocessing.py` | Mendeley dataset preprocessing utilities |
-
-#### Docker Configuration
-| Timestamp | File | Description |
-|-----------|------|-------------|
-| Nov 29, 2025 | `docker-compose.yml` | Multi-service orchestration (Redis, Biosignal, Backend) |
-| Nov 29, 2025 | `Dockerfile.frontend` | Frontend container configuration |
-
-#### Frontend Services
-| Timestamp | File | Description |
-|-----------|------|-------------|
-| Nov 29, 2025 | `src/services/biosignalService.ts` | Frontend API client for biosignal endpoints |
-
-#### Backend Routes
-| Timestamp | File | Description |
-|-----------|------|-------------|
-| Nov 29, 2025 | `server/src/routes/biosignal.ts` | Express proxy routes to Python service |
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-### 📝 Modified Files
+## [Unreleased]
 
-#### Backend Server
-| Timestamp | File | Changes |
-|-----------|------|---------|
-| Nov 29, 2025 | `server/src/index.ts` | Added biosignal routes, Redis client, proxy middleware |
-| Nov 29, 2025 | `server/package.json` | Added redis, http-proxy-middleware dependencies |
+### Added - 2026-01-08 (Documentation Phase)
 
-#### Frontend Components
-| Timestamp | File | Changes |
-|-----------|------|---------|
-| Nov 29, 2025 | `src/hooks/useEEGStream.ts` | Updated to fetch from biosignal API with fallback data |
-| Nov 29, 2025 | `src/components/ParticipantDashboard.tsx` | Integrated biosignal service with cognitive load score |
+#### Documentation Files Created
+- **[docs/APPLICATION_FLOWS.md](docs/APPLICATION_FLOWS.md)** - Comprehensive flow documentation
+  - Complete user journey from landing page to completion for both ChatGPT and Google Search platforms
+  - Detailed phase-by-phase breakdowns with ASCII flow diagrams
+  - File reference map linking all major features to their implementation files
+  - Data flow explanations for interaction tracking, cognitive load calculation, and behavioral classification
+  - Service architecture diagrams showing frontend-backend communication
+  - **Purpose**: Understand entire application flow and locate implementation logic
 
-#### Configuration
-| Timestamp | File | Changes |
-|-----------|------|---------|
-| Nov 30, 2025 | `.gitignore` | Added `raw_data/`, `biosignal-service/processed_patterns/`, `*.pkl` |
-| Nov 30, 2025 | `README.md` | Updated with biosignal service docs, Docker instructions, new tech stack |
+- **[docs/FLOW_IMPROVEMENTS.md](docs/FLOW_IMPROVEMENTS.md)** - Issue analysis and fixes
+  - 12 identified issues categorized by severity (Critical, High, Medium, Low)
+  - **Critical Issues**:
+    - Issue #1: No authentication system - Complete implementation plan with JWT and bcrypt
+    - Issue #2: No data persistence - localStorage limitations documented
+    - Issue #3: Session state lost on refresh - Recovery mechanism designs
+  - **High Priority Issues**:
+    - Issue #4: Platform label mismatch (Gemini vs ChatGPT)
+    - Issue #5: Behavioral service dependency failures
+    - Issue #6: Admin dashboard mock data fallbacks
+  - **Medium Priority Issues**:
+    - Issue #7: API keys exposed in frontend
+    - Issue #8: No input sanitization
+    - Issue #9: Timer continues during API errors
+    - Issue #10: Complex topic propagation
+  - **Low Priority Issues**:
+    - Issue #11: Console logging in production
+    - Issue #12: Magic numbers throughout codebase
+  - Implementation priority matrix aligned with: **Phase C (Stability) → Phase B (Database) → Phase A (Auth)**
+  - Estimated total effort: **~49 hours**
+  - **Purpose**: Track technical debt and prioritize fixes
+
+- **[docs/DATABASE_PLAN.md](docs/DATABASE_PLAN.md)** - Complete database implementation strategy
+  - **Database Selection**: Supabase PostgreSQL (managed service)
+  - **Rationale**: Free tier (500MB), built-in auth, real-time subscriptions, automatic backups, solo-dev friendly
+  - **Schema Design**:
+    - 6 core tables: participants, sessions, interaction_events, assessment_responses, creativity_responses, cognitive_load_metrics
+    - Full SQL schema with indexes, constraints, and triggers
+    - Row-level security (RLS) policies for multi-tenant data isolation
+    - Materialized views for dashboard performance optimization
+  - **Data Volume Analysis**: ~450MB/month (dominated by interaction events)
+  - **Supabase Setup Guide**: Step-by-step project creation and configuration
+  - **Backend Implementation**: Express.js routes with Supabase client
+  - **Frontend Integration**: React hooks and real-time subscriptions
+  - **Dashboard Visualizations**: 4 key charts (platform comparison, load distribution, timeline, performance table)
+  - **Migration Strategy**: 3-phase approach (parallel running, migration script, localStorage removal)
+  - **Backup & Recovery**: Automated daily backups + manual export scripts
+  - **Purpose**: Production-ready database architecture
+
+- **[CHANGES.md](CHANGES.md)** (this file) - Project changelog
+  - Timestamped log of all changes
+  - Follows Keep a Changelog format
+  - Tracks additions, changes, fixes, and removals
+  - **Purpose**: Maintain development history
+
+#### Key Decisions Made
+1. **Database**: Supabase PostgreSQL over self-hosted or Firebase
+2. **Implementation Priority**: Stability fixes → Database setup → Authentication
+3. **Diagram Format**: ASCII (universal compatibility)
+4. **Documentation Structure**: Separate concerns (flows, issues, database) for clarity
+
+#### Research Findings
+- **Current Data Loss Risk**: All participant data in localStorage (browser-dependent)
+- **Security Vulnerability**: No authentication allows admin access to anyone
+- **Session Recovery**: No mechanism to resume interrupted research sessions
+- **API Key Exposure**: Frontend environment variables visible in browser
+- **Behavioral Service**: Optional Python service creates inconsistent results
 
 ---
 
-### 🐛 Bug Fixes
+## Planning Notes
 
-| Timestamp | Issue | Resolution |
-|-----------|-------|------------|
-| Nov 29, 2025 | Docker health checks failing | Changed from `curl` to `wget` (biosignal) and `node` http module (backend) |
-| Nov 29, 2025 | Import errors in `server/src/index.ts` | Created stub routers for placeholder routes |
-| Nov 29, 2025 | Flask cache decorator error | Fixed to handle Flask tuple responses `(response, status_code)` |
-| Nov 29, 2025 | EEG file parsing errors | Updated `load_eeg_file()` to extract columns 1-8 as EEG channels, skip timestamps |
-| Nov 29, 2025 | Mendeley data format mismatch | Rewrote parser to handle comma-separated format with timestamp suffix |
+### Next Implementation Steps (Post-Documentation)
+
+#### Phase 1: Critical Flow Fixes (~13 hours)
+1. **Session State Recovery** (4 hours)
+   - Enhanced localStorage with auto-save every 10 seconds
+   - Before-unload browser warnings
+   - Session recovery modal on page reload
+   - Timer state persistence
+
+2. **API Key Security** (3 hours)
+   - Backend proxy for Gemini API calls
+   - Move API keys to server environment
+   - Rate limiting middleware
+   - Streaming response handling
+
+3. **Input Sanitization** (3 hours)
+   - DOMPurify integration
+   - Validation for all user inputs
+   - Length limits enforcement
+   - Special character handling
+
+4. **Enhanced localStorage Fallback** (2 hours)
+   - Quota checking and warnings
+   - Background sync queue
+   - Auto-download on storage full
+   - Error recovery mechanisms
+
+5. **Before-Unload Warnings** (1 hour)
+   - Warn users before closing active sessions
+   - Preserve work-in-progress
+   - Clear messaging
+
+#### Phase 2: Database Setup (~16 hours)
+1. Supabase project creation and schema migration (4 hours)
+2. Backend API implementation (6 hours)
+3. Frontend Supabase client integration (4 hours)
+4. Data migration from localStorage (2 hours)
+
+#### Phase 3: Authentication System (~12 hours)
+1. Backend auth routes with JWT (4 hours)
+2. Protected route components (2 hours)
+3. Login UI enhancements (2 hours)
+4. Password hashing and validation (3 hours)
+5. Admin user seeding (1 hour)
+
+#### Phase 4: Polish & Enhancement (~8 hours)
+1. Platform label corrections (1 hour)
+2. Admin dashboard status indicators (2 hours)
+3. Error handling improvements (3 hours)
+4. Production logging cleanup (2 hours)
 
 ---
 
-### 🏗️ Architecture
+## Documentation Standards Established
 
+### File Organization
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    Frontend     │────▶│  Node.js API    │────▶│  Python Flask   │
-│  (React/Vite)   │     │   (Port 3001)   │     │   (Port 5000)   │
-│   Port 5173     │     │                 │     │                 │
-└─────────────────┘     └────────┬────────┘     └────────┬────────┘
-                                 │                       │
-                                 ▼                       ▼
-                        ┌─────────────────┐     ┌─────────────────┐
-                        │     Redis       │     │ Amazon Chronos  │
-                        │   (Port 6379)   │     │  T5-Large Model │
-                        └─────────────────┘     └─────────────────┘
-```
+docs/
+├── APPLICATION_FLOWS.md    # How the app works
+├── FLOW_IMPROVEMENTS.md    # What needs fixing
+├── DATABASE_PLAN.md        # How to persist data
+└── APPLICATION_FLOW.md     # (Existing - may be outdated)
 
----
-
-### 📊 EEG Generation Pipeline
-
-1. **Data Source**: Mendeley Cognitive Load EEG Dataset
-   - 15 subjects, 8 channels (OpenBCI), 250 Hz sampling
-   - 4 cognitive load levels: natural, lowlevel, midlevel, highlevel
-   - Tasks: Arithmetic, Stroop
-
-2. **Preprocessing** (`preprocessing.py`):
-   - Parse raw .txt files extracting EEG channels (columns 1-8)
-   - Extract frequency bands (theta, alpha, beta, gamma)
-   - Create reference patterns per load level
-
-3. **Generation** (`generator.py`):
-   - Select seed pattern based on cognitive load score
-   - Use Chronos T5-Large for time-series forecasting
-   - Generate theta, alpha, beta brainwave patterns
-   - Calculate cognitive load timeline
-
-4. **API Response**:
-   ```json
-   {
-     "success": true,
-     "data": {
-       "brainwavePatterns": {
-         "theta": [...],
-         "alpha": [...],
-         "beta": [...]
-       },
-       "cognitiveLoadTimeline": [...],
-       "metadata": {
-         "channels": ["Fp1","Fp2","F7","F3","FZ","F4","F8","C2"],
-         "samplingRate": 250,
-         "loadLevel": "midlevel"
-       }
-     }
-   }
-   ```
-
----
-
-### 🚀 Running the System
-
-```bash
-# Start all services
-docker-compose up -d
-
-# Verify services are healthy
-docker-compose ps
-
-# Start frontend
-npm run dev
-
-# Test biosignal API directly
-curl -X POST http://localhost:5000/api/biosignal/generate \
-  -H "Content-Type: application/json" \
-  -d '{"cognitiveLoadScore": 65, "participantId": "test"}'
-```
-
----
-
-### 📦 Dependencies Added
-
-#### Python (biosignal-service)
-- `flask==3.0.0`
-- `torch>=2.0.0`
-- `chronos-forecasting`
-- `scipy>=1.11.0`
-- `redis>=5.0.0`
-- `gunicorn>=21.0.0`
-
-#### Node.js (server)
-- `redis@^4.6.0`
-- `http-proxy-middleware@^2.0.0`
-
----
-
-### 📁 Data Requirements
-
-The Mendeley EEG dataset must be placed in `raw_data/` with structure:
-```
-raw_data/
-├── Arithmetic_Data/
-│   ├── natural-1.txt ... natural-15.txt
-│   ├── lowlevel-1.txt ... lowlevel-15.txt
-│   ├── midlevel-1.txt ... midlevel-15.txt
-│   └── highlevel-1.txt ... highlevel-15.txt
-└── Stroop_Data/
-    └── (same structure)
+CHANGES.md                   # This file - change history
+README.md                    # Project overview
+ARCHITECTURE.md              # Technical architecture
 ```
 
-Dataset source: https://data.mendeley.com/datasets/kt38js3jv7/1
+### Markdown Conventions
+- **Headings**: H1 for title, H2 for major sections, H3+ for subsections
+- **Code Blocks**: Specify language for syntax highlighting
+- **Tables**: Used for comparisons and data organization
+- **ASCII Diagrams**: Universal compatibility, no external renderers needed
+- **File Links**: Relative paths to implementation files
+- **Emojis**: Used sparingly for severity indicators (🔴🟠🟡🟢)
+
+### Documentation Principles
+1. **Actionable**: Include implementation steps, not just descriptions
+2. **Timestamped**: All entries include creation/update dates
+3. **Cross-Referenced**: Link between related documents
+4. **Solo-Dev Friendly**: Assume single developer, minimal DevOps
+5. **Open-Source Focused**: Prefer free, open-source solutions
+
+---
+
+## Future Changelog Format
+
+### Template for Changes
+```markdown
+## [Version] - YYYY-MM-DD
+
+### Added
+- New feature description
+- File: `path/to/file.ts`
+- Commit: abc123
+
+### Changed
+- Modified feature description
+- Breaking changes clearly marked
+- Migration guide if needed
+
+### Fixed
+- Bug fix description
+- Issue reference: #123
+- Affected versions
+
+### Removed
+- Deprecated feature removed
+- Reason for removal
+- Alternative solution
+
+### Security
+- Vulnerability fixes
+- CVE references if applicable
+```
+
+---
+
+## Meta Information
+
+- **Project**: Cognitive Load Analysis Research Platform
+- **Repository**: d:\Personal Projects\Cognitive_Load_Analysis
+- **Stack**: React + TypeScript (Frontend), Express.js (Backend), FastAPI (Behavioral Service), Supabase (Database)
+- **Documentation Started**: January 8, 2026
+- **Documentation Author**: AI Assistant (Claude Sonnet 4.5)
+- **Documentation Status**: ✅ Complete (4/4 files created)
+
+---
+
+**End of Changelog** | *Last Updated: January 8, 2026*

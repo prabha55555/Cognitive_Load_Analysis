@@ -1,46 +1,96 @@
 /**
  * Input Validation Utilities
  * 
- * TODO: Implement comprehensive input validation
- * - Sanitize user inputs
- * - Validate email formats
- * - Prevent XSS attacks
- * - Validate data schemas
+ * ✅ IMPLEMENTED: Comprehensive input validation (Phase 1)
+ * - DOMPurify for XSS prevention
+ * - Email/URL validation
+ * - Length limits enforcement
+ * - Special character sanitization
  * 
- * Related Flaw: Module 7 - No Input Sanitization (CRITICAL)
- * @see docs/FLAWS_AND_ISSUES.md
+ * Related Flaw: Module 7 - No Input Sanitization (CRITICAL) - FIXED
+ * @see docs/FLOW_IMPROVEMENTS.md - Issue #8
  */
 
-// Note: Install dompurify when ready: npm install dompurify @types/dompurify
-// import DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify';
 
 /**
  * Sanitize HTML content to prevent XSS attacks
- * TODO: Implement with DOMPurify when installed
+ * Uses DOMPurify for robust XSS protection
  */
-export const sanitizeHTML = (dirty: string): string => {
-  // TODO: Use DOMPurify when installed
-  // return DOMPurify.sanitize(dirty, {
-  //   ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
-  //   ALLOWED_ATTR: [],
-  // });
+export const sanitizeHTML = (dirty: string, allowedTags?: string[]): string => {
+  if (!dirty) return '';
   
-  // Basic sanitization until DOMPurify is installed
-  return dirty
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<[^>]+>/g, '');
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: allowedTags || ['b', 'i', 'em', 'strong', 'p', 'br'],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+  });
 };
 
 /**
- * Sanitize plain text input
+ * Sanitize plain text input (no HTML allowed)
  */
-export const sanitizeText = (input: string): string => {
+export const sanitizeText = (input: string, maxLength: number = 1000): string => {
   if (!input) return '';
-  return input
-    .replace(/[<>]/g, '') // Remove angle brackets
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
-    .trim();
+  
+  // Remove all HTML/script tags
+  const cleaned = DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: [], // No HTML allowed
+    ALLOWED_ATTR: [],
+  });
+  
+  // Trim and limit length
+  return cleaned.trim().slice(0, maxLength);
+};
+
+/**
+ * Sanitize user input for research queries/messages
+ */
+export const sanitizeInput = (input: string, maxLength: number = 1000): string => {
+  return sanitizeText(input, maxLength);
+};
+
+/**
+ * Validate topic input
+ */
+export const validateTopic = (topic: string): { valid: boolean; error?: string } => {
+  const sanitized = sanitizeInput(topic, 200);
+  
+  if (sanitized.length < 3) {
+    return { valid: false, error: 'Topic must be at least 3 characters' };
+  }
+  
+  if (sanitized.length > 200) {
+    return { valid: false, error: 'Topic is too long (max 200 characters)' };
+  }
+  
+  // Allow alphanumeric, spaces, and common punctuation
+  if (!/^[a-zA-Z0-9\s\-,.:()&]+$/.test(sanitized)) {
+    return { valid: false, error: 'Topic contains invalid characters' };
+  }
+  
+  return { valid: true };
+};
+
+/**
+ * Validate message/query input
+ */
+export const validateMessage = (message: string): { valid: boolean; error?: string } => {
+  const sanitized = sanitizeInput(message, 1000);
+  
+  if (sanitized.length === 0) {
+    return { valid: false, error: 'Message cannot be empty' };
+  }
+  
+  if (sanitized.length < 2) {
+    return { valid: false, error: 'Message is too short (min 2 characters)' };
+  }
+  
+  if (sanitized.length > 1000) {
+    return { valid: false, error: 'Message is too long (max 1000 characters)' };
+  }
+  
+  return { valid: true };
 };
 
 /**

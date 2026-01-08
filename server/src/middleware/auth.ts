@@ -1,59 +1,82 @@
 /**
  * Authentication Middleware
  * 
- * TODO: Implement JWT verification
+ * Phase 2: Database Integration - Supabase Auth
+ * Validates JWT tokens from Supabase Auth and enforces RLS
  * 
- * Related Flaw: Module 1 - No Real Authentication System (CRITICAL)
- * @see docs/FLAWS_AND_ISSUES.md
+ * @see docs/DATABASE_PLAN.md
  */
 
-// TODO: Uncomment when express and jsonwebtoken are installed
-// import { Request, Response, NextFunction } from 'express';
-// import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+import { supabaseAdmin } from '../config/supabase';
 
-type Request = any;
-type Response = any;
-type NextFunction = () => void;
-
-const jwt = {
-  verify: (_token: string, _secret: string): any => ({}),
-};
-
-interface AuthRequest extends Request {
-  headers: { authorization?: string };
+export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
     role: string;
   };
+  token?: string;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
-  // TODO: Implement JWT verification
-  // 1. Extract token from Authorization header
-  // 2. Verify token
-  // 3. Attach user to request
-  // 4. Call next() or return 401
-  
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  
+/**
+ * Middleware to authenticate user from Supabase JWT token
+ */
+export const authenticate = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as {
-      id: string;
-      email: string;
-      role: string;
+    const authHeader = req.headers.authorization;
+    
+    console.log('[AUTH] Authentication attempt for:', req.method, req.path);
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('[AUTH] Missing or invalid authorization header');
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    req.token = token;
+    
+    console.log('[AUTH] Verifying token with Supabase...');
+    // Verify token with Supabase
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('[AUTH] Token verification failed:', error?.message);
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    
+    console.log('[AUTH] Token valid, user ID:', user.id);
+    console.log('[AUTH] Fetching participant from database...');
+    
+    // Get participant details from database
+    const { data: participant, error: participantError } = await supabaseAdmin
+      .from('participants')
+      .select('id, email, name, role')
+      .eq('id', user.id)
+      .single();
+    
+    if (participantError || !participant) {
+      console.error('[AUTH] Participant not found:', participantError);
+      return res.status(404).json({ error: 'User not found in database' });
+    }
+    
+    console.log('[AUTH] Participant authenticated:', participant.email);
+    
+    // Attach user to request
+    req.user = {
+      id: participant.id,
+      email: participant.email,
+      role: participant.role,
     };
     
-    req.user = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
+    console.error('[AUTH] Authentication error:', error);
+    return res.status(500).json({ error: 'Authentication failed' });
   }
 };
 
@@ -73,3 +96,8 @@ export const requireRole = (...roles: string[]) => {
     next();
   };
 };
+
+/**
+ * Require admin role
+ */
+export const requireAdmin = requireRole('admin');

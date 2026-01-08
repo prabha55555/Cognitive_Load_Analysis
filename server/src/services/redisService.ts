@@ -12,7 +12,14 @@ let redisClient: RedisClientType | null = null;
  * Initialize Redis connection
  */
 export async function initRedis(): Promise<void> {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = process.env.REDIS_URL;
+  
+  // Skip Redis if not configured
+  if (!redisUrl) {
+    console.log('⚠️ Redis URL not configured, caching disabled');
+    redisClient = null;
+    return;
+  }
   
   try {
     redisClient = createClient({ url: redisUrl });

@@ -171,6 +171,9 @@ class BehavioralClassificationService {
    * Get platform comparison statistics
    * Requirements: 7.3 - Compute statistical differences between platforms
    * Requirements: 9.3 - Use JWT tokens for session identification
+   * 
+   * Note: Returns null if insufficient data exists (e.g., only one platform has sessions).
+   * This is expected behavior and not an error.
    */
   async comparePlatforms(): Promise<PlatformComparisonResult | null> {
     try {
@@ -187,13 +190,24 @@ class BehavioralClassificationService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // 400 errors are expected when there's insufficient data (only one platform)
+        // Don't log this as an error - it's normal during single-platform sessions
+        if (response.status === 400) {
+          logger.info('Platform comparison unavailable - insufficient data from both platforms');
+          return null;
+        }
+        
         throw new Error(errorData.error?.message || `API error: ${response.status}`);
       }
 
       const result = await response.json();
       return result as PlatformComparisonResult;
     } catch (error) {
-      logger.error('Failed to compare platforms', error);
+      // Only log non-400 errors
+      if (error instanceof Error && !error.message.includes('400')) {
+        logger.error('Failed to compare platforms', error);
+      }
       return null;
     }
   }
