@@ -20,6 +20,7 @@ import authRoutes from './routes/auth';
 import sessionRoutes from './routes/sessions';
 import assessmentRoutes from './routes/assessments';
 import interactionRoutes from './routes/interactions';
+import adminRoutes from './routes/admin';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { getRedisClient, initRedis } from './services/redisService';
@@ -117,6 +118,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/interactions', interactionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -142,6 +144,9 @@ const startServer = async () => {
     console.log(`   POST   /api/assessments/responses`);
     console.log(`   POST   /api/assessments/creativity`);
     console.log(`   POST   /api/assessments/cognitive-load`);
+    console.log(`   GET    /api/admin/participants (admin only)`);
+    console.log(`   GET    /api/admin/sessions (admin only)`);
+    console.log(`   GET    /api/admin/analytics (admin only)`);
   });
 };
 
