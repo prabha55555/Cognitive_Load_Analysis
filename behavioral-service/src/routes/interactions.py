@@ -31,7 +31,7 @@ from src.classifier.classifier import CognitiveLoadClassifier
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/api/interactions", tags=["interactions"])
+router = APIRouter(tags=["interactions"])
 
 # =============================================================================
 # In-Memory Session Storage
@@ -158,13 +158,115 @@ async def ingest_interactions(batch: InteractionBatch) -> IngestResponse:
 
 
 
-@router.post("/classify", response_model=ClassificationResponse)
+@router.post("/classify")
+async def classify_interactions(batch: InteractionBatch) -> Dict:
+    """
+    Classify cognitive load from interaction batch (immediate classification).
+    
+    This endpoint receives a batch of interactions and immediately classifies them
+    without requiring prior ingestion. This is used by the backend API for
+    real-time cognitive load prediction.
+    
+    Args:
+        batch: InteractionBatch containing session_id and interaction events
+        
+    Returns:
+        Dictionary with classification results:
+        - category: "low", "moderate", "high", or "very-high"
+        - score: 0-100 numeric score
+        - confidence: 0.0-1.0 confidence level
+        - features: Feature values used for classification
+        - method: "rule-based", "ml-classifier", or "blended"
+        
+    Raises:
+        HTTPException: If insufficient data or feature extraction fails
+        
+    Validates: Requirements 4.1, 4.2, 7.1
+    """
+    log = logger.bind(
+        session_id=batch.session_id,
+        participant_id=batch.participant_id,
+        platform=batch.platform,
+        event_count=len(batch.events),
+    )
+    
+    log.info("classifying_interaction_batch")
+    
+    # Check for sufficient events
+    if len(batch.events) < 2:
+        log.warning("insufficient_events", event_count=len(batch.events))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient events for classification "
+                   f"(received {len(batch.events)}, need at least 2)",
+        )
+    
+    # Extract features from events
+    try:
+        features = aggregate_features(batch.events)
+    except Exception as e:
+        log.error("feature_extraction_failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Feature extraction failed: {str(e)}",
+        )
+    
+    # Run classifier
+    classifier = get_classifier()
+    level, confidence = classifier.predict(features)
+    
+    # Convert level to backend format (lowercase with hyphens)
+    category_map = {
+        "Low": "low",
+        "Moderate": "moderate",
+        "High": "high",
+        "Very High": "very-high",
+    }
+    category = category_map.get(level, "moderate")
+    
+    # Convert to numeric score (0-100)
+    score_map = {
+        "Low": 25,
+        "Moderate": 50,
+        "High": 75,
+        "Very High": 95,
+    }
+    score = score_map.get(level, 50)
+    
+    # Determine method (currently using rule-based)
+    method = "rule-based"
+    if classifier.ml_classifier and classifier.ml_classifier.is_loaded:
+        if classifier.use_ml_fallback:
+            method = "blended"
+        else:
+            method = "ml-classifier"
+    
+    log.info(
+        "classification_complete",
+        category=category,
+        score=score,
+        confidence=confidence,
+        method=method,
+    )
+    
+    # Build response matching backend expectations
+    return {
+        "category": category,
+        "score": score,
+        "confidence": confidence,
+        "features": features.to_dict(),
+        "method": method,
+    }
+
+
+@router.post("/classify-stored", response_model=ClassificationResponse)
 async def classify_session(request: ClassificationRequest) -> ClassificationResponse:
     """
-    Classify cognitive load for a session.
+    Classify cognitive load for a previously ingested session.
     
     Extracts features from stored session events and runs the classifier
-    to determine cognitive load level.
+    to determine cognitive load level. This endpoint requires prior ingestion
+    via the /ingest endpoint.
     
     Args:
         request: ClassificationRequest with session_id and options
