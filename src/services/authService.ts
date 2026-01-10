@@ -33,9 +33,12 @@ interface AuthResponse {
     name: string;
     role: 'participant' | 'admin';
   };
-  token: string;
-  refreshToken: string;
-  expiresAt: number;
+  access_token: string;
+  session?: {
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+  };
 }
 
 class AuthService {
@@ -43,27 +46,60 @@ class AuthService {
   private refreshTokenKey = 'refresh_token';
 
   /**
-   * Login user
+   * Sign in user
    */
-  async login(_credentials: LoginRequest): Promise<AuthResponse> {
-    // TODO: Implement when backend is ready
-    // const response = await apiClient.post<AuthResponse>('/auth/login', _credentials);
-    // this._setTokens(response.data.token, response.data.refreshToken);
-    // apiClient.setAuthToken(response.data.token);
-    // return response.data;
-    throw new AuthError('Authentication not implemented');
+  async signin(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/signin', {
+        email,
+        password
+      });
+      
+      const token = response.data.session?.access_token || response.data.access_token;
+      this.setToken(token);
+      apiClient.setAuthToken(token);
+      
+      return response.data;
+    } catch (error: any) {
+      throw new AuthError(error.response?.data?.error || 'Sign in failed');
+    }
   }
 
   /**
-   * Register new user
+   * Sign up new user
+   */
+  async signup(email: string, password: string, name: string): Promise<AuthResponse> {
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/signup', {
+        email,
+        password,
+        name
+      });
+      
+      const token = response.data.session?.access_token || response.data.access_token;
+      this.setToken(token);
+      apiClient.setAuthToken(token);
+      
+      return response.data;
+    } catch (error: any) {
+      throw new AuthError(error.response?.data?.error || 'Sign up failed');
+    }
+  }
+
+  /**
+   * Login user (legacy - use signin instead)
+   */
+  async login(_credentials: LoginRequest): Promise<AuthResponse> {
+    // Redirect to signin
+    return this.signin(_credentials.email, _credentials.password);
+  }
+
+  /**
+   * Register new user (legacy - use signup instead)
    */
   async register(_data: RegisterRequest): Promise<AuthResponse> {
-    // TODO: Implement when backend is ready
-    // const response = await apiClient.post<AuthResponse>('/auth/register', _data);
-    // this._setTokens(response.data.token, response.data.refreshToken);
-    // apiClient.setAuthToken(response.data.token);
-    // return response.data;
-    throw new AuthError('Registration not implemented');
+    // Redirect to signup
+    return this.signup(_data.email, _data.password, _data.name);
   }
 
   /**

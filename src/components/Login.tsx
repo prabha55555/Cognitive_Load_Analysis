@@ -1,5 +1,6 @@
-import { ArrowRight, Brain, Eye, FlaskConical, Sparkles, Target, Users, Zap } from 'lucide-react';
+import { ArrowRight, Brain, Eye, EyeOff, FlaskConical, Lock, Sparkles, Target, Users, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { authService } from '../services/authService';
 
 interface LoginProps {
   onLogin: (email: string, name: string, userType: 'participant' | 'admin') => void;
@@ -8,8 +9,12 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [userType, setUserType] = useState<'participant' | 'admin'>('participant');
   const [pulseEffect, setPulseEffect] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Animate pulse effect periodically
   useEffect(() => {
@@ -20,10 +25,46 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && name) {
-      onLogin(email, name, userType);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      if (userType === 'admin') {
+        // Admin login - authenticate with backend
+        const response = await authService.signin(email, password);
+        
+        // Verify admin role
+        if (response.user.role !== 'admin') {
+          setError('Access denied. Admin role required.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Call onLogin with admin credentials
+        onLogin(email, response.user.name, 'admin');
+      } else {
+        // Participant signup/signin
+        try {
+          // Try signup first
+          const response = await authService.signup(email, password, name);
+          onLogin(email, response.user.name, 'participant');
+        } catch (signupError: any) {
+          if (signupError.message?.includes('already registered')) {
+            // User exists, try signin
+            const response = await authService.signin(email, password);
+            onLogin(email, response.user.name, 'participant');
+          } else {
+            throw signupError;
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Authentication error:', err);
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -126,27 +167,29 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   </div>
                 </div>
 
-                {/* Enhanced Name Field */}
-                <div>
-                  <label htmlFor="name" className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
-                      placeholder="Enter your full name"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Eye className="h-5 w-5 text-slate-400" />
+                {/* Enhanced Name Field - Only for Participants */}
+                {userType === 'participant' && (
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                        placeholder="Enter your full name"
+                      />
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <Eye className="h-5 w-5 text-slate-400" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Enhanced Email Field */}
                 <div>
@@ -169,18 +212,65 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 pr-12 border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                      placeholder={userType === 'admin' ? 'Enter admin password' : 'Create a password'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                      )}
+                    </button>
+                  </div>
+                  {userType === 'admin' && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Use your admin credentials to access the researcher dashboard
+                    </p>
+                  )}
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-50/80 backdrop-blur-sm border-2 border-red-200 rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-red-700">{error}</p>
+                  </div>
+                )}
               </div>
 
               {/* Enhanced Submit Button */}
               <div className="mt-8">
                 <button
                   type="submit"
-                  disabled={!email || !name}
-                  className="group relative w-full flex justify-center py-4 px-6 border border-transparent rounded-2xl shadow-2xl text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 overflow-hidden"
+                  disabled={!email || !password || (userType === 'participant' && !name) || isLoading}
+                  className="group relative w-full flex justify-center py-4 px-6 border border-transparent rounded-2xl shadow-2xl text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 overflow-hidden disabled:transform-none"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <div className="relative flex items-center space-x-3">
-                    {userType === 'participant' ? (
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Authenticating...</span>
+                      </>
+                    ) : userType === 'participant' ? (
                       <>
                         <Target className="h-5 w-5" />
                         <span>Join Study</span>
@@ -191,7 +281,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         <span>Access Dashboard</span>
                       </>
                     )}
-                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                    {!isLoading && <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />}
                   </div>
                 </button>
               </div>
@@ -228,6 +318,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 Your participation is voluntary and data will be anonymized for research purposes.
               </p>
             </div>
+
+            {/* Dev Mode Credentials Hint */}
+            {import.meta.env.DEV && (
+              <div className="mt-6 p-4 bg-blue-50/80 rounded-2xl border border-blue-200/60">
+                <p className="text-xs font-bold text-blue-700 mb-2">🔧 Development Mode</p>
+                <p className="text-xs text-blue-600">
+                  Admin: test@example.com / password123
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
