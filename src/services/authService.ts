@@ -82,7 +82,10 @@ class AuthService {
       
       return response.data;
     } catch (error: any) {
-      throw new AuthError(error.response?.data?.error || 'Sign up failed');
+      // Extract error message and code from ApiError
+      const errorMessage = error.message || 'Sign up failed';
+      const errorCode = error.code || 'SIGNUP_ERROR';
+      throw new AuthError(errorMessage, errorCode);
     }
   }
 

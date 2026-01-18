@@ -26,7 +26,7 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
 }) => {
   // State for behavioral classification results
   const [behavioralResult, setBehavioralResult] = useState<BehavioralClassificationResult | null>(null);
-  const [platformComparison, setPlatformComparison] = useState<PlatformComparisonResult | null>(null);
+  const [platformComparison] = useState<PlatformComparisonResult | null>(null);
   const [isLoadingBehavioral, setIsLoadingBehavioral] = useState(false);
   const [behavioralServiceAvailable, setBehavioralServiceAvailable] = useState(false);
 
@@ -40,19 +40,18 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
       setBehavioralServiceAvailable(isAvailable);
       
       if (isAvailable && sessionId) {
-        // Fetch classification for this session
-        const classification = await behavioralClassificationService.classifySession(sessionId, true);
-        if (classification) {
-          setBehavioralResult(classification);
+        // Fetch predictions for this session (returns array)
+        const predictions = await behavioralClassificationService.getSessionPredictions(sessionId);
+        
+        // Use the most recent prediction if available
+        if (predictions && predictions.length > 0) {
+          // Get the latest prediction (array is already sorted by timestamp)
+          const latestPrediction = predictions[predictions.length - 1];
+          setBehavioralResult(latestPrediction);
         }
         
-        // Fetch platform comparison (only if we have data from both platforms)
-        // This will return null with a logged error if insufficient data, which is expected
-        // The comparison is optional and won't block the results page
-        const comparison = await behavioralClassificationService.comparePlatforms();
-        if (comparison) {
-          setPlatformComparison(comparison);
-        }
+        // Note: Platform comparison endpoint not yet implemented in Phase 4
+        // Will be added in Phase 4.3 Admin Dashboard Enhancement
       }
       
       setIsLoadingBehavioral(false);

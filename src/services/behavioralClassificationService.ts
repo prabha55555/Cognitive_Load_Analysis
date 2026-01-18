@@ -73,8 +73,9 @@ class BehavioralClassificationService {
   private timeout: number;
 
   private constructor() {
-    this.baseUrl = API_CONFIG.BEHAVIORAL.BASE_URL;
-    this.timeout = API_CONFIG.BEHAVIORAL.TIMEOUT;
+    // Use backend Express server URL, not Python service directly
+    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+    this.timeout = 10000;  // 10 second timeout
   }
 
   /**
@@ -107,15 +108,16 @@ class BehavioralClassificationService {
   }
 
   /**
-   * Check if the behavioral service is available
+   * Check if the behavioral service is available through the backend
    */
   async checkHealth(): Promise<boolean> {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await fetch(`${this.baseUrl}/api/behavioral/health`, {
         method: 'GET',
+        headers: this.getAuthHeaders(),
         signal: controller.signal,
       });
 
@@ -128,27 +130,21 @@ class BehavioralClassificationService {
   }
 
   /**
-   * Get cognitive load classification for a session
+   * Get cognitive load predictions for a session
+   * Retrieves predictions from the database (predictions are created by /analyze endpoint)
    * Requirements: 7.2 - Display cognitive load metrics
    * Requirements: 9.3 - Use JWT tokens for session identification
    */
-  async classifySession(
-    sessionId: string,
-    includeFeatures: boolean = false
-  ): Promise<BehavioralClassificationResult | null> {
+  async getSessionPredictions(
+    sessionId: string
+  ): Promise<BehavioralClassificationResult[]> {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const request: ClassificationRequest = {
-        session_id: sessionId,
-        include_features: includeFeatures,
-      };
-
-      const response = await fetch(`${this.baseUrl}/api/interactions/classify`, {
-        method: 'POST',
+      const response = await fetch(`${this.baseUrl}/api/behavioral/predictions/${sessionId}`, {
+        method: 'GET',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify(request),
         signal: controller.signal,
       });
 
@@ -159,11 +155,18 @@ class BehavioralClassificationService {
         throw new Error(errorData.error?.message || `API error: ${response.status}`);
       }
 
-      const result = await response.json();
-      return result as BehavioralClassificationResult;
+      const data = await response.json();
+      // Convert backend format to frontend format
+      return (data.predictions || []).map((pred: any) => ({
+        session_id: pred.session_id,
+        cognitive_load_level: this.categoryToLevel(pred.category),
+        confidence: pred.confidence,
+        features: pred.features,
+        timestamp: pred.created_at,
+      }));
     } catch (error) {
-      logger.error('Failed to classify session', error);
-      return null;
+      logger.error('Failed to get session predictions', error);
+      return [];
     }
   }
 
@@ -238,6 +241,24 @@ class BehavioralClassificationService {
     if (score < 50) return 'Moderate';
     if (score < 75) return 'High';
     return 'Very High';
+  }
+
+  /**
+   * Map category from backend format to cognitive load level
+   */
+  private categoryToLevel(category: string): 'Low' | 'Moderate' | 'High' | 'Very High' {
+    switch (category) {
+      case 'low':
+        return 'Low';
+      case 'moderate':
+        return 'Moderate';
+      case 'high':
+        return 'High';
+      case 'very-high':
+        return 'Very High';
+      default:
+        return 'Moderate';
+    }
   }
 }
 

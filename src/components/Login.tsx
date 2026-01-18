@@ -45,17 +45,36 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         // Call onLogin with admin credentials
         onLogin(email, response.user.name, 'admin');
       } else {
-        // Participant signup/signin
+        // Participant - try signup first, fallback to signin if user exists
         try {
-          // Try signup first
           const response = await authService.signup(email, password, name);
           onLogin(email, response.user.name, 'participant');
         } catch (signupError: any) {
-          if (signupError.message?.includes('already registered')) {
-            // User exists, try signin
-            const response = await authService.signin(email, password);
-            onLogin(email, response.user.name, 'participant');
+          console.log('Signup error caught:', { 
+            code: signupError.code, 
+            message: signupError.message,
+            fullError: signupError 
+          });
+          
+          // Check if error indicates user already exists
+          if (signupError.code === 'email_exists' || 
+              signupError.message?.includes('already exists')) {
+            console.log('User exists, attempting signin...');
+            // User already exists, try signin instead
+            try {
+              const response = await authService.signin(email, password);
+              console.log('Signin successful');
+              onLogin(email, response.user.name, 'participant');
+            } catch (signinError: any) {
+              console.log('Signin failed:', signinError);
+              // If signin fails, the password is wrong
+              setError('Account exists but password is incorrect. Please check your password.');
+              setIsLoading(false);
+              return;
+            }
           } else {
+            // Other signup error
+            console.log('Other signup error, re-throwing');
             throw signupError;
           }
         }

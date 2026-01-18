@@ -37,8 +37,8 @@ export class AppError extends Error {
  * Authentication error
  */
 export class AuthError extends AppError {
-  constructor(message: string = 'Authentication failed') {
-    super(message, 'AUTH_ERROR', 401);
+  constructor(message: string = 'Authentication failed', code: string = 'AUTH_ERROR') {
+    super(message, code, 401);
   }
 }
 
@@ -59,10 +59,12 @@ export class ValidationError extends AppError {
  */
 export class ApiError extends AppError {
   public readonly endpoint: string;
+  public readonly responseData?: any;
 
-  constructor(message: string, endpoint: string, statusCode: number = 500) {
-    super(message, 'API_ERROR', statusCode);
+  constructor(message: string, endpoint: string, statusCode: number = 500, code?: string, responseData?: any) {
+    super(message, code || 'API_ERROR', statusCode);
     this.endpoint = endpoint;
+    this.responseData = responseData;
   }
 }
 

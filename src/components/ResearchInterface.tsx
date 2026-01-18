@@ -77,11 +77,40 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
     }
   };
 
-  const handlePlatformSelect = (platform: 'chatgpt' | 'google') => {
+  const handlePlatformSelect = async (platform: 'chatgpt' | 'google') => {
     setSelectedPlatform(platform);
-    // Generate session ID when platform is selected
-    const sessionId = `session_${participant.id}_${Date.now()}`;
-    setBehavioralSessionId(sessionId);
+    
+    // Create a real database session for behavioral tracking
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          platform,
+          topic: currentResearchTopic || participant.researchTopic || 'Research Session'
+        })
+      });
+
+      if (response.ok) {
+        const session = await response.json();
+        console.log('[RESEARCH] Created database session:', session.id);
+        setBehavioralSessionId(session.id);  // Use real UUID from database
+      } else {
+        console.error('[RESEARCH] Failed to create session, falling back to temporary ID');
+        // Fallback to temporary ID if session creation fails
+        const sessionId = `session_${participant.id}_${Date.now()}`;
+        setBehavioralSessionId(sessionId);
+      }
+    } catch (error) {
+      console.error('[RESEARCH] Error creating session:', error);
+      // Fallback to temporary ID
+      const sessionId = `session_${participant.id}_${Date.now()}`;
+      setBehavioralSessionId(sessionId);
+    }
   };
 
   const handleTimeUp = () => {

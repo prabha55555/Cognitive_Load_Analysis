@@ -81,10 +81,10 @@ export interface InteractionBatch {
 
 const DEFAULT_CONFIG: InteractionTrackerConfig = {
   batchSize: 50,
-  flushInterval: 5000,
+  flushInterval: 10000,  // Send every 10 seconds for real-time classification
   mouseSampleRate: 100,
   throttleHighFrequency: true,
-  apiUrl: import.meta.env.VITE_BEHAVIORAL_SERVICE_URL || 'http://localhost:8000',
+  apiUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',  // Backend Express server
   maxRetries: 4,
   maxQueueSize: 1000,
 };
@@ -445,7 +445,7 @@ export class InteractionTracker {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${this.config.apiUrl}/api/interactions/ingest`, {
+        const response = await fetch(`${this.config.apiUrl}/api/behavioral/analyze`, {
           method: 'POST',
           headers,
           body: JSON.stringify(batch),

@@ -25,11 +25,21 @@ const BEHAVIORAL_SERVICE_TIMEOUT = parseInt(process.env.BEHAVIORAL_SERVICE_TIMEO
  */
 router.post('/analyze', async (req: AuthRequest, res: Response) => {
   try {
-    const { sessionId, interactions } = req.body;
+    // Support both formats: frontend sends session_id/events, we need sessionId/interactions
+    const sessionId = req.body.sessionId || req.body.session_id;
+    const interactions = req.body.interactions || req.body.events;
+    const participantId = req.body.participant_id;
+    const platform = req.body.platform;
 
     if (!sessionId || !interactions || !Array.isArray(interactions)) {
+      console.error('[BEHAVIORAL] Invalid request body:', {
+        hasSessionId: !!sessionId,
+        hasInteractions: !!interactions,
+        isArray: Array.isArray(interactions),
+        body: req.body
+      });
       return res.status(400).json({ 
-        error: 'Missing required fields: sessionId and interactions array' 
+        error: 'Missing required fields: sessionId (or session_id) and interactions (or events) array' 
       });
     }
 
@@ -43,9 +53,14 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
       .eq('participant_id', req.user!.id)
       .single();
 
+    // If session doesn't exist, skip processing (likely login page interactions with temporary session ID)
     if (sessionError || !session) {
-      console.error('[BEHAVIORAL] Session not found or unauthorized');
-      return res.status(404).json({ error: 'Session not found' });
+      console.log('[BEHAVIORAL] Session not found - skipping behavioral analysis for temporary session');
+      return res.json({
+        prediction: null,
+        stored: false,
+        message: 'Session not found - interactions tracked but not analyzed'
+      });
     }
 
     // Forward to Python behavioral analysis service
@@ -54,7 +69,9 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
         `${BEHAVIORAL_SERVICE_URL}/classify`,
         {
           session_id: sessionId,
-          interactions: interactions
+          participant_id: participantId || req.user!.id,
+          platform: platform || 'unknown',
+          events: interactions  // Python expects 'events', not 'interactions'
         },
         {
           timeout: BEHAVIORAL_SERVICE_TIMEOUT,

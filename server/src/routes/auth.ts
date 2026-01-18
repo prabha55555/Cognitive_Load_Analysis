@@ -42,6 +42,15 @@ router.post('/signup', async (req: Request, res: Response) => {
     
     if (authError) {
       console.error('[SIGNUP] Auth error:', authError);
+      
+      // Check for email already exists error
+      if (authError.message?.includes('already') || authError.code === 'email_exists') {
+        return res.status(409).json({ 
+          error: 'Account already exists with this email',
+          code: 'email_exists'
+        });
+      }
+      
       return res.status(400).json({ error: authError.message });
     }
     
