@@ -55,7 +55,8 @@ class CognitiveLoadService {
     }
     
     try {
-      const result = await behavioralClassificationService.classifySession(sessionId, true);
+      const results = await behavioralClassificationService.getSessionPredictions(sessionId);
+      const result = results.length > 0 ? results[results.length - 1] : null;
       if (result) {
         logger.info(`Behavioral classification: ${result.cognitive_load_level} (confidence: ${result.confidence})`);
       }
@@ -287,15 +288,6 @@ class CognitiveLoadService {
     console.log('  Final Score (0-100):', clampedScore.toFixed(2));
     
     return Math.round(clampedScore);
-  }
-
-  /**
-   * Normalize a value to 0-100 scale
-   */
-  private normalizeValue(value: number, min: number, max: number): number {
-    if (value <= min) return 0;
-    if (value >= max) return 100;
-    return ((value - min) / (max - min)) * 100;
   }
 
   /**

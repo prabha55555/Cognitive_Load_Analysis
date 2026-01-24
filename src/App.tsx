@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AuthPage } from './components/AuthPage';
 import { LandingPage } from './components/LandingPage';
-import { Login } from './components/Login';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
 import { mockParticipants, researchTopics } from './data/mockData';
+import { authService } from './services/authService';
 import { Participant } from './types';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
   } | null>(null);
 
   const [showLanding, setShowLanding] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const handleJoinStudy = () => {
     setShowLanding(false);
@@ -59,7 +61,47 @@ function App() {
         type: userType
       });
     }
+    
+    // Hide landing page after login
+    setShowLanding(false);
   };
+
+  // Check for existing session on mount and handle OAuth callback
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check if this is an OAuth callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const isCallback = window.location.pathname.includes('/auth/callback') || 
+                          urlParams.has('code') || 
+                          window.location.hash.includes('access_token');
+        
+        if (isCallback) {
+          console.log('[AUTH] Handling OAuth callback...');
+          const authResponse = await authService.handleOAuthCallback();
+          
+          if (authResponse) {
+            handleLogin(authResponse.user.email, authResponse.user.name, authResponse.user.role as 'participant' | 'admin');
+            // Clean up URL
+            window.history.replaceState({}, document.title, '/');
+          }
+        } else {
+          // Check for existing session
+          const session = await authService.getCurrentSession();
+          if (session) {
+            handleLogin(session.user.email, session.user.name, session.user.role as 'participant' | 'admin');
+          }
+        }
+      } catch (error) {
+        console.error('[AUTH] Auth check failed:', error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePhaseComplete = (phase: string) => {
     console.log('==========================================');
@@ -96,6 +138,18 @@ function App() {
     setShowLanding(true);
   };
 
+  // Show loading while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show landing page if no user is logged in and landing should be shown
   if (showLanding && !currentUser) {
     return <LandingPage onJoinStudy={handleJoinStudy} />;
@@ -103,7 +157,7 @@ function App() {
 
   // Show login if no user is logged in
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return <AuthPage onLogin={handleLogin} />;
   }
 
   return (

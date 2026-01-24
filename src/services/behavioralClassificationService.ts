@@ -7,7 +7,6 @@
  * Requirements: 7.2, 9.3, 9.4
  */
 
-import { API_CONFIG, getEndpointUrl } from '../config/apiConfig';
 import { logger } from '../utils/logger';
 import { authService } from './authService';
 
@@ -54,14 +53,6 @@ export interface PlatformComparisonResult {
     chatgpt: number;
     google: number;
   };
-}
-
-/**
- * Classification request parameters
- */
-interface ClassificationRequest {
-  session_id: string;
-  include_features?: boolean;
 }
 
 /**

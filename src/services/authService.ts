@@ -13,6 +13,7 @@
 
 import { apiClient } from './apiClient';
 import { AuthError } from '../utils/errorHandler';
+import { supabase } from '../config/supabase';
 
 interface LoginRequest {
   email: string;
@@ -92,6 +93,120 @@ class AuthService {
       const errorMessage = error.message || 'Sign up failed';
       const errorCode = error.code || 'SIGNUP_ERROR';
       throw new AuthError(errorMessage, errorCode);
+    }
+  }
+
+  /**
+   * Sign in with Google OAuth using Supabase
+   */
+  async signInWithGoogle(): Promise<void> {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      
+      if (error) {
+        throw new AuthError(error.message, 'GOOGLE_AUTH_ERROR');
+      }
+      
+      // The redirect will happen automatically
+    } catch (error: any) {
+      console.error('[AUTH] Google sign-in error:', error);
+      throw new AuthError(error.message || 'Google sign-in failed', 'GOOGLE_AUTH_ERROR');
+    }
+  }
+
+  /**
+   * Handle OAuth callback - exchange code for session
+   */
+  async handleOAuthCallback(): Promise<AuthResponse | null> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        throw new AuthError(error.message, 'OAUTH_CALLBACK_ERROR');
+      }
+      
+      if (session) {
+        this.setToken(session.access_token);
+        apiClient.setAuthToken(session.access_token);
+        
+        // Get or create participant record
+        const { data: participant } = await supabase
+          .from('participants')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        // If no participant record, create one
+        if (!participant) {
+          const userName = session.user.user_metadata?.full_name || 
+                          session.user.user_metadata?.name || 
+                          session.user.email?.split('@')[0] || 
+                          'User';
+                          
+          await supabase.from('participants').insert({
+            id: session.user.id,
+            email: session.user.email,
+            name: userName,
+            role: 'participant',
+          });
+        }
+        
+        return {
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            name: participant?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            role: participant?.role || 'participant',
+          },
+          access_token: session.access_token,
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('[AUTH] OAuth callback error:', error);
+      throw new AuthError(error.message || 'OAuth callback failed', 'OAUTH_CALLBACK_ERROR');
+    }
+  }
+
+  /**
+   * Get current session from Supabase
+   */
+  async getCurrentSession(): Promise<AuthResponse | null> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        return null;
+      }
+      
+      const { data: participant } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      return {
+        user: {
+          id: session.user.id,
+          email: session.user.email!,
+          name: participant?.name || session.user.user_metadata?.full_name || 'User',
+          role: participant?.role || 'participant',
+        },
+        access_token: session.access_token,
+      };
+    } catch (error) {
+      console.error('[AUTH] Get session error:', error);
+      return null;
     }
   }
 

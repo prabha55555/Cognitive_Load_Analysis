@@ -342,7 +342,7 @@ export const AdminDashboard: React.FC = () => {
                   {participants.map((participant) => (
                     <tr key={participant.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {participant.full_name}
+                        {participant.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {participant.email}
@@ -403,7 +403,7 @@ export const AdminDashboard: React.FC = () => {
                   {sessions.map((session) => (
                     <tr key={session.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {session.participants?.full_name || 'Unknown'}
+                        {session.participants?.name || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                         {session.topic}
