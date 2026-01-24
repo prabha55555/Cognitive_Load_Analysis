@@ -76,9 +76,15 @@ class AuthService {
         name
       });
       
-      const token = response.data.session?.access_token || response.data.access_token;
-      this.setToken(token);
-      apiClient.setAuthToken(token);
+      // Try multiple token locations (backend now returns 'token' field)
+      const token = (response.data as any).token || response.data.session?.access_token || response.data.access_token;
+      
+      if (token) {
+        this.setToken(token);
+        apiClient.setAuthToken(token);
+      } else {
+        console.warn('[AUTH] Signup successful but no token returned - user will need to sign in manually');
+      }
       
       return response.data;
     } catch (error: any) {

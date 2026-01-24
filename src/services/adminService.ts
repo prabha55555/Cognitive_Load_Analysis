@@ -142,6 +142,54 @@ class AdminService {
       throw error;
     }
   }
+
+  /**
+   * Get behavioral predictions with optional filters
+   */
+  async getBehavioralPredictions(options?: {
+    platform?: 'chatgpt' | 'google';
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any[]> {
+    try {
+      logger.info('[AdminService] Fetching behavioral predictions');
+      const params = new URLSearchParams();
+      if (options?.platform) params.append('platform', options.platform);
+      if (options?.startDate) params.append('startDate', options.startDate);
+      if (options?.endDate) params.append('endDate', options.endDate);
+      
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const response = await apiClient.get<{ predictions: any[] }>(`/admin/behavioral${query}`);
+      return response.data.predictions;
+    } catch (error) {
+      logger.error('[AdminService] Failed to fetch behavioral predictions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get behavioral timeline data (grouped by date)
+   */
+  async getBehavioralTimeline(options?: {
+    platform?: 'chatgpt' | 'google';
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any[]> {
+    try {
+      logger.info('[AdminService] Fetching behavioral timeline');
+      const params = new URLSearchParams();
+      if (options?.platform) params.append('platform', options.platform);
+      if (options?.startDate) params.append('startDate', options.startDate);
+      if (options?.endDate) params.append('endDate', options.endDate);
+      
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const response = await apiClient.get<{ timeline: any[] }>(`/admin/behavioral/timeline${query}`);
+      return response.data.timeline;
+    } catch (error) {
+      logger.error('[AdminService] Failed to fetch behavioral timeline:', error);
+      throw error;
+    }
+  }
 }
 
 export const adminService = new AdminService();

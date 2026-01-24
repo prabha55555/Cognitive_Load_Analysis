@@ -1,6 +1,6 @@
-import { AlertTriangle, Brain, CheckCircle, RefreshCw, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, Brain, CheckCircle, RefreshCw, TrendingUp, Users, Activity } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { adminService, AdminAnalytics, AdminParticipant, AdminSession } from '../services/adminService';
 import { logger } from '../utils/logger';
 
@@ -8,24 +8,43 @@ export const AdminDashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [participants, setParticipants] = useState<AdminParticipant[]>([]);
   const [sessions, setSessions] = useState<AdminSession[]>([]);
+  const [behavioralPredictions, setBehavioralPredictions] = useState<any[]>([]);
+  const [behavioralTimeline, setBehavioralTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'overview' | 'participants' | 'sessions'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'participants' | 'sessions' | 'behavioral'>('overview');
+  const [selectedPlatform, setSelectedPlatform] = useState<'all' | 'chatgpt' | 'google'>('all');
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0],
+  });
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const [analyticsData, participantsData, sessionsData] = await Promise.all([
+      const [analyticsData, participantsData, sessionsData, predictionsData, timelineData] = await Promise.all([
         adminService.getAnalytics(),
         adminService.getAllParticipants(),
         adminService.getAllSessions(),
+        adminService.getBehavioralPredictions({
+          platform: selectedPlatform !== 'all' ? selectedPlatform : undefined,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        }),
+        adminService.getBehavioralTimeline({
+          platform: selectedPlatform !== 'all' ? selectedPlatform : undefined,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        }),
       ]);
       
       setAnalytics(analyticsData);
       setParticipants(participantsData);
       setSessions(sessionsData);
+      setBehavioralPredictions(predictionsData);
+      setBehavioralTimeline(timelineData);
       
       logger.info('[AdminDashboard] Data loaded successfully');
     } catch (err: any) {
@@ -38,7 +57,7 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedPlatform, dateRange]);
 
   if (loading) {
     return (
@@ -113,16 +132,17 @@ export const AdminDashboard: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-6 mt-6">
         <div className="flex gap-2 border-b border-gray-200">
-          {['overview', 'participants', 'sessions'].map((view) => (
+          {['overview', 'participants', 'sessions', 'behavioral'].map((view) => (
             <button
               key={view}
               onClick={() => setActiveView(view as any)}
-              className={`px-6 py-3 font-medium transition-colors capitalize ${
+              className={`px-6 py-3 font-medium transition-colors capitalize flex items-center gap-2 ${
                 activeView === view
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
+              {view === 'behavioral' && <Activity className="h-4 w-4" />}
               {view}
             </button>
           ))}
@@ -155,7 +175,7 @@ export const AdminDashboard: React.FC = () => {
                       {analytics.overview.totalSessions}
                     </p>
                     <p className="text-xs text-green-600 mt-1">
-                      {analytics.overview.completedSessions} completed
+                      {analytics.overview.completedSessions} completedreadme
                     </p>
                   </div>
                   <TrendingUp className="h-12 w-12 text-green-500 opacity-80" />
@@ -422,6 +442,162 @@ export const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Behavioral Analysis View */}
+        {activeView === 'behavioral' && (
+          <div className="space-y-6">
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Platform Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                  <select
+                    value={selectedPlatform}
+                    onChange={(e) => setSelectedPlatform(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">All Platforms</option>
+                    <option value="chatgpt">ChatGPT</option>
+                    <option value="google">Google Search</option>
+                  </select>
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline Chart */}
+            {behavioralTimeline.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Cognitive Load Timeline</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={behavioralTimeline}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="low" stroke="#10b981" name="Low" />
+                    <Line type="monotone" dataKey="moderate" stroke="#f59e0b" name="Moderate" />
+                    <Line type="monotone" dataKey="high" stroke="#ef4444" name="High" />
+                    <Line type="monotone" dataKey="very-high" stroke="#dc2626" name="Very High" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Cognitive Load Distribution */}
+            {behavioralTimeline.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[
+                  { label: 'Low', key: 'low', color: '#10b981' },
+                  { label: 'Moderate', key: 'moderate', color: '#f59e0b' },
+                  { label: 'High', key: 'high', color: '#ef4444' },
+                  { label: 'Very High', key: 'very-high', color: '#dc2626' },
+                ].map((category) => {
+                  const total = behavioralTimeline.reduce((sum, day: any) => sum + (day[category.key] || 0), 0);
+                  const percentage = behavioralTimeline.reduce((sum, day: any) => sum + (day[category.key] || 0), 0) / 
+                                   behavioralTimeline.reduce((sum, day: any) => sum + (day.total || 0), 0) * 100;
+                  return (
+                    <div key={category.key} className="bg-white rounded-lg shadow-md p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">{category.label}</p>
+                          <p className="text-2xl font-bold text-gray-900 mt-2">{total}</p>
+                          <p className="text-xs text-gray-500 mt-1">{percentage.toFixed(1)}%</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full" style={{ backgroundColor: category.color, opacity: 0.2 }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Predictions Table */}
+            {behavioralPredictions.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Predictions</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Participant</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Session</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Platform</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Prediction</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Confidence</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {behavioralPredictions.slice(0, 20).map((pred, idx) => (
+                        <tr key={idx}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {pred.sessions?.[0]?.participants?.name || 'Unknown'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                            {pred.sessions?.[0]?.topic || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span className="uppercase font-medium text-xs">
+                              {pred.sessions?.[0]?.platform || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              pred.predicted_load_category === 'low' ? 'bg-green-100 text-green-800' :
+                              pred.predicted_load_category === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
+                              pred.predicted_load_category === 'high' ? 'bg-orange-100 text-orange-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {pred.predicted_load_category}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {(pred.confidence_score * 100).toFixed(1)}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(pred.prediction_timestamp).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {behavioralPredictions.length === 0 && (
+              <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No behavioral predictions available for the selected filters</p>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -291,4 +291,134 @@ router.get('/sessions/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * GET /api/admin/behavioral
+ * Get all behavioral predictions with session and participant info
+ * Optionally filtered by:
+ * - platform: 'chatgpt' | 'google'
+ * - startDate: ISO date string
+ * - endDate: ISO date string
+ */
+router.get('/behavioral', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[ADMIN] Fetching behavioral predictions');
+    
+    const { platform, startDate, endDate } = req.query;
+    
+    let query = supabaseAdmin
+      .from('behavioral_predictions')
+      .select(`
+        *,
+        sessions!behavioral_predictions_session_fk (
+          id,
+          participant_id,
+          platform,
+          topic,
+          created_at,
+          participants (
+            id,
+            email,
+            name
+          )
+        )
+      `)
+      .order('prediction_timestamp', { ascending: false });
+    
+    // Apply filters
+    if (platform && typeof platform === 'string') {
+      query = query.eq('sessions.platform', platform);
+    }
+    
+    if (startDate && typeof startDate === 'string') {
+      query = query.gte('prediction_timestamp', startDate);
+    }
+    
+    if (endDate && typeof endDate === 'string') {
+      query = query.lte('prediction_timestamp', endDate);
+    }
+    
+    const { data: predictions, error } = await query;
+    
+    if (error) {
+      console.error('[ADMIN] Error fetching behavioral predictions:', error);
+      return res.status(500).json({ error: 'Failed to fetch behavioral predictions' });
+    }
+    
+    console.log('[ADMIN] Found', predictions.length, 'behavioral predictions');
+    
+    res.json({ predictions });
+  } catch (error) {
+    console.error('[ADMIN] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/admin/behavioral/timeline
+ * Get behavioral predictions grouped by date for timeline visualization
+ */
+router.get('/behavioral/timeline', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[ADMIN] Fetching behavioral timeline data');
+    
+    const { platform, startDate, endDate } = req.query;
+    
+    let query = supabaseAdmin
+      .from('behavioral_predictions')
+      .select(`
+        predicted_load_category,
+        prediction_timestamp,
+        sessions!behavioral_predictions_session_fk (
+          platform
+        )
+      `)
+      .order('prediction_timestamp', { ascending: true });
+    
+    // Apply filters
+    if (platform && typeof platform === 'string') {
+      query = query.eq('sessions.platform', platform);
+    }
+    
+    if (startDate && typeof startDate === 'string') {
+      query = query.gte('prediction_timestamp', startDate);
+    }
+    
+    if (endDate && typeof endDate === 'string') {
+      query = query.lte('prediction_timestamp', endDate);
+    }
+    
+    const { data: predictions, error } = await query;
+    
+    if (error) {
+      console.error('[ADMIN] Error fetching behavioral timeline:', error);
+      return res.status(500).json({ error: 'Failed to fetch behavioral timeline' });
+    }
+    
+    // Group by date and calculate statistics
+    const groupedByDate = predictions.reduce((acc: any, pred: any) => {
+      const date = new Date(pred.prediction_timestamp).toISOString().split('T')[0];
+      if (!acc[date]) {
+        acc[date] = { date, low: 0, moderate: 0, high: 0, 'very-high': 0, total: 0 };
+      }
+      const category = pred.predicted_load_category.toLowerCase();
+      if (category in acc[date]) {
+        acc[date][category]++;
+      }
+      acc[date].total++;
+      return acc;
+    }, {});
+    
+    const timeline = Object.values(groupedByDate).sort((a: any, b: any) => 
+      a.date.localeCompare(b.date)
+    );
+    
+    console.log('[ADMIN] Timeline data prepared:', timeline.length, 'dates');
+    
+    res.json({ timeline });
+  } catch (error) {
+    console.error('[ADMIN] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

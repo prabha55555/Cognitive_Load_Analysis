@@ -108,12 +108,18 @@ What would you like to know about ${participant.researchTopic}?`,
   // Initialize InteractionTracker for behavioral cognitive load analysis
   // Requirements: 7.1 - Tag session with platform type
   useEffect(() => {
+    // Only initialize tracker when we have a real session ID from the database
+    if (!propSessionId) {
+      console.log('[ChatGPT] Waiting for real session ID before starting tracker');
+      return;
+    }
+
     const platform: Platform = 'chatgpt';
-    // Use session ID from props if available, otherwise generate one
-    const sessionId = propSessionId || `session_${participant.id}_${Date.now()}`;
     
-    // Initialize and start the tracker
-    const tracker = getInteractionTracker(sessionId, participant.id, platform);
+    console.log('[ChatGPT] Starting InteractionTracker with session ID:', propSessionId);
+    
+    // Initialize and start the tracker with real UUID
+    const tracker = getInteractionTracker(propSessionId, participant.id, platform);
     tracker.start();
     
     // Track initial navigation to ChatGPT interface
@@ -121,6 +127,7 @@ What would you like to know about ${participant.researchTopic}?`,
     
     // Cleanup on unmount - stop tracker and flush events
     return () => {
+      console.log('[ChatGPT] Stopping InteractionTracker');
       stopInteractionTracker();
     };
   }, [participant.id, propSessionId]);

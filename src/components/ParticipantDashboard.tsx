@@ -1,5 +1,5 @@
 import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User, Activity } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AssessmentResponse, Participant, TestResponse } from '../types';
 import AssessmentPhase from './AssessmentPhase';
 import { CognitiveLoadResults } from './CognitiveLoadResults';
@@ -20,9 +20,39 @@ export const ParticipantDashboard = ({
   // Use local state to manage participant data including topic changes
   const [participant, setParticipant] = useState<Participant>(initialParticipant);
   
-  // Sync with parent participant updates
+  // Use refs to store scores that won't be lost during async state updates
+  const cognitiveLoadScoreRef = useRef<number>(initialParticipant.cognitiveLoadScore ?? 0);
+  const creativityScoreRef = useRef<number>(initialParticipant.creativityScore ?? 0);
+  
+  // Sync with parent participant updates but preserve locally calculated scores
   useEffect(() => {
-    setParticipant(initialParticipant);
+    console.log('[SYNC] initialParticipant changed, syncing state...');
+    console.log('[SYNC] Previous participant:', participant);
+    console.log('[SYNC] New initialParticipant:', initialParticipant);
+    console.log('[SYNC] Ref cognitiveLoadScore:', cognitiveLoadScoreRef.current);
+    console.log('[SYNC] Ref creativityScore:', creativityScoreRef.current);
+    
+    setParticipant(prev => {
+      // Use the ref values as the source of truth for scores
+      const preservedCognitiveLoad = cognitiveLoadScoreRef.current > 0 
+        ? cognitiveLoadScoreRef.current 
+        : (prev.cognitiveLoadScore ?? initialParticipant.cognitiveLoadScore ?? 0);
+      const preservedCreativity = creativityScoreRef.current > 0 
+        ? creativityScoreRef.current 
+        : (prev.creativityScore ?? initialParticipant.creativityScore ?? 0);
+      
+      const synced = {
+        ...initialParticipant,
+        cognitiveLoadScore: preservedCognitiveLoad,
+        creativityScore: preservedCreativity
+      };
+      
+      console.log('[SYNC] Synced participant:', synced);
+      console.log('[SYNC] Preserved cognitiveLoadScore:', synced.cognitiveLoadScore);
+      console.log('[SYNC] Preserved creativityScore:', synced.creativityScore);
+      
+      return synced;
+    });
   }, [initialParticipant]);
   
   // Track behavioral interaction status
@@ -87,7 +117,7 @@ export const ParticipantDashboard = ({
 
   const sessionDuration = Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000);
 
-  const handleCreativityComplete = (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
+  const handleCreativityComplete = async (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
     console.log('==========================================');
     console.log('🎨 CREATIVITY TEST COMPLETE');
     console.log('Responses received:', responses.length);
@@ -107,16 +137,55 @@ export const ParticipantDashboard = ({
     console.log('Calculated average:', creativityScore);
     console.log('==========================================');
     
+    // CRITICAL: Store in ref FIRST - this survives async state updates
+    creativityScoreRef.current = creativityScore;
+    console.log('📌 Stored creativity score in ref:', creativityScoreRef.current);
+    
     // Save evaluations first
     setCreativityEvaluations(evaluations);
     
-    // Update participant with creativity score
+    // Update local state
     setParticipant(prev => ({
       ...prev,
       creativityScore: creativityScore
     }));
     
     console.log('✅ Creativity score set to:', creativityScore);
+    
+    // Save to database
+    try {
+      console.log('💾 Saving creativity score to database...');
+      const token = localStorage.getItem('auth_token');
+      console.log('🔑 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NULL');
+      
+      if (!token) {
+        console.error('❌ No authentication token found in localStorage');
+        console.log('⚠️ Skipping database save - user authenticated with mock auth');
+        // Continue without throwing error for mock auth users
+      } else {
+        const response = await fetch('http://localhost:3001/api/auth/participant/scores', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            creativityScore,
+            sessionId: behavioralSessionId 
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to save score: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Creativity score saved to database:', data.participant);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save creativity score to database:', error);
+    }
+    
     console.log('⏳ Waiting 500ms before phase transition to ensure state update...');
     
     // Use setTimeout OUTSIDE setState to ensure state updates complete before phase change
@@ -140,7 +209,7 @@ export const ParticipantDashboard = ({
     onPhaseComplete('results');
   };
   
-  const handleResultsComplete = (cognitiveLoadScore: number) => {
+  const handleResultsComplete = async (cognitiveLoadScore: number) => {
     console.log('==========================================');
     console.log('🧠 COGNITIVE LOAD RESULTS COMPLETE');
     console.log('Received cognitive load score:', cognitiveLoadScore);
@@ -148,9 +217,14 @@ export const ParticipantDashboard = ({
     console.log('Is valid number?:', !isNaN(cognitiveLoadScore));
     console.log('Current participant state BEFORE update:', participant);
     
-    // Update participant with cognitive load score before moving to creativity test
+    const rounded = Math.round(cognitiveLoadScore);
+    
+    // CRITICAL: Store in ref FIRST - this survives async state updates
+    cognitiveLoadScoreRef.current = rounded;
+    console.log('📌 Stored cognitive load score in ref:', cognitiveLoadScoreRef.current);
+    
+    // Update local state
     setParticipant(prev => {
-      const rounded = Math.round(cognitiveLoadScore);
       const updated = {
         ...prev,
         cognitiveLoadScore: rounded
@@ -158,11 +232,44 @@ export const ParticipantDashboard = ({
       console.log('Updated participant state AFTER update:', updated);
       console.log('Previous cognitive load score:', prev.cognitiveLoadScore);
       console.log('New cognitive load score:', updated.cognitiveLoadScore);
-      console.log('Cognitive load score saved:', rounded);
+      console.log('Cognitive load score saved to state:', rounded);
       return updated;
     });
     
-    console.log('✅ Cognitive load score saved:', Math.round(cognitiveLoadScore));
+    // Save to database
+    try {
+      console.log('💾 Saving cognitive load score to database...');
+      const token = localStorage.getItem('auth_token');
+      console.log('🔑 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NULL');
+      
+      if (!token) {
+        console.error('❌ No authentication token found in localStorage');
+        console.log('⚠️ Skipping database save - user authenticated with mock auth');
+        // Continue without throwing error for mock auth users
+      } else {
+        const response = await fetch('http://localhost:3001/api/auth/participant/scores', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            cognitiveLoadScore: rounded,
+            sessionId: behavioralSessionId 
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to save score: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Cognitive load score saved to database:', data.participant);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save cognitive load score to database:', error);
+    }
+    
     console.log('⏳ Waiting 300ms before phase transition to ensure state update...');
     console.log('==========================================');
     
@@ -446,24 +553,34 @@ export const ParticipantDashboard = ({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">Click Events</span>
-                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
+                      {isTrackingActive ? 'Tracking' : 'Inactive'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">Mouse Movement</span>
-                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
+                      {isTrackingActive ? 'Tracking' : 'Inactive'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">Scroll Behavior</span>
-                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
+                      {isTrackingActive ? 'Tracking' : 'Inactive'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">Navigation</span>
-                    <span className="text-sm font-medium text-gray-800">Tracking</span>
+                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
+                      {isTrackingActive ? 'Tracking' : 'Inactive'}
+                    </span>
                   </div>
                 </div>
                 
                 <p className="text-xs text-gray-500 mt-4 text-center">
-                  Interaction data is being collected for cognitive load analysis
+                  {isTrackingActive 
+                    ? 'Interaction data is being collected for cognitive load analysis' 
+                    : 'Tracking stopped - data collection complete'}
                 </p>
               </div>
               
@@ -482,7 +599,17 @@ export const ParticipantDashboard = ({
                 <div className="grid grid-cols-1 gap-6">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
                     <p className="text-sm text-gray-600 mb-2">Current Score</p>
-                    <p className="text-3xl font-bold text-blue-600">{participant.cognitiveLoadScore}%</p>
+                    <p className="text-3xl font-bold text-blue-600">
+                      {(() => {
+                        // Calculate assessment score if responses exist
+                        if (assessmentResponses && assessmentResponses.length > 0) {
+                          const totalPoints = assessmentResponses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0);
+                          const maxPoints = assessmentResponses.reduce((sum, r) => sum + (r.points || 20), 0);
+                          return Math.round((totalPoints / maxPoints) * 100);
+                        }
+                        return participant.cognitiveLoadScore;
+                      })()}%
+                    </p>
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
                     <p className="text-sm text-gray-600 mb-2">Test Progress</p>

@@ -408,20 +408,41 @@ export const geminiService = {
       
       // Calculate weighted overall score
       const weights = question.evaluationCriteria;
-      const score = (
-        (evaluation.relevanceScore * weights.relevance / 100) +
-        (evaluation.creativityScore * weights.creativity / 100) +
-        (evaluation.depthScore * weights.depth / 100) +
-        (evaluation.coherenceScore * weights.coherence / 100)
-      );
+      
+      // Map evaluation scores to weight keys dynamically
+      // Gemini always returns: relevanceScore, creativityScore, depthScore, coherenceScore
+      // But question weights may use different keys (e.g., 'uniqueness', 'feasibility_potential')
+      const scoreMapping: Record<string, number> = {
+        relevance: evaluation.relevanceScore || 0,
+        creativity: evaluation.creativityScore || 0,
+        uniqueness: evaluation.creativityScore || 0, // Map uniqueness to creativity score
+        depth: evaluation.depthScore || 0,
+        feasibility_potential: evaluation.depthScore || 0, // Map feasibility to depth score
+        coherence: evaluation.coherenceScore || 0,
+        explanation_clarity: evaluation.coherenceScore || 0, // Map clarity to coherence score
+        perspective_integration: evaluation.coherenceScore || 0,
+        interconnectedness_of_solutions: evaluation.depthScore || 0,
+        novelty_of_holistic_approach: evaluation.creativityScore || 0,
+        clarity_of_connection: evaluation.coherenceScore || 0
+      };
+
+      // Calculate weighted score dynamically based on actual criteria keys
+      let score = 0;
+      const contributions: Record<string, number> = {};
+      
+      for (const [criteriaKey, weight] of Object.entries(weights)) {
+        const criteriaScore = scoreMapping[criteriaKey] || 0;
+        const contribution = (criteriaScore * (weight as number)) / 100;
+        contributions[criteriaKey] = contribution;
+        score += contribution;
+      }
 
       console.log('==========================================');
       console.log('🎯 WEIGHTED SCORE CALCULATION');
       console.log('Weights:', weights);
-      console.log('Relevance contribution:', (evaluation.relevanceScore * weights.relevance / 100).toFixed(2));
-      console.log('Creativity contribution:', (evaluation.creativityScore * weights.creativity / 100).toFixed(2));
-      console.log('Depth contribution:', (evaluation.depthScore * weights.depth / 100).toFixed(2));
-      console.log('Coherence contribution:', (evaluation.coherenceScore * weights.coherence / 100).toFixed(2));
+      Object.entries(contributions).forEach(([key, value]) => {
+        console.log(`${key} contribution:`, value.toFixed(2));
+      });
       console.log('FINAL WEIGHTED SCORE:', Math.round(score), '/100');
       console.log('==========================================');
 

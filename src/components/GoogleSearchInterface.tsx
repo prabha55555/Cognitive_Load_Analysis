@@ -76,12 +76,18 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
   // Initialize InteractionTracker for behavioral cognitive load analysis
   // Requirements: 7.1 - Tag session with platform type
   useEffect(() => {
+    // Only initialize tracker when we have a real session ID from the database
+    if (!propSessionId) {
+      console.log('[Google] Waiting for real session ID before starting tracker');
+      return;
+    }
+
     const platform: Platform = 'google';
-    // Use session ID from props if available, otherwise generate one
-    const trackerSessionId = propSessionId || `session_${participant.id}_${Date.now()}`;
     
-    // Initialize and start the tracker
-    const tracker = getInteractionTracker(trackerSessionId, participant.id, platform);
+    console.log('[Google] Starting InteractionTracker with session ID:', propSessionId);
+    
+    // Initialize and start the tracker with real UUID
+    const tracker = getInteractionTracker(propSessionId, participant.id, platform);
     tracker.start();
     
     // Track initial navigation to Google Search interface
@@ -89,6 +95,7 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
     
     // Cleanup on unmount - stop tracker and flush events
     return () => {
+      console.log('[Google] Stopping InteractionTracker');
       stopInteractionTracker();
     };
   }, [participant.id, propSessionId]);

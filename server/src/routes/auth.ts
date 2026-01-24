@@ -88,8 +88,32 @@ router.post('/signup', async (req: Request, res: Response) => {
     }
     
     console.log('[SIGNUP] Participant created successfully:', participant.id);
+    
+    // Sign in the user to get session token
+    console.log('[SIGNUP] Generating session token...');
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (sessionError || !sessionData.session) {
+      console.error('[SIGNUP] Failed to generate session:', sessionError);
+      // Still return success but user will need to manually sign in
+      return res.status(201).json({
+        message: 'Account created successfully. Please sign in.',
+        user: {
+          id: participant.id,
+          email: participant.email,
+          name: participant.name,
+          role: participant.role,
+        },
+      });
+    }
+    
+    console.log('[SIGNUP] Session created, returning token');
     res.status(201).json({
       message: 'Account created successfully',
+      token: sessionData.session.access_token,
       user: {
         id: participant.id,
         email: participant.email,
@@ -275,6 +299,119 @@ router.post('/refresh', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[REFRESH] Unexpected error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * PATCH /api/auth/participant/scores
+ * Update participant cognitive load and creativity scores
+ * Stores scores in cognitive_load_metrics and updates session's research_data
+ */
+router.patch('/participant/scores', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { cognitiveLoadScore, creativityScore, sessionId } = req.body;
+    
+    console.log('==========================================');
+    console.log('[SCORES] Updating participant scores');
+    console.log('Participant ID:', req.user!.id);
+    console.log('Session ID:', sessionId);
+    console.log('Cognitive Load Score:', cognitiveLoadScore);
+    console.log('Creativity Score:', creativityScore);
+    console.log('==========================================');
+    
+    // Validate at least one score is provided
+    if (cognitiveLoadScore === undefined && creativityScore === undefined) {
+      return res.status(400).json({ error: 'At least one score must be provided' });
+    }
+
+    // Get or create session for this participant
+    let session;
+    if (sessionId) {
+      // Use provided session ID
+      const { data, error } = await supabaseAdmin
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .eq('participant_id', req.user!.id)
+        .single();
+      
+      if (error || !data) {
+        console.error('[SCORES] Session not found:', error);
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      session = data;
+    } else {
+      // Get the most recent session for this participant
+      const { data, error } = await supabaseAdmin
+        .from('sessions')
+        .select('*')
+        .eq('participant_id', req.user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error || !data) {
+        console.error('[SCORES] No session found for participant');
+        return res.status(404).json({ error: 'No active session found' });
+      }
+      session = data;
+    }
+
+    console.log('[SCORES] Using session:', session.id);
+
+    // Update cognitive load score if provided
+    if (cognitiveLoadScore !== undefined) {
+      const { error: clError } = await supabaseAdmin
+        .from('cognitive_load_metrics')
+        .upsert({
+          session_id: session.id,
+          overall_score: Math.round(cognitiveLoadScore),
+          category: cognitiveLoadScore < 25 ? 'low' : cognitiveLoadScore < 50 ? 'moderate' : cognitiveLoadScore < 75 ? 'high' : 'very-high',
+          assessment_score: Math.round(cognitiveLoadScore),
+          source: 'assessment-only',
+          created_at: new Date().toISOString()
+        }, {
+          onConflict: 'session_id'
+        });
+
+      if (clError) {
+        console.error('[SCORES] Error saving cognitive load:', clError);
+        return res.status(500).json({ error: 'Failed to save cognitive load score' });
+      }
+      console.log('[SCORES] ✅ Cognitive load score saved');
+    }
+
+    // Update creativity score in session's research_data if provided
+    if (creativityScore !== undefined) {
+      const updatedResearchData = {
+        ...session.research_data,
+        creativityScore: Math.round(creativityScore)
+      };
+
+      const { error: sessionError } = await supabaseAdmin
+        .from('sessions')
+        .update({ research_data: updatedResearchData })
+        .eq('id', session.id);
+
+      if (sessionError) {
+        console.error('[SCORES] Error saving creativity score:', sessionError);
+        return res.status(500).json({ error: 'Failed to save creativity score' });
+      }
+      console.log('[SCORES] ✅ Creativity score saved');
+    }
+
+    console.log('[SCORES] ✅ All scores updated successfully');
+    console.log('==========================================');
+    
+    res.json({ 
+      success: true,
+      sessionId: session.id,
+      cognitiveLoadScore,
+      creativityScore
+    });
+  } catch (error) {
+    console.error('[SCORES] Unexpected error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

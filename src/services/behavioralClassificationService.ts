@@ -157,12 +157,13 @@ class BehavioralClassificationService {
 
       const data = await response.json();
       // Convert backend format to frontend format
+      // Database fields: predicted_load_category, confidence_score, features
       return (data.predictions || []).map((pred: any) => ({
         session_id: pred.session_id,
-        cognitive_load_level: this.categoryToLevel(pred.category),
-        confidence: pred.confidence,
+        cognitive_load_level: this.categoryToLevel(pred.predicted_load_category),
+        confidence: pred.confidence_score,
         features: pred.features,
-        timestamp: pred.created_at,
+        timestamp: pred.prediction_timestamp || pred.created_at,
       }));
     } catch (error) {
       logger.error('Failed to get session predictions', error);

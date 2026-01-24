@@ -233,47 +233,60 @@ class CognitiveLoadService {
     learningMetrics: any,
     assessmentMetrics: any
   ): number {
-    // Normalize learning time (assuming 300-1800 seconds is typical range)
-    const learningTimeScore = this.normalizeValue(
-      learningMetrics.totalTime,
-      300,  // min expected time (5 minutes)
-      1800  // max expected time (30 minutes)
-    );
-
-    // Normalize interaction count (more interactions = more confusion = higher load)
-    const interactionScore = this.normalizeValue(
-      learningMetrics.interactionCount,
-      0,   // min interactions
-      20   // max expected interactions
-    );
-
-    // Normalize clarification requests (more clarifications = higher load)
-    const clarificationScore = this.normalizeValue(
-      learningMetrics.clarificationRequests,
-      0,   // min clarifications
-      15   // max expected clarifications
-    );
-
-    // Normalize assessment time per question (longer time = higher load)
-    const assessmentTimeScore = this.normalizeValue(
-      assessmentMetrics.averageTimePerQuestion,
-      30,   // min expected time per question (30 seconds)
-      300   // max expected time per question (5 minutes)
-    );
-
-    // Inverse of accuracy (lower accuracy = higher cognitive load)
-    const accuracyScore = 100 - assessmentMetrics.accuracy;
-
-    // Weighted average of all factors
-    const overallScore = (
-      learningTimeScore * 0.20 +      // 20% weight
-      interactionScore * 0.15 +       // 15% weight
-      clarificationScore * 0.20 +     // 20% weight
-      assessmentTimeScore * 0.25 +    // 25% weight
-      accuracyScore * 0.20            // 20% weight
-    );
-
-    return Math.min(100, Math.max(0, overallScore));
+    // NEW FORMULA: Based on research showing optimal cognitive load is 40-60%
+    // Start with a baseline of 50% (average cognitive load)
+    let baseScore = 50;
+    
+    // Factor 1: Accuracy Impact (-20 to +20 points)
+    // High accuracy = lower cognitive load (material was easy to understand)
+    // Low accuracy = higher cognitive load (struggled with material)
+    const accuracy = assessmentMetrics.accuracy || 0;
+    const accuracyImpact = (100 - accuracy) * 0.4; // 0-40 points based on errors
+    
+    // Factor 2: Time per Question Impact (-15 to +25 points)
+    // Very fast (<20s) = might indicate guessing = moderate load
+    // Normal (20-60s) = comfortable processing
+    // Slow (>60s) = higher cognitive effort required
+    const avgTime = assessmentMetrics.averageTimePerQuestion || 30;
+    let timeImpact = 0;
+    if (avgTime < 15) {
+      timeImpact = 10; // Too fast - might be guessing or low engagement
+    } else if (avgTime < 30) {
+      timeImpact = -5; // Quick but thoughtful - low load
+    } else if (avgTime < 60) {
+      timeImpact = 5; // Normal range
+    } else if (avgTime < 120) {
+      timeImpact = 15; // Taking longer - moderate load
+    } else {
+      timeImpact = 25; // Very slow - high cognitive effort
+    }
+    
+    // Factor 3: Learning/Interaction Impact (0 to +15 points)
+    // More clarifications needed = higher load
+    const clarificationImpact = Math.min(15, learningMetrics.clarificationRequests * 3);
+    
+    // Factor 4: Question Completion Consistency
+    // If they took very different times on questions, it indicates variable difficulty
+    const timeVariance = assessmentMetrics.descriptiveQuestionsTime > 0 
+      ? Math.min(10, (assessmentMetrics.descriptiveQuestionsTime / assessmentMetrics.totalTime) * 20)
+      : 0;
+    
+    // Calculate final score
+    const finalScore = baseScore + accuracyImpact + timeImpact + clarificationImpact + timeVariance;
+    
+    // Ensure score is within 0-100 range
+    const clampedScore = Math.min(100, Math.max(0, finalScore));
+    
+    console.log('[COGNITIVE LOAD] Score calculation breakdown:');
+    console.log('  Base Score: 50');
+    console.log('  Accuracy Impact:', accuracyImpact.toFixed(2), `(accuracy: ${accuracy}%)`);
+    console.log('  Time Impact:', timeImpact.toFixed(2), `(avg time: ${avgTime.toFixed(1)}s)`);
+    console.log('  Clarification Impact:', clarificationImpact.toFixed(2));
+    console.log('  Time Variance Impact:', timeVariance.toFixed(2));
+    console.log('  --------------------------------');
+    console.log('  Final Score (0-100):', clampedScore.toFixed(2));
+    
+    return Math.round(clampedScore);
   }
 
   /**
@@ -286,13 +299,18 @@ class CognitiveLoadService {
   }
 
   /**
-   * Categorize cognitive load level
+   * Categorize cognitive load level based on research
+   * Optimal cognitive load for learning is 40-60% (manageable load)
+   * Below 40% = Under-stimulated (too easy)
+   * 40-60% = Optimal learning zone
+   * 60-75% = Challenging but manageable
+   * Above 75% = Overloaded
    */
   private categorizeCognitiveLoad(score: number): 'Low' | 'Moderate' | 'High' | 'Very High' {
-    if (score < 25) return 'Low';
-    if (score < 50) return 'Moderate';
-    if (score < 75) return 'High';
-    return 'Very High';
+    if (score < 40) return 'Low';        // Under 40% - material was easy
+    if (score < 60) return 'Moderate';   // 40-60% - optimal learning zone
+    if (score < 75) return 'High';       // 60-75% - challenging
+    return 'Very High';                   // 75%+ - potentially overloaded
   }
 
   /**

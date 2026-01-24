@@ -80,7 +80,7 @@ export interface InteractionBatch {
 // ============================================================================
 
 const DEFAULT_CONFIG: InteractionTrackerConfig = {
-  batchSize: 50,
+  batchSize: 10,  // Reduced from 50 - send after 10 interactions for faster predictions
   flushInterval: 10000,  // Send every 10 seconds for real-time classification
   mouseSampleRate: 100,
   throttleHighFrequency: true,
@@ -200,9 +200,11 @@ export class InteractionTracker {
     const eventsToSend = [...this.eventQueue];
     this.eventQueue = [];
 
+    logger.info(`[BEHAVIORAL] Flushing ${eventsToSend.length} events for session ${this.sessionId} (${this.platform})`);
+
     try {
       await this.sendBatch(eventsToSend);
-      logger.debug(`Flushed ${eventsToSend.length} events to backend`);
+      logger.info(`[BEHAVIORAL] Successfully sent ${eventsToSend.length} events to backend`);
     } catch (error) {
       // Re-queue events on failure (at the front)
       this.eventQueue = [...eventsToSend, ...this.eventQueue];
@@ -411,6 +413,7 @@ export class InteractionTracker {
 
     // Auto-flush if batch size reached
     if (this.eventQueue.length >= this.config.batchSize) {
+      logger.info(`Auto-flushing batch (size threshold reached: ${this.eventQueue.length} events)`);
       this.flush().catch(err => logger.error('Auto-flush failed', err));
     }
   }
@@ -430,6 +433,13 @@ export class InteractionTracker {
       platform: this.platform,
       events,
     };
+
+    logger.info(`[BEHAVIORAL] Sending batch to backend:`, {
+      sessionId: this.sessionId,
+      platform: this.platform,
+      eventCount: events.length,
+      eventTypes: events.map(e => e.type).join(', ')
+    });
 
     let lastError: Error | null = null;
     
@@ -452,8 +462,13 @@ export class InteractionTracker {
         });
 
         if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          logger.error(`[BEHAVIORAL] Backend error:`, { status: response.status, error: errorData });
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+
+        const result = await response.json();
+        logger.info(`[BEHAVIORAL] Backend response:`, result);
 
         return; // Success
       } catch (error) {
@@ -508,6 +523,7 @@ export class InteractionTracker {
   private startFlushInterval(): void {
     this.flushIntervalId = setInterval(() => {
       if (this.eventQueue.length > 0) {
+        logger.info(`Auto-flushing batch (timer interval: ${this.eventQueue.length} events queued)`);
         this.flush().catch(err => logger.error('Interval flush failed', err));
       }
     }, this.config.flushInterval);

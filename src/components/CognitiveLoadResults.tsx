@@ -1,7 +1,7 @@
 import { Award, Brain, CheckCircle, Clock, Lightbulb, Sparkles, Target, TrendingDown, TrendingUp, Zap, BarChart3 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { cognitiveLoadService } from '../services/cognitiveLoadService';
-import { behavioralClassificationService, BehavioralClassificationResult, PlatformComparisonResult } from '../services/behavioralClassificationService';
+import { behavioralClassificationService, BehavioralClassificationResult, BehavioralFeatures, PlatformComparisonResult } from '../services/behavioralClassificationService';
 import { AssessmentResponse, CognitiveLoadMetrics } from '../types';
 import { CreativityEvaluation } from '../services/geminiService';
 
@@ -43,11 +43,77 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
         // Fetch predictions for this session (returns array)
         const predictions = await behavioralClassificationService.getSessionPredictions(sessionId);
         
-        // Use the most recent prediction if available
+        // Aggregate ALL predictions instead of just showing the last one
         if (predictions && predictions.length > 0) {
-          // Get the latest prediction (array is already sorted by timestamp)
+          console.log(`[BEHAVIORAL] Aggregating ${predictions.length} predictions for session ${sessionId}`);
+          
+          // Aggregate features from all predictions - only use fields that exist in BehavioralFeatures
+          const aggregatedFeatures: Partial<BehavioralFeatures> = predictions.reduce((acc, pred) => {
+            if (!pred.features) return acc;
+            
+            return {
+              mean_response_time: (acc.mean_response_time || 0) + pred.features.mean_response_time,
+              median_response_time: (acc.median_response_time || 0) + pred.features.median_response_time,
+              std_response_time: (acc.std_response_time || 0) + pred.features.std_response_time,
+              total_clicks: (acc.total_clicks || 0) + pred.features.total_clicks,
+              rage_click_count: (acc.rage_click_count || 0) + pred.features.rage_click_count,
+              click_rate: (acc.click_rate || 0) + pred.features.click_rate,
+              mean_cursor_speed: (acc.mean_cursor_speed || 0) + pred.features.mean_cursor_speed,
+              trajectory_deviation: (acc.trajectory_deviation || 0) + pred.features.trajectory_deviation,
+              total_idle_time: (acc.total_idle_time || 0) + pred.features.total_idle_time,
+              revisit_ratio: (acc.revisit_ratio || 0) + pred.features.revisit_ratio,
+              path_linearity: (acc.path_linearity || 0) + pred.features.path_linearity,
+              sections_visited: Math.max(acc.sections_visited || 0, pred.features.sections_visited),
+              total_session_time: (acc.total_session_time || 0) + pred.features.total_session_time,
+              active_time_ratio: (acc.active_time_ratio || 0) + pred.features.active_time_ratio,
+              scroll_depth: Math.max(acc.scroll_depth || 0, pred.features.scroll_depth)
+            };
+          }, {} as Partial<BehavioralFeatures>);
+          
+          // Average out the additive metrics
+          const count = predictions.length;
+          if (aggregatedFeatures.mean_response_time !== undefined) aggregatedFeatures.mean_response_time /= count;
+          if (aggregatedFeatures.median_response_time !== undefined) aggregatedFeatures.median_response_time /= count;
+          if (aggregatedFeatures.std_response_time !== undefined) aggregatedFeatures.std_response_time /= count;
+          if (aggregatedFeatures.click_rate !== undefined) aggregatedFeatures.click_rate /= count;
+          if (aggregatedFeatures.mean_cursor_speed !== undefined) aggregatedFeatures.mean_cursor_speed /= count;
+          if (aggregatedFeatures.trajectory_deviation !== undefined) aggregatedFeatures.trajectory_deviation /= count;
+          if (aggregatedFeatures.revisit_ratio !== undefined) aggregatedFeatures.revisit_ratio /= count;
+          if (aggregatedFeatures.path_linearity !== undefined) aggregatedFeatures.path_linearity /= count;
+          if (aggregatedFeatures.active_time_ratio !== undefined) aggregatedFeatures.active_time_ratio /= count;
+          
+          // Determine overall cognitive load level from all predictions
+          const loadLevels = predictions.map(p => p.cognitive_load_level);
+          const highCount = loadLevels.filter(l => l === 'High' || l === 'Very High').length;
+          const moderateCount = loadLevels.filter(l => l === 'Moderate').length;
+          const lowCount = loadLevels.filter(l => l === 'Low').length;
+          
+          let overallLevel: 'Low' | 'Moderate' | 'High' | 'Very High';
+          if (highCount > moderateCount && highCount > lowCount) {
+            overallLevel = 'High';
+          } else if (moderateCount >= highCount && moderateCount > lowCount) {
+            overallLevel = 'Moderate';
+          } else {
+            overallLevel = 'Low';
+          }
+          
+          // Use latest prediction as base but with aggregated features
           const latestPrediction = predictions[predictions.length - 1];
-          setBehavioralResult(latestPrediction);
+          const aggregatedResult: BehavioralClassificationResult = {
+            ...latestPrediction,
+            features: aggregatedFeatures as BehavioralFeatures,
+            cognitive_load_level: overallLevel,
+            confidence: predictions.reduce((sum, p) => sum + p.confidence, 0) / count
+          };
+          
+          console.log('[BEHAVIORAL] Aggregated result:', {
+            totalPredictions: count,
+            totalClicks: aggregatedFeatures.total_clicks,
+            overallLevel,
+            avgConfidence: aggregatedResult.confidence
+          });
+          
+          setBehavioralResult(aggregatedResult);
         }
         
         // Note: Platform comparison endpoint not yet implemented in Phase 4
@@ -61,6 +127,14 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
   }, [sessionId]);
   // Guard: Check if assessmentResponses is empty
   if (!assessmentResponses || assessmentResponses.length === 0) {
+    console.error('==========================================');
+    console.error('❌ COGNITIVE LOAD RESULTS - NO ASSESSMENT DATA');
+    console.error('assessmentResponses:', assessmentResponses);
+    console.error('Is undefined?:', assessmentResponses === undefined);
+    console.error('Is empty array?:', assessmentResponses?.length === 0);
+    console.error('THIS WILL CALL onComplete(0) AND RESET COGNITIVE LOAD SCORE!');
+    console.error('==========================================');
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-xl text-center bg-white rounded-2xl shadow-xl p-8">
@@ -72,7 +146,10 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
             Please complete the reading and note-taking phase first to generate assessment questions.
           </p>
           <button
-            onClick={() => onComplete(0)}
+            onClick={() => {
+              console.error('🔴 GO BACK BUTTON CLICKED - Calling onComplete(0)');
+              onComplete(0);
+            }}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             Go Back

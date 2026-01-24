@@ -43,36 +43,69 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    console.log(`[BEHAVIORAL] Analyzing ${interactions.length} interactions for session:`, sessionId);
+    console.log('\n========================================');
+    console.log(`[BEHAVIORAL] 📊 ANALYZING BATCH #${Date.now()}`);
+    console.log(`[BEHAVIORAL] Session ID: ${sessionId}`);
+    console.log(`[BEHAVIORAL] Event Count: ${interactions.length}`);
+    console.log(`[BEHAVIORAL] Event Types: ${interactions.map((e: any) => e.type).join(', ')}`);
+    console.log(`[BEHAVIORAL] Platform: ${platform} | Participant: ${participantId || req.user!.id}`);
+    console.log('========================================\n');
 
     // Verify session belongs to user
+    const sessionCheckStart = Date.now();
     const { data: session, error: sessionError } = await supabaseAdmin
       .from('sessions')
       .select('id, participant_id')
       .eq('id', sessionId)
       .eq('participant_id', req.user!.id)
       .single();
+    
+    console.log(`[BEHAVIORAL] Session validation took ${Date.now() - sessionCheckStart}ms`);
 
     // If session doesn't exist, skip processing (likely login page interactions with temporary session ID)
     if (sessionError || !session) {
-      console.log('[BEHAVIORAL] Session not found - skipping behavioral analysis for temporary session');
+      console.log('[BEHAVIORAL] ⚠️  Session not found - skipping behavioral analysis for temporary session');
       return res.json({
         prediction: null,
         stored: false,
         message: 'Session not found - interactions tracked but not analyzed'
       });
     }
+    
+    console.log('[BEHAVIORAL] ✅ Session validated successfully');
+
+    // Check if we have enough events for classification (Python requires at least 2)
+    if (interactions.length < 2) {
+      console.log(`[BEHAVIORAL] Insufficient events (${interactions.length}) - skipping classification`);
+      return res.json({
+        prediction: null,
+        stored: false,
+        message: `Insufficient events for classification (need at least 2, got ${interactions.length})`
+      });
+    }
 
     // Forward to Python behavioral analysis service
     try {
+      console.log(`[BEHAVIORAL] 🚀 Forwarding to Python service: ${BEHAVIORAL_SERVICE_URL}/classify`);
+      const pythonRequestStart = Date.now();
+      
+      const requestPayload = {
+        session_id: sessionId,
+        participant_id: participantId || req.user!.id,
+        platform: platform || 'unknown',
+        events: interactions  // Python expects 'events', not 'interactions'
+      };
+      
+      console.log('[BEHAVIORAL] Python request payload:', {
+        session_id: sessionId,
+        participant_id: participantId || req.user!.id,
+        platform: platform || 'unknown',
+        event_count: interactions.length
+      });
+      
       const response = await axios.post(
         `${BEHAVIORAL_SERVICE_URL}/classify`,
-        {
-          session_id: sessionId,
-          participant_id: participantId || req.user!.id,
-          platform: platform || 'unknown',
-          events: interactions  // Python expects 'events', not 'interactions'
-        },
+        requestPayload,
         {
           timeout: BEHAVIORAL_SERVICE_TIMEOUT,
           headers: {
@@ -80,10 +113,20 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
           }
         }
       );
+      
+      const pythonDuration = Date.now() - pythonRequestStart;
+      console.log(`[BEHAVIORAL] 🎯 Python service responded in ${pythonDuration}ms`);
 
       const prediction = response.data;
+      console.log('[BEHAVIORAL] Python prediction received:', {
+        category: prediction.category,
+        score: prediction.score,
+        confidence: prediction.confidence,
+        method: prediction.method
+      });
 
       // Store prediction in database
+      console.log('[BEHAVIORAL] Storing prediction in database...');
       const { data: storedPrediction, error: insertError } = await supabaseAdmin
         .from('behavioral_predictions')
         .insert({
@@ -107,7 +150,16 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
         });
       }
 
-      console.log('[BEHAVIORAL] Prediction stored:', storedPrediction.id);
+      console.log('\n[BEHAVIORAL] 💾 ✅ PREDICTION STORED SUCCESSFULLY');
+      console.log('[BEHAVIORAL] Database Record:', {
+        id: storedPrediction.id,
+        session_id: storedPrediction.session_id,
+        category: storedPrediction.predicted_load_category,
+        score: storedPrediction.predicted_load_score,
+        confidence: storedPrediction.confidence_score,
+        timestamp: storedPrediction.created_at
+      });
+      console.log('========================================\n');
 
       res.json({
         prediction,
