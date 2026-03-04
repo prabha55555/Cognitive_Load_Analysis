@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LandingPage } from './components/LandingPage';
 import { Login } from './components/Login';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
 import { mockParticipants, researchTopics } from './data/mockData';
+import { authService } from './services/authService';
 import { Participant } from './types';
 
 function App() {
@@ -16,6 +17,24 @@ function App() {
   } | null>(null);
 
   const [showLanding, setShowLanding] = useState(true);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const user = await authService.getCurrentUser();
+
+      if (!user) {
+        setIsRestoringSession(false);
+        return;
+      }
+
+      handleLogin(user.email, user.name, user.role);
+      setShowLanding(false);
+      setIsRestoringSession(false);
+    };
+
+    restoreSession();
+  }, []);
 
   const handleJoinStudy = () => {
     setShowLanding(false);
@@ -91,10 +110,15 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     setCurrentUser(null);
     setShowLanding(true);
   };
+
+  if (isRestoringSession) {
+    return null;
+  }
 
   // Show landing page if no user is logged in and landing should be shown
   if (showLanding && !currentUser) {

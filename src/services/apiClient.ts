@@ -45,6 +45,11 @@ class ApiClient {
    * Get current authentication token from Supabase
    */
   private async getAuthToken(): Promise<string | null> {
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedToken) {
+      return storedToken;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token || null;
   }

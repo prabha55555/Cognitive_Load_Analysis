@@ -91,7 +91,8 @@ router.post('/signup', async (req: Request, res: Response) => {
     
     // Sign in the user to get session token
     console.log('[SIGNUP] Generating session token...');
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.signInWithPassword({
+    const userClient = createUserSupabaseClient();
+    const { data: sessionData, error: sessionError } = await userClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -119,6 +120,11 @@ router.post('/signup', async (req: Request, res: Response) => {
         email: participant.email,
         name: participant.name,
         role: participant.role,
+      },
+      session: {
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
+        expires_at: sessionData.session.expires_at,
       },
     });
   } catch (error) {
@@ -280,7 +286,8 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Refresh token required' });
     }
     
-    const { data, error } = await supabaseAdmin.auth.refreshSession({
+    const userClient = createUserSupabaseClient();
+    const { data, error } = await userClient.auth.refreshSession({
       refresh_token,
     });
     

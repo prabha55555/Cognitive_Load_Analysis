@@ -13,6 +13,7 @@
 
 import { apiClient } from './apiClient';
 import { AuthError } from '../utils/errorHandler';
+import { supabase } from '../config/supabase';
 
 interface LoginRequest {
   email: string;
@@ -33,17 +34,38 @@ interface AuthResponse {
     name: string;
     role: 'participant' | 'admin';
   };
-  access_token: string;
+  access_token?: string;
   session?: {
     access_token: string;
     refresh_token: string;
-    expires_at: number;
+    expires_at?: number;
   };
+  token?: string;
+  message?: string;
 }
 
 class AuthService {
   private tokenKey = 'auth_token';
   private refreshTokenKey = 'refresh_token';
+
+  private extractAuthError(error: any, fallbackMessage: string): AuthError {
+    const message = error?.message || fallbackMessage;
+    const code = error?.code || 'AUTH_ERROR';
+    return new AuthError(message, code);
+  }
+
+  private async persistSupabaseSession(accessToken: string, refreshToken?: string): Promise<void> {
+    if (!refreshToken) return;
+
+    try {
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+    } catch {
+      // Non-blocking: app still relies on local auth_token
+    }
+  }
 
   /**
    * Sign in user
@@ -55,13 +77,24 @@ class AuthService {
         password
       });
       
-      const token = response.data.session?.access_token || response.data.access_token;
-      this.setToken(token);
-      apiClient.setAuthToken(token);
+      const token = response.data.session?.access_token || response.data.token || response.data.access_token;
+      const refreshToken = response.data.session?.refresh_token;
+
+      if (!token) {
+        throw new AuthError('Sign in succeeded but no access token was returned', 'TOKEN_MISSING');
+      }
+
+      if (refreshToken) {
+        this.setTokens(token, refreshToken);
+      } else {
+        this.setToken(token);
+      }
+
+      await this.persistSupabaseSession(token, refreshToken);
       
       return response.data;
-    } catch (error: any) {
-      throw new AuthError(error.response?.data?.error || 'Sign in failed');
+    } catch (error) {
+      throw this.extractAuthError(error, 'Sign in failed');
     }
   }
 
@@ -77,21 +110,23 @@ class AuthService {
       });
       
       // Try multiple token locations (backend now returns 'token' field)
-      const token = (response.data as any).token || response.data.session?.access_token || response.data.access_token;
+      const token = response.data.token || response.data.session?.access_token || response.data.access_token;
+      const refreshToken = response.data.session?.refresh_token;
       
       if (token) {
-        this.setToken(token);
-        apiClient.setAuthToken(token);
+        if (refreshToken) {
+          this.setTokens(token, refreshToken);
+        } else {
+          this.setToken(token);
+        }
+        await this.persistSupabaseSession(token, refreshToken);
       } else {
         console.warn('[AUTH] Signup successful but no token returned - user will need to sign in manually');
       }
       
       return response.data;
-    } catch (error: any) {
-      // Extract error message and code from ApiError
-      const errorMessage = error.message || 'Sign up failed';
-      const errorCode = error.code || 'SIGNUP_ERROR';
-      throw new AuthError(errorMessage, errorCode);
+    } catch (error) {
+      throw this.extractAuthError(error, 'Sign up failed');
     }
   }
 
@@ -119,6 +154,11 @@ class AuthService {
     // await apiClient.post('/auth/logout', {});
     this.clearTokens();
     apiClient.clearAuthToken();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Non-blocking cleanup
+    }
   }
 
   /**
@@ -130,14 +170,41 @@ class AuthService {
       throw new AuthError('No refresh token available');
     }
 
-    // TODO: Implement when backend is ready
-    // const response = await apiClient.post<{ token: string }>('/auth/refresh', {
-    //   refreshToken,
-    // });
-    // this.setToken(response.data.token);
-    // apiClient.setAuthToken(response.data.token);
-    // return response.data.token;
-    throw new AuthError('Token refresh not implemented');
+    try {
+      const response = await apiClient.post<{ session: { access_token: string; refresh_token: string; expires_at?: number } }>(
+        '/auth/refresh',
+        { refresh_token: refreshToken }
+      );
+
+      const accessToken = response.data.session?.access_token;
+      const newRefreshToken = response.data.session?.refresh_token;
+
+      if (!accessToken || !newRefreshToken) {
+        throw new AuthError('Invalid refresh response from server', 'REFRESH_INVALID_RESPONSE');
+      }
+
+      this.setTokens(accessToken, newRefreshToken);
+      await this.persistSupabaseSession(accessToken, newRefreshToken);
+      return accessToken;
+    } catch (error) {
+      throw this.extractAuthError(error, 'Failed to refresh access token');
+    }
+  }
+
+  async getCurrentUser(): Promise<AuthResponse['user'] | null> {
+    const token = this.getToken();
+    if (!token) {
+      return null;
+    }
+
+    try {
+      const response = await apiClient.get<{ user: AuthResponse['user'] }>('/auth/me');
+      return response.data.user;
+    } catch {
+      this.clearTokens();
+      apiClient.clearAuthToken();
+      return null;
+    }
   }
 
   /**

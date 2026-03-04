@@ -22,7 +22,13 @@ export async function initRedis(): Promise<void> {
   }
   
   try {
-    redisClient = createClient({ url: redisUrl });
+    redisClient = createClient({
+      url: redisUrl,
+      socket: {
+        connectTimeout: 2000,
+        reconnectStrategy: false,
+      },
+    });
     
     redisClient.on('error', (err: Error) => {
       console.error('Redis error:', err.message);
@@ -36,7 +42,7 @@ export async function initRedis(): Promise<void> {
   } catch (error) {
     console.warn('Failed to connect to Redis:', error);
     redisClient = null;
-    throw error;
+    return;
   }
 }
 

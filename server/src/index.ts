@@ -11,9 +11,17 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Load environment variables first
-dotenv.config();
+const envCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '..', '.env'),
+];
+
+const envPath = envCandidates.find(candidate => fs.existsSync(candidate));
+dotenv.config(envPath ? { path: envPath } : undefined);
 
 // Import routes
 import authRoutes from './routes/auth';

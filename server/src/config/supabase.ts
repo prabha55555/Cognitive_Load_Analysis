@@ -9,15 +9,23 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Load environment variables
-dotenv.config();
+const envCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '..', '.env'),
+];
+
+const envPath = envCandidates.find(candidate => fs.existsSync(candidate));
+dotenv.config(envPath ? { path: envPath } : undefined);
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase configuration. Please check server/.env file.');
+  throw new Error('Missing Supabase configuration. Please check server/.env or root .env file.');
 }
 
 /**
