@@ -17,6 +17,8 @@ export const ParticipantDashboard = ({
   participant: initialParticipant,
   onPhaseComplete
 }: ParticipantDashboardProps) => {
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+
   // Use local state to manage participant data including topic changes
   const [participant, setParticipant] = useState<Participant>(initialParticipant);
   
@@ -163,7 +165,7 @@ export const ParticipantDashboard = ({
         console.log('⚠️ Skipping database save - user authenticated with mock auth');
         // Continue without throwing error for mock auth users
       } else {
-        const response = await fetch('http://localhost:3001/api/auth/participant/scores', {
+        const response = await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -247,7 +249,7 @@ export const ParticipantDashboard = ({
         console.log('⚠️ Skipping database save - user authenticated with mock auth');
         // Continue without throwing error for mock auth users
       } else {
-        const response = await fetch('http://localhost:3001/api/auth/participant/scores', {
+        const response = await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
