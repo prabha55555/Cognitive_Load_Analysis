@@ -17,7 +17,7 @@ const router = Router();
 router.use(authenticate);
 
 const BEHAVIORAL_SERVICE_URL = process.env.BEHAVIORAL_SERVICE_URL || 'http://localhost:8000';
-const BEHAVIORAL_SERVICE_TIMEOUT = parseInt(process.env.BEHAVIORAL_SERVICE_TIMEOUT || '5000');
+const BEHAVIORAL_SERVICE_TIMEOUT = parseInt(process.env.BEHAVIORAL_SERVICE_TIMEOUT || '20000');
 
 /**
  * POST /api/behavioral/analyze
@@ -86,7 +86,12 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
 
     // Forward to Python behavioral analysis service
     try {
-      console.log(`[BEHAVIORAL] 🚀 Forwarding to Python service: ${BEHAVIORAL_SERVICE_URL}/classify`);
+      const classifyEndpoints = [
+        `${BEHAVIORAL_SERVICE_URL}/classify`,
+        `${BEHAVIORAL_SERVICE_URL}/api/interactions/classify`,
+      ];
+
+      console.log(`[BEHAVIORAL] 🚀 Forwarding to Python service, trying endpoints:`, classifyEndpoints);
       const pythonRequestStart = Date.now();
       
       const requestPayload = {
@@ -103,16 +108,37 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
         event_count: interactions.length
       });
       
-      const response = await axios.post(
-        `${BEHAVIORAL_SERVICE_URL}/classify`,
-        requestPayload,
-        {
-          timeout: BEHAVIORAL_SERVICE_TIMEOUT,
-          headers: {
-            'Content-Type': 'application/json'
+      let response;
+      let lastEndpointError: any = null;
+
+      for (const endpoint of classifyEndpoints) {
+        try {
+          response = await axios.post(
+            endpoint,
+            requestPayload,
+            {
+              timeout: BEHAVIORAL_SERVICE_TIMEOUT,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          console.log(`[BEHAVIORAL] ✅ Classification endpoint succeeded: ${endpoint}`);
+          break;
+        } catch (endpointError: any) {
+          lastEndpointError = endpointError;
+          const status = endpointError?.response?.status;
+          if (status === 404) {
+            console.warn(`[BEHAVIORAL] Endpoint not found, trying next: ${endpoint}`);
+            continue;
           }
+          throw endpointError;
         }
-      );
+      }
+
+      if (!response) {
+        throw lastEndpointError || new Error('No behavioral classification endpoint responded');
+      }
       
       const pythonDuration = Date.now() - pythonRequestStart;
       console.log(`[BEHAVIORAL] 🎯 Python service responded in ${pythonDuration}ms`);
@@ -168,7 +194,12 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
       });
 
     } catch (serviceError: any) {
-      console.error('[BEHAVIORAL] Python service error:', serviceError.message);
+      console.error('[BEHAVIORAL] Python service error:', {
+        message: serviceError.message,
+        status: serviceError?.response?.status,
+        data: serviceError?.response?.data,
+        code: serviceError?.code,
+      });
       
       if (serviceError.code === 'ECONNREFUSED') {
         return res.status(503).json({ 
@@ -184,9 +215,16 @@ router.post('/analyze', async (req: AuthRequest, res: Response) => {
         });
       }
 
+      if (serviceError?.response?.status === 502 || serviceError?.response?.status === 503) {
+        return res.status(503).json({
+          error: 'Behavioral analysis service unavailable',
+          details: 'Behavioral service is waking up or temporarily unavailable',
+        });
+      }
+
       return res.status(502).json({ 
         error: 'Behavioral analysis failed',
-        details: serviceError.message
+        details: serviceError?.response?.data?.detail || serviceError.message
       });
     }
 
