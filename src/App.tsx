@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LandingPage } from './components/LandingPage';
 import { Login } from './components/Login';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
+import { useTheme } from './context/ThemeContext';
 import { mockParticipants, researchTopics } from './data/mockData';
 import { authService } from './services/authService';
 import { Participant } from './types';
 
 function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [currentUser, setCurrentUser] = useState<{
     email: string;
     name: string;
@@ -116,23 +119,43 @@ function App() {
     setShowLanding(true);
   };
 
+  const renderThemeToggle = (positionClass: string) => (
+    <button
+      onClick={toggleTheme}
+      className={`fixed bottom-6 ${positionClass} px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-100 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-200 z-50`}
+      aria-label="Toggle theme"
+    >
+      {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    </button>
+  );
+
   if (isRestoringSession) {
     return null;
   }
 
   // Show landing page if no user is logged in and landing should be shown
   if (showLanding && !currentUser) {
-    return <LandingPage onJoinStudy={handleJoinStudy} />;
+    return (
+      <>
+        <LandingPage onJoinStudy={handleJoinStudy} />
+        {renderThemeToggle('right-6')}
+      </>
+    );
   }
 
   // Show login if no user is logged in
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} />
+        {renderThemeToggle('right-6')}
+      </>
+    );
   }
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
         <Routes>
           <Route 
             path="/" 
@@ -172,6 +195,9 @@ function App() {
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+        {/* Theme Toggle */}
+        {renderThemeToggle('right-40')}
 
         {/* Enhanced Logout Button */}
         <button

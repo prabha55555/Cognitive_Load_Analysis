@@ -86,11 +86,9 @@ Topic: ${topic}
 Student's Notes/Content:
 ${notes}
 
-Generate 3 creativity assessment questions specifically related to this topic. Each question should test different aspects of creative thinking:
+Generate 1 creativity assessment question specifically related to this topic.
 
-1. **Fluency Question** (Easy-Medium): Tests ability to generate multiple ideas quickly
-2. **Originality Question** (Medium): Tests uniqueness and novel thinking
-3. **Divergent Thinking Question** (Hard): Tests ability to see multiple perspectives and make connections
+The question should primarily test originality and depth of thinking.
 
 Requirements:
 - Questions MUST be directly related to the topic content

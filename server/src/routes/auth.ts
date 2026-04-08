@@ -13,6 +13,69 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 const router = Router();
 
 /**
+ * POST /api/auth/oauth/sync
+ * Ensure OAuth user exists in participants table
+ */
+router.post('/oauth/sync', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing bearer token' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !userData.user) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const user = userData.user;
+    const metadataName =
+      (user.user_metadata?.name as string | undefined) ||
+      (user.user_metadata?.full_name as string | undefined) ||
+      (user.identities?.[0]?.identity_data as any)?.full_name;
+
+    const fallbackName = user.email?.split('@')[0] || 'Participant';
+
+    const { data: existing } = await supabaseAdmin
+      .from('participants')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (!existing) {
+      const { error: insertError } = await supabaseAdmin.from('participants').insert({
+        id: user.id,
+        email: user.email,
+        name: metadataName || fallbackName,
+        role: 'participant',
+      });
+
+      if (insertError) {
+        console.error('[OAUTH_SYNC] Insert failed:', insertError);
+        return res.status(500).json({ error: 'Failed to sync OAuth user' });
+      }
+    }
+
+    const { data: participant, error: participantError } = await supabaseAdmin
+      .from('participants')
+      .select('id, email, name, role')
+      .eq('id', user.id)
+      .single();
+
+    if (participantError || !participant) {
+      return res.status(500).json({ error: 'Failed to load participant after sync' });
+    }
+
+    return res.json({ user: participant, synced: true });
+  } catch (error) {
+    console.error('[OAUTH_SYNC] Unexpected error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/auth/signup
  * Register new participant
  */

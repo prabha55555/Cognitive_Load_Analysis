@@ -450,7 +450,7 @@ export class InteractionTracker {
           'Content-Type': 'application/json',
         };
         
-        const token = authService.getToken();
+        const token = await authService.getAccessToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }

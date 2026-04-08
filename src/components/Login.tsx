@@ -15,6 +15,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [pulseEffect, setPulseEffect] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Animate pulse effect periodically
   useEffect(() => {
@@ -87,8 +88,20 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsGoogleLoading(true);
+
+    try {
+      await authService.signInWithGoogle(`${window.location.origin}/`);
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed. Please try again.');
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse"></div>
@@ -111,24 +124,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
               </div>
             </div>
-            <h2 className="text-4xl font-black tracking-tight bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+            <h2 className="text-4xl font-black tracking-tight bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 dark:from-slate-100 dark:via-blue-300 dark:to-purple-300 bg-clip-text text-transparent">
               Cognitive Load Research
             </h2>
-            <p className="mt-3 text-lg font-semibold text-slate-600">
+            <p className="mt-3 text-lg font-semibold text-slate-600 dark:text-slate-300">
               Cognitive Load vs Creativity Study
             </p>
-            <p className="text-sm text-slate-500 mt-2">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
               ChatGPT vs Google Search Comparison
             </p>
           </div>
 
           {/* Enhanced Login Form */}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl border border-slate-200/60">
+            <div className="bg-white/90 dark:bg-slate-900/85 backdrop-blur-sm p-8 rounded-3xl shadow-2xl border border-slate-200/60 dark:border-slate-700">
               <div className="space-y-6">
                 {/* Enhanced User Type Selection */}
                 <div>
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4 block">Login As</label>
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide mb-4 block">Login As</label>
                   <div className="grid grid-cols-2 gap-4">
                     <label className={`relative cursor-pointer transition-all duration-300 ${userType === 'participant' ? 'scale-105' : 'hover:scale-102'}`}>
                       <input
@@ -141,17 +154,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
                         userType === 'participant' 
                           ? 'bg-gradient-to-br from-blue-50/80 to-blue-100/80 border-blue-300 shadow-lg' 
-                          : 'bg-white/50 border-slate-200 hover:border-blue-200'
+                          : 'bg-white/50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-500'
                       }`}>
                         <div className="flex items-center space-x-3">
                           <div className={`p-2 rounded-xl ${userType === 'participant' ? 'bg-blue-100' : 'bg-slate-100'}`}>
                             <Users className={`h-5 w-5 ${userType === 'participant' ? 'text-blue-600' : 'text-slate-500'}`} />
                           </div>
                           <div>
-                            <div className={`font-bold ${userType === 'participant' ? 'text-blue-700' : 'text-slate-600'}`}>
+                            <div className={`font-bold ${userType === 'participant' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-200'}`}>
                               Participant
                             </div>
-                            <div className="text-xs text-slate-500">Join the study</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Join the study</div>
                           </div>
                         </div>
                       </div>
@@ -168,23 +181,48 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
                         userType === 'admin' 
                           ? 'bg-gradient-to-br from-purple-50/80 to-purple-100/80 border-purple-300 shadow-lg' 
-                          : 'bg-white/50 border-slate-200 hover:border-purple-200'
+                          : 'bg-white/50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-purple-200 dark:hover:border-purple-500'
                       }`}>
                         <div className="flex items-center space-x-3">
                           <div className={`p-2 rounded-xl ${userType === 'admin' ? 'bg-purple-100' : 'bg-slate-100'}`}>
                             <FlaskConical className={`h-5 w-5 ${userType === 'admin' ? 'text-purple-600' : 'text-slate-500'}`} />
                           </div>
                           <div>
-                            <div className={`font-bold ${userType === 'admin' ? 'text-purple-700' : 'text-slate-600'}`}>
+                            <div className={`font-bold ${userType === 'admin' ? 'text-purple-700 dark:text-purple-300' : 'text-slate-600 dark:text-slate-200'}`}>
                               Researcher
                             </div>
-                            <div className="text-xs text-slate-500">Access dashboard</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Access dashboard</div>
                           </div>
                         </div>
                       </div>
                     </label>
                   </div>
                 </div>
+
+                {userType === 'participant' && (
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={isGoogleLoading || isLoading}
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-100 font-semibold transition-colors disabled:opacity-60"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                        <path fill="#EA4335" d="M9 7.364v3.523h4.918c-.216 1.136-.864 2.099-1.836 2.745l2.97 2.304c1.73-1.593 2.73-3.936 2.73-6.718 0-.637-.057-1.25-.164-1.841H9z"/>
+                        <path fill="#34A853" d="M3.655 10.713l-.67.512-2.373 1.848A8.993 8.993 0 0 0 9 18c2.43 0 4.468-.804 5.957-2.064l-2.97-2.304c-.821.551-1.87.876-2.987.876-2.297 0-4.24-1.55-4.936-3.636-.177-.529-.277-1.092-.277-1.672 0-.58.1-1.143.277-1.672V4.892H1.255A8.994 8.994 0 0 0 0 9c0 1.451.347 2.823.962 4.073l2.693-2.36z"/>
+                        <path fill="#4A90E2" d="M9 3.58c1.321 0 2.507.454 3.44 1.345l2.58-2.58C13.464.891 11.426 0 9 0 5.471 0 2.415 2.018.962 4.927l3.102 2.4C4.76 5.131 6.703 3.58 9 3.58z"/>
+                        <path fill="#FBBC05" d="M.962 4.927A8.994 8.994 0 0 0 0 9c0 1.451.347 2.823.962 4.073l3.102-2.4A5.38 5.38 0 0 1 3.787 9c0-.58.1-1.143.277-1.673l-3.102-2.4z"/>
+                      </svg>
+                      <span>{isGoogleLoading ? 'Redirecting to Google...' : 'Continue with Google'}</span>
+                    </button>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                      <span>or use email</span>
+                      <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Enhanced Name Field - Only for Participants */}
                 {userType === 'participant' && (

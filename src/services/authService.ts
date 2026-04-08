@@ -68,6 +68,49 @@ class AuthService {
   }
 
   /**
+   * Sign in with Google OAuth
+   */
+  async signInWithGoogle(redirectTo?: string): Promise<void> {
+    const targetRedirect = redirectTo || `${window.location.origin}/`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: targetRedirect,
+      },
+    });
+
+    if (error) {
+      throw new AuthError(error.message, 'GOOGLE_OAUTH_FAILED');
+    }
+  }
+
+  /**
+   * Get access token, syncing from Supabase session when needed.
+   */
+  async getAccessToken(): Promise<string | null> {
+    const token = this.getToken();
+    if (token) {
+      return token;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    const sessionToken = data.session?.access_token;
+    const refreshToken = data.session?.refresh_token;
+
+    if (sessionToken) {
+      if (refreshToken) {
+        this.setTokens(sessionToken, refreshToken);
+      } else {
+        this.setToken(sessionToken);
+      }
+      return sessionToken;
+    }
+
+    return null;
+  }
+
+  /**
    * Sign in user
    */
   async signin(email: string, password: string): Promise<AuthResponse> {
@@ -192,7 +235,7 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<AuthResponse['user'] | null> {
-    const token = this.getToken();
+    const token = await this.getAccessToken();
     if (!token) {
       return null;
     }
@@ -200,7 +243,21 @@ class AuthService {
     try {
       const response = await apiClient.get<{ user: AuthResponse['user'] }>('/auth/me');
       return response.data.user;
-    } catch {
+    } catch (error: any) {
+      const missingParticipant =
+        error?.status === 404 ||
+        error?.message?.toLowerCase?.().includes('user not found');
+
+      if (missingParticipant) {
+        try {
+          await apiClient.post<{ user: AuthResponse['user'] }>('/auth/oauth/sync', {});
+          const synced = await apiClient.get<{ user: AuthResponse['user'] }>('/auth/me');
+          return synced.data.user;
+        } catch {
+          // fall through to cleanup below
+        }
+      }
+
       this.clearTokens();
       apiClient.clearAuthToken();
       return null;

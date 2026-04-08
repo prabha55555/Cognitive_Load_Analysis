@@ -73,6 +73,7 @@ export default function AssessmentPhase({
   const [showWarning, setShowWarning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [isReadyToSubmit, setIsReadyToSubmit] = useState(false);
 
   // Load assessment questions - Watch for topic changes
   useEffect(() => {
@@ -315,14 +316,7 @@ This means:
       setSelectedAnswer('');
       setQuestionStartTime(new Date());
     } else {
-      console.log('==========================================');
-      console.log('✅ ASSESSMENT COMPLETE');
-      console.log('Topic:', researchTopic);
-      console.log('Total Questions:', newResponses.length);
-      console.log('Correct Answers:', newResponses.filter(r => r.isCorrect).length);
-      console.log('Total Points:', newResponses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0));
-      console.log('==========================================');
-      onComplete(newResponses);
+      setIsReadyToSubmit(true);
     }
   };
 
@@ -391,6 +385,43 @@ This means:
               className="px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors"
             >
               Reload and Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isReadyToSubmit) {
+    const totalCorrect = responses.filter(r => r.isCorrect).length;
+    const totalPoints = responses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0);
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
+          <h2 className="text-3xl font-black text-gray-800 mb-6">Assessment Ready to Submit</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-purple-50 rounded-xl p-4">
+              <p className="text-sm text-gray-600">Questions Answered</p>
+              <p className="text-2xl font-bold text-purple-700">{responses.length}</p>
+            </div>
+            <div className="bg-green-50 rounded-xl p-4">
+              <p className="text-sm text-gray-600">Correct Answers</p>
+              <p className="text-2xl font-bold text-green-700">{totalCorrect}</p>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-sm text-gray-600">Total Points</p>
+              <p className="text-2xl font-bold text-blue-700">{totalPoints}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => onComplete(responses)}
+              className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg"
+            >
+              <span>Submit Assessment</span>
+              <Send className="h-5 w-5" />
             </button>
           </div>
         </div>

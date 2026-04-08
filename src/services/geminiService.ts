@@ -163,6 +163,43 @@ export interface CreativityEvaluation {
 }
 
 export const geminiService = {
+  normalizeEvaluationCriteria(input: any): { relevance: number; creativity: number; depth: number; coherence: number } {
+    const defaultCriteria = { relevance: 25, creativity: 25, depth: 25, coherence: 25 };
+
+    if (!input || typeof input !== 'object') {
+      return defaultCriteria;
+    }
+
+    const normalized = {
+      relevance: Number(input.relevance ?? input.topic_relevance ?? 0),
+      creativity: Number(input.creativity ?? input.originality ?? input.uniqueness ?? 0),
+      depth: Number(input.depth ?? input.feasibility_potential ?? input.detail ?? 0),
+      coherence: Number(input.coherence ?? input.explanation_clarity ?? input.clarity ?? 0),
+    };
+
+    const sum = Object.values(normalized).reduce((acc, value) => acc + (Number.isFinite(value) ? value : 0), 0);
+    if (sum <= 0) {
+      return defaultCriteria;
+    }
+
+    // Normalize to 100 total while preserving ratios.
+    return {
+      relevance: Math.round((normalized.relevance / sum) * 100),
+      creativity: Math.round((normalized.creativity / sum) * 100),
+      depth: Math.round((normalized.depth / sum) * 100),
+      coherence: Math.max(0, 100 - Math.round((normalized.relevance / sum) * 100) - Math.round((normalized.creativity / sum) * 100) - Math.round((normalized.depth / sum) * 100)),
+    };
+  },
+
+  shuffleOptions(options: string[]): string[] {
+    const shuffled = [...options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  },
+
   /**
    * Generate assessment questions based on TOPIC ONLY (not notes)
    * Questions are clear, understandable, and applicable
@@ -241,18 +278,27 @@ export const geminiService = {
             console.warn(`⚠️ Question ${idx + 1} may not be specific to topic "${topic}":`, questionText);
           }
           
+          let baseOptions = Array.isArray(q.options) && q.options.length === 4
+            ? q.options
+            : [
+                `Correct answer specifically about ${topic}`,
+                `Incorrect option related to ${topic}`,
+                `Another incorrect option about ${topic}`,
+                `Third incorrect option for ${topic}`
+              ];
+
+          const baseCorrectAnswer = q.correctAnswer || baseOptions[0];
+          if (!baseOptions.includes(baseCorrectAnswer)) {
+            baseOptions = [baseCorrectAnswer, ...baseOptions.slice(1, 4)];
+          }
+
+          const randomizedOptions = this.shuffleOptions(baseOptions);
+
           return {
             id: q.id || `assessment-${Date.now()}-${idx}`,
             question: questionText,
-            options: Array.isArray(q.options) && q.options.length === 4 
-              ? q.options 
-              : [
-                  `Correct answer specifically about ${topic}`,
-                  `Incorrect option related to ${topic}`,
-                  `Another incorrect option about ${topic}`,
-                  `Third incorrect option for ${topic}`
-                ],
-            correctAnswer: q.correctAnswer || (Array.isArray(q.options) ? q.options[0] : `Correct answer about ${topic}`),
+            options: randomizedOptions,
+            correctAnswer: baseCorrectAnswer,
             difficulty: q.difficulty || 'medium',
             topic: topic, // Force the topic to be correct
             cognitiveLevel: q.cognitiveLevel || 'understanding'
@@ -312,19 +358,14 @@ export const geminiService = {
       
       console.log('Parsed questions:', questions);
       
-      return questions.map((q: any, idx: number) => ({
+      return questions.slice(0, 1).map((q: any, idx: number) => ({
         id: q.id || `creativity-${Date.now()}-${idx}`,
         question: q.question,
         type: q.type || 'fluency',
         difficulty: q.difficulty || 'medium',
         timeLimit: q.timeLimit || 180,
         topic: topic,
-        evaluationCriteria: q.evaluationCriteria || {
-          relevance: 25,
-          creativity: 25,
-          depth: 25,
-          coherence: 25
-        }
+        evaluationCriteria: this.normalizeEvaluationCriteria(q.evaluationCriteria)
       }));
     } catch (error) {
       console.error('Gemini question generation error:', error);
@@ -407,7 +448,7 @@ export const geminiService = {
       console.log('==========================================');
       
       // Calculate weighted overall score
-      const weights = question.evaluationCriteria;
+      const weights = this.normalizeEvaluationCriteria(question.evaluationCriteria);
       
       // Map evaluation scores to weight keys dynamically
       // Gemini always returns: relevanceScore, creativityScore, depthScore, coherenceScore
@@ -435,6 +476,20 @@ export const geminiService = {
         const contribution = (criteriaScore * (weight as number)) / 100;
         contributions[criteriaKey] = contribution;
         score += contribution;
+      }
+
+      // Guardrail: avoid zeroed overall score when model returned non-zero sub-scores
+      if (score <= 0) {
+        const fallbackBase = [
+          Number(evaluation.relevanceScore) || 0,
+          Number(evaluation.creativityScore) || 0,
+          Number(evaluation.depthScore) || 0,
+          Number(evaluation.coherenceScore) || 0,
+        ];
+        const valid = fallbackBase.filter(v => Number.isFinite(v) && v > 0);
+        if (valid.length > 0) {
+          score = valid.reduce((acc, v) => acc + v, 0) / valid.length;
+        }
       }
 
       console.log('==========================================');
@@ -497,24 +552,6 @@ export const geminiService = {
         timeLimit: 180,
         topic,
         evaluationCriteria: { relevance: 30, creativity: 25, depth: 20, coherence: 25 }
-      },
-      {
-        id: `fallback-originality-${Date.now()}`,
-        question: `Imagine "${topic}" didn't exist. Describe a completely different solution to solve the same problems. Be original!`,
-        type: 'originality',
-        difficulty: 'medium',
-        timeLimit: 240,
-        topic,
-        evaluationCriteria: { relevance: 25, creativity: 35, depth: 20, coherence: 20 }
-      },
-      {
-        id: `fallback-divergent-${Date.now()}`,
-        question: `Connect "${topic}" with three completely unrelated fields or concepts. Explain the surprising connections you discover.`,
-        type: 'divergent',
-        difficulty: 'hard',
-        timeLimit: 300,
-        topic,
-        evaluationCriteria: { relevance: 20, creativity: 30, depth: 30, coherence: 20 }
       }
     ];
   },
@@ -570,7 +607,7 @@ export const geminiService = {
     console.log('==========================================');
     
     // Create topic-specific fallback questions
-    return [
+    const questions = [
       {
         id: `fallback-assess-1-${Date.now()}`,
         question: `What is ${topic}?`,
@@ -642,5 +679,10 @@ export const geminiService = {
         cognitiveLevel: 'analysis'
       }
     ];
+
+    return questions.map((question) => ({
+      ...question,
+      options: this.shuffleOptions(question.options),
+    }));
   }
 };

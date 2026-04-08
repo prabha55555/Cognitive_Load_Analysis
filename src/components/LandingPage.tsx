@@ -57,7 +57,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse"></div>
@@ -67,7 +67,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
       </div>
 
       {/* Enhanced Header */}
-      <header className="relative z-10 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-50 shadow-sm">
+      <header className="relative z-10 bg-white/80 dark:bg-slate-900/85 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-800 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
@@ -79,10 +79,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-800 tracking-wide">
+                  <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-wide">
                     Cognitive Load Research
                   </h1>
-                  <p className="text-sm font-medium text-slate-600">Cognitive Load vs Creativity Study</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Cognitive Load vs Creativity Study</p>
                 </div>
               </div>
             </div>
@@ -103,7 +103,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
             <div className="flex justify-center mb-12">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-                <div className="relative bg-gradient-to-br from-white to-slate-50/80 p-12 rounded-full shadow-2xl border border-slate-200/60 backdrop-blur-sm">
+                <div className="relative bg-gradient-to-br from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-800 p-12 rounded-full shadow-2xl border border-slate-200/60 dark:border-slate-700 backdrop-blur-sm">
                   <div className="relative">
                     <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-xl opacity-30 ${pulseEffect ? 'animate-ping' : 'animate-pulse'}`}></div>
                     <Brain className="h-20 w-20 text-blue-600 relative z-10" />
@@ -112,17 +112,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
               </div>
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-8 leading-tight">
+            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-8 leading-tight">
               Understanding
               <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent font-extrabold">
                 {' '}Cognitive Load
               </span>
               <br />
-              <span className="text-4xl md:text-5xl font-semibold">in the AI Era</span>
+              <span className="text-4xl md:text-5xl font-semibold dark:text-slate-200">in the AI Era</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed font-normal">
-              Join our groundbreaking research study comparing how <span className="font-semibold text-slate-800">ChatGPT</span> and <span className="font-semibold text-slate-800">Google Search</span> 
+            <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-12 max-w-4xl mx-auto leading-relaxed font-normal">
+              Join our groundbreaking research study comparing how <span className="font-semibold text-slate-800 dark:text-slate-100">ChatGPT</span> and <span className="font-semibold text-slate-800 dark:text-slate-100">Google Search</span> 
               affect cognitive load and creativity during information retrieval tasks.
             </p>
             
@@ -138,33 +138,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
                   <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                 </div>
               </button>
-              <button className="px-10 py-5 border-2 border-slate-300 text-slate-700 font-semibold rounded-2xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-300 backdrop-blur-sm">
+              <button className="px-10 py-5 border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-2xl hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 backdrop-blur-sm">
                 Learn More
               </button>
             </div>
 
             {/* Enhanced Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 shadow-xl">
+              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
                 <div className="flex items-center justify-center mb-4">
                   <Clock className="h-8 w-8 text-blue-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">30-45 Min</h3>
-                <p className="text-slate-600 font-medium">Complete in one session</p>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">30-45 Min</h3>
+                <p className="text-slate-600 dark:text-slate-300 font-medium">Complete in one session</p>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 shadow-xl">
+              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
                 <div className="flex items-center justify-center mb-4">
                   <Brain className="h-8 w-8 text-purple-600" />
                 </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">Behavioral Analysis</h3>
-                <p className="text-slate-600 font-medium">Live cognitive load monitoring</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Behavioral Analysis</h3>
+                <p className="text-slate-600 dark:text-slate-300 font-medium">Live cognitive load monitoring</p>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 shadow-xl">
+              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
                 <div className="flex items-center justify-center mb-4">
                   <Target className="h-8 w-8 text-emerald-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">Creativity Tests</h3>
-                <p className="text-slate-600 font-medium">Assess creative thinking</p>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Creativity Tests</h3>
+                <p className="text-slate-600 dark:text-slate-300 font-medium">Assess creative thinking</p>
               </div>
             </div>
           </div>

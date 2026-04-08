@@ -223,6 +223,19 @@ class RuleBasedClassifier:
         
         # Convert to level
         level = self._score_to_level(weighted_score)
+
+        # Guardrail against low-only bias in short incremental batches.
+        # If user interaction volume is meaningful, promote from Low to Moderate.
+        if level == "Low":
+            sustained_interaction = features.total_clicks >= 8 and features.total_session_time >= 20
+            effort_indicators = (
+                features.mean_response_time >= 0.8
+                or features.trajectory_deviation >= 0.15
+                or features.total_idle_time >= 8
+            )
+
+            if sustained_interaction and effort_indicators:
+                level = "Moderate"
         
         # Calculate confidence
         confidence = self._calculate_confidence(features, level)

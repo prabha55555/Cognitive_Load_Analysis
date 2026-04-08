@@ -11,7 +11,7 @@ import { logger } from '../utils/logger';
 export interface AdminParticipant {
   id: string;
   email: string;
-  full_name: string;
+  name: string;
   role: string;
   demographic_data: any;
   created_at: string;
@@ -30,7 +30,7 @@ export interface AdminSession {
   participants: {
     id: string;
     email: string;
-    full_name: string;
+    name: string;
     role: string;
   };
   cognitive_load_metrics?: {

@@ -30,6 +30,7 @@ import assessmentRoutes from './routes/assessments';
 import interactionRoutes from './routes/interactions';
 import adminRoutes from './routes/admin';
 import behavioralRoutes from './routes/behavioral';
+import searchRoutes from './routes/search';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { getRedisClient, initRedis } from './services/redisService';
@@ -129,6 +130,7 @@ app.use('/api/assessments', assessmentRoutes);
 app.use('/api/interactions', interactionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/behavioral', behavioralRoutes);
+app.use('/api/search', searchRoutes);
 
 // Error handling
 app.use(notFoundHandler);

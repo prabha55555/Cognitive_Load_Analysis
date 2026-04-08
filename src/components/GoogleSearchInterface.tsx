@@ -1,6 +1,7 @@
 import { BookOpen, Clock, Edit, ExternalLink, FileText, Globe, MapPin, RotateCcw, Search, TrendingUp, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { analyticsService } from '../services/analyticsService';
+import { authService } from '../services/authService';
 import { getInteractionTracker, stopInteractionTracker, Platform } from '../services/interactionTracker';
 import { Participant } from '../types';
 
@@ -179,12 +180,30 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
       });
     }
 
-    // Simulate search results generation
-    setTimeout(() => {
-      const results = generateSearchResults(currentQuery.trim(), participant.researchTopic);
-      setSearchResults(results);
+    try {
+      const token = authService.getToken();
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+      const response = await fetch(
+        `${apiBase}/api/search/web?query=${encodeURIComponent(currentQuery.trim())}&limit=8`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Search request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSearchResults(data.results || []);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults([]);
+    } finally {
       setIsSearching(false);
-    }, 1500);
+    }
   };
 
   // Function to track link clicks with analytics
@@ -214,17 +233,6 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
         researchTopic: participant.researchTopic
       });
     }
-  };
-
-  const generateSearchResults = (query: string, topic: string): SearchResult[] => {
-    console.log(`🔍 Search requested: "${query}" for topic: "${topic}"`);
-    
-    // In a real implementation, this would call Google Search API
-    // For now, return empty results to show that real search is not available
-    console.warn('⚠️ Real Google Search API not implemented - showing no results');
-    
-    // Return empty array instead of placeholder data
-    return [];
   };
 
   const handleResultClick = (result: SearchResult) => {
