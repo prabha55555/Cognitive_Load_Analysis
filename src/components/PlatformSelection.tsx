@@ -1,8 +1,6 @@
-import { Brain, Clock, MessageSquare, Search, Sparkles, Target } from 'lucide-react';
-import { useState } from 'react';
-import { isApiKeyAvailable } from '../config/api';
+import React, { useState } from 'react';
 import { Participant } from '../types';
-import { ApiKeyStatus } from './ApiKeyStatus';
+import { Bot, Search, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 
 interface PlatformSelectionProps {
   participant: Participant;
@@ -13,197 +11,144 @@ export const PlatformSelection: React.FC<PlatformSelectionProps> = ({
   participant,
   onPlatformSelect
 }) => {
-  const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'grok' | 'google' | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showApiStatus, setShowApiStatus] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | null>(null);
 
-  const geminiAvailable = isApiKeyAvailable('gemini'); // ChatGPT interface uses Gemini
-
-
-  const handlePlatformSelect = async (platform: 'chatgpt' | 'google') => {
-    // Always allow platform selection - APIs will handle fallbacks gracefully
-    setSelectedPlatform(platform);
-
-    setSelectedPlatform(platform);
-    setIsLoading(true);
-    
-    // Simulate loading time for platform setup
-    setTimeout(() => {
-      setIsLoading(false);
-      onPlatformSelect(platform);
-    }, 1500);
+  const handleStart = () => {
+    if (selectedPlatform) {
+      onPlatformSelect(selectedPlatform);
+    }
   };
 
-  const platforms = [
-    {
-      id: 'chatgpt' as const,
-      name: 'ChatGPT',
-      description: 'AI-powered research assistant with direct Q&A interface',
-      icon: MessageSquare,
-      color: 'emerald',
-      features: [
-        'Direct question-answer interface',
-        'AI-powered research assistance',
-        'Real-time cognitive load monitoring',
-        'Structured conversation tracking'
-      ],
-      setupTime: '2-3 minutes',
-      requiresApiKey: true,
-      apiKeyAvailable: geminiAvailable
-    },
-   
-    {
-      id: 'google' as const,
-      name: 'Google Search',
-      description: 'Traditional web search with enhanced analytics tracking',
-      icon: Search,
-      color: 'blue',
-      features: [
-        'Real Google search interface',
-        'Search behavior analytics',
-        'Behavioral data integration ready',
-        'Comprehensive search tracking'
-      ],
-      setupTime: '1-2 minutes',
-      requiresApiKey: false,
-      apiKeyAvailable: true
-    }
-  ];
-
-  if (showApiStatus) {
-    return (
-      <div className="max-w-4xl mx-auto p-8">
-        <ApiKeyStatus onClose={() => setShowApiStatus(false)} />
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto p-8">
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/60 overflow-hidden">
-          <div className="p-12 text-center">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-40 animate-pulse"></div>
-              <Sparkles className="h-16 w-16 text-blue-600 relative z-10 mx-auto" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              Setting up {selectedPlatform === 'chatgpt' ? 'ChatGPT' : selectedPlatform === 'grok' ? 'Grok' : 'Google Search'}...
-            </h2>
-            <p className="text-gray-600 mb-8">
-              Configuring research interface and analytics tracking for optimal data collection.
-            </p>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-6xl mx-auto p-8">
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/60 overflow-hidden">
-        {/* Header */}
-        <div className="p-8 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-white/80">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-lg opacity-40 animate-pulse"></div>
-                <Target className="h-8 w-8 text-blue-600 relative z-10" />
-              </div>
-              <h1 className="text-3xl font-bold text-gray-800">Choose Your Research Platform</h1>
+    <>
+      <style>{`
+        .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
+        
+        .glow-overlay {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 50% 50%, rgba(0, 191, 219, 0.08) 0%, transparent 70%);
+          opacity: 0;
+          transition: opacity 0.5s ease;
+          pointer-events: none;
+        }
+        .card-container:hover .glow-overlay { opacity: 1; }
+      `}</style>
+      
+      <div className="w-full flex justify-center mt-8">
+        <div className="flex flex-col md:grid md:grid-cols-[2fr_3fr] gap-12 md:gap-16 items-start w-full">
+          {/* Left Column: Context */}
+          <div className="flex flex-col gap-6 pt-4 relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#00bfdb]/30 bg-[#00bfdb]/5 text-[#00bfdb] font-mono text-[0.65rem] uppercase tracking-wider w-fit">
+              <Zap className="w-3 h-3" />
+              Phase 1 / Research
             </div>
-            <p className="text-gray-600 text-lg">
-              Select your preferred research method for studying: <span className="font-semibold text-blue-700">{participant.researchTopic}</span>
+            
+            <h1 className="font-display font-[700] text-[2.8rem] leading-[1.1] text-[#f0f2f5] tracking-tight">
+              Select Your<br />Research Tool
+            </h1>
+            
+            <p className="text-[1.1rem] leading-relaxed text-[#8a8f98] font-[400] max-w-[90%] mt-2">
+              You will investigate a given topic using either an LLM or traditional search. We track cognitive load via interaction patterns.
             </p>
+
+            <div className="flex flex-col gap-4 mt-8 bg-white/[0.02] border border-white/[0.05] rounded-xl p-5 w-fit">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-[#00bfdb]" />
+                <span className="font-mono text-sm text-[#c0c4cc]">Anonymous Tracking Active</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full border border-white/[0.1] flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                </div>
+                <span className="font-mono text-sm text-[#c0c4cc]">Time limit: 15 minutes</span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Platform Options */}
-        <div className="p-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {platforms.map((platform) => (
-                              <div
-                  key={platform.id}
-                  className={`relative group transition-all duration-300 transform hover:scale-105 ${
-                    selectedPlatform === platform.id ? 'ring-4 ring-blue-500' : ''
-                  } cursor-pointer`}
-                  onClick={() => handlePlatformSelect(platform.id)}
-                >
-                <div className={`bg-gradient-to-br from-${platform.color}-50/80 to-${platform.color}-100/80 rounded-2xl p-8 border-2 border-${platform.color}-200/60 backdrop-blur-sm h-full`}>
-                  {/* Platform Icon */}
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="relative">
-                      <div className={`absolute inset-0 bg-gradient-to-r from-${platform.color}-400 to-${platform.color}-600 rounded-full blur-xl opacity-40 animate-pulse`}></div>
-                      <platform.icon className={`h-16 w-16 text-${platform.color}-600 relative z-10`} />
-                    </div>
-                  </div>
-
-                  {/* Platform Info */}
-                  <div className="text-center mb-6">
-                    <h3 className="text-2xl font-bold text-gray-800 mb-2">{platform.name}</h3>
-                    <p className="text-gray-600 leading-relaxed">{platform.description}</p>
-                  </div>
-
-                  {/* Features */}
-                  <div className="space-y-3 mb-6">
-                    <h4 className="font-semibold text-gray-800 mb-3">Key Features:</h4>
-                    {platform.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <div className={`w-2 h-2 bg-${platform.color}-500 rounded-full`}></div>
-                        <span className="text-sm text-gray-700">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Setup Time */}
-                  <div className={`bg-${platform.color}-100/60 p-4 rounded-xl border border-${platform.color}-200/60`}>
-                    <div className="flex items-center justify-center space-x-2">
-                      <Clock className={`h-4 w-4 text-${platform.color}-600`} />
-                      <span className={`text-sm font-semibold text-${platform.color}-700`}>
-                        Setup time: {platform.setupTime}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Selection Indicator */}
-                  {selectedPlatform === platform.id && (
-                    <div className="absolute top-4 right-4">
-                      <div className={`bg-${platform.color}-600 text-white p-2 rounded-full`}>
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                    </div>
-                  )}
+          {/* Right Column: Cards */}
+          <div className="flex flex-col gap-5 w-full relative z-10">
+            {/* ChatGPT Card */}
+            <button
+              onClick={() => setSelectedPlatform('chatgpt')}
+              className={`group card-container relative w-full text-left p-6 md:p-8 rounded-2xl border transition-all duration-500 overflow-hidden ${
+                selectedPlatform === 'chatgpt' 
+                  ? 'border-[#00bfdb] bg-[#00bfdb]/[0.03] shadow-[0_0_30px_rgba(0,191,219,0.1)]' 
+                  : 'border-white/[0.08] bg-[#111214] hover:bg-[#15161A] hover:border-white/[0.15]'
+              }`}
+            >
+              <div className="glow-overlay" />
+              <div className="relative z-10 flex justify-between items-start mb-6">
+                <div className={`p-3 rounded-xl flex items-center justify-center border transition-colors duration-500 ${
+                  selectedPlatform === 'chatgpt' ? 'bg-[#00bfdb]/10 border-[#00bfdb]/30 text-[#00bfdb]' : 'bg-white/[0.03] border-white/[0.05] text-[#8a8f98] group-hover:text-white group-hover:bg-white/[0.06]'
+                }`}>
+                  <Bot size={28} strokeWidth={1.5} />
+                </div>
+                <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors duration-500 ${
+                  selectedPlatform === 'chatgpt' ? 'border-[#00bfdb] bg-[#00bfdb]/20' : 'border-white/[0.1]'
+                }`}>
+                  {selectedPlatform === 'chatgpt' && <div className="w-2.5 h-2.5 rounded-full bg-[#00bfdb]" />}
                 </div>
               </div>
-            ))}
-          </div>
+              
+              <div className="relative z-10">
+                <h3 className="font-display font-[600] text-[1.5rem] text-[#f0f2f5] tracking-wide mb-2 transition-colors">
+                  ChatGPT Interface
+                </h3>
+                <p className="font-mono text-[0.85rem] text-[#8a8f98] leading-relaxed transition-colors group-hover:text-[#a0a5ad]">
+                  Conduct research using an AI assistant. Formulate queries, evaluate responses, and synthesize information through dialogue.
+                </p>
+              </div>
+            </button>
 
-          {/* Research Topic Info */}
-          <div className="mt-8 bg-gradient-to-br from-indigo-50/80 to-purple-50/80 rounded-2xl p-6 border border-indigo-200/60">
-            <div className="flex items-center space-x-3 mb-4">
-              <Brain className="h-6 w-6 text-indigo-600" />
-              <h3 className="text-lg font-bold text-gray-800">Research Topic</h3>
-            </div>
-            <div className="bg-white/80 p-4 rounded-xl border border-indigo-200/60">
-              <p className="text-xl font-bold text-indigo-700">{participant.researchTopic}</p>
-              <p className="text-sm text-gray-600 mt-2">
-                Both platforms will help you research this topic while collecting cognitive load data for analysis.
-              </p>
-            </div>
-          </div>
+            {/* Google Card */}
+            <button
+              onClick={() => setSelectedPlatform('google')}
+              className={`group card-container relative w-full text-left p-6 md:p-8 rounded-2xl border transition-all duration-500 overflow-hidden ${
+                selectedPlatform === 'google' 
+                  ? 'border-[#00bfdb] bg-[#00bfdb]/[0.03] shadow-[0_0_30px_rgba(0,191,219,0.1)]' 
+                  : 'border-white/[0.08] bg-[#111214] hover:bg-[#15161A] hover:border-white/[0.15]'
+              }`}
+            >
+              <div className="glow-overlay" />
+              <div className="relative z-10 flex justify-between items-start mb-6">
+                <div className={`p-3 rounded-xl flex items-center justify-center border transition-colors duration-500 ${
+                  selectedPlatform === 'google' ? 'bg-[#00bfdb]/10 border-[#00bfdb]/30 text-[#00bfdb]' : 'bg-white/[0.03] border-white/[0.05] text-[#8a8f98] group-hover:text-white group-hover:bg-white/[0.06]'
+                }`}>
+                  <Search size={28} strokeWidth={1.5} />
+                </div>
+                <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors duration-500 ${
+                  selectedPlatform === 'google' ? 'border-[#00bfdb] bg-[#00bfdb]/20' : 'border-white/[0.1]'
+                }`}>
+                  {selectedPlatform === 'google' && <div className="w-2.5 h-2.5 rounded-full bg-[#00bfdb]" />}
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <h3 className="font-display font-[600] text-[1.5rem] text-[#f0f2f5] tracking-wide mb-2 transition-colors">
+                  Google Search
+                </h3>
+                <p className="font-mono text-[0.85rem] text-[#8a8f98] leading-relaxed transition-colors group-hover:text-[#a0a5ad]">
+                  Navigate traditional web search. Construct operators, evaluate disparate sources, and synthesize information manually.
+                </p>
+              </div>
+            </button>
 
-          {/* Instructions */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Click on your preferred platform to begin the research phase. 
-              Your choice will determine the interface and data collection method used during the study.
-            </p>
+            {/* Action Area */}
+            <div className={`mt-4 transition-all duration-500 flex justify-end ${selectedPlatform ? 'opacity-100 transform-none' : 'opacity-50 pointer-events-none translate-y-2'}`}>
+              <button
+                onClick={handleStart}
+                disabled={!selectedPlatform}
+                className="group relative px-6 py-3.5 bg-[#f0f2f5] hover:bg-white text-[#090a0c] font-display font-[600] tracking-wide rounded-xl flex items-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(240,242,245,0.2)] disabled:hover:shadow-none"
+              >
+                <span>Initialize Environment</span>
+                <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

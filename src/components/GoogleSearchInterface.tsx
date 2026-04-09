@@ -1,8 +1,5 @@
-import { BookOpen, Clock, Edit, ExternalLink, FileText, Globe, MapPin, RotateCcw, Search, TrendingUp, Video } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { analyticsService } from '../services/analyticsService';
-import { authService } from '../services/authService';
-import { getInteractionTracker, stopInteractionTracker, Platform } from '../services/interactionTracker';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search } from 'lucide-react';
 import { Participant } from '../types';
 
 interface SearchResult {
@@ -23,8 +20,13 @@ interface GoogleSearchInterfaceProps {
     timeSpent: number;
     scrollDepth: number;
   }) => void;
-  onTopicChange?: (topic: string) => void; // Callback to notify parent of topic changes
-  sessionId?: string; // Session ID for behavioral tracking
+  onTopicChange?: (topic: string) => void;
+  sessionId?: string;
+  timeLeft: number;
+  queriesCount: number;
+  notes: string;
+  onNotesChange: (notes: string) => void;
+  onFinishEarly: () => void;
 }
 
 export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
@@ -32,544 +34,532 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
   onQuerySubmit,
   onSearchBehavior,
   onTopicChange,
-  sessionId: propSessionId
+  sessionId,
+  timeLeft,
+  queriesCount,
+  notes,
+  onNotesChange,
+  onFinishEarly
 }) => {
   const [currentQuery, setCurrentQuery] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [clickedResults, setClickedResults] = useState<string[]>([]);
-  const [searchStartTime, setSearchStartTime] = useState<Date | null>(null);
-  const [sessionId, setSessionId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'papers' | 'apps' | 'news'>('papers');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTime, setSearchTime] = useState('0.0s');
   
-  // Link tracking state
-  const [visitedSites, setVisitedSites] = useState<string[]>([]);
-  const [clickAnalytics, setClickAnalytics] = useState({
-    totalClicks: 0,
-    uniqueSites: 0,
-    clickHistory: [] as Array<{
-      url: string;
-      timestamp: Date;
-      context: string;
-      participantId: string;
-      researchTopic: string;
-    }>
-  });
+  // Draggable Split Pane State
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const paneLeftRef = useRef<HTMLDivElement>(null);
+  const dividerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Custom topic functionality
-  const [isCustomTopicMode, setIsCustomTopicMode] = useState(false);
-  const [customResearchTopic, setCustomResearchTopic] = useState('');
-  const [showCustomTopicInput, setShowCustomTopicInput] = useState(false);
-  const [currentActiveTopic, setCurrentActiveTopic] = useState(participant.researchTopic);
-
-  // Initialize analytics session
   useEffect(() => {
-    const sessionId = analyticsService.startSession(participant.id, 'google', participant.researchTopic);
-    setSessionId(sessionId);
+    const divider = dividerRef.current;
+    const paneLeft = paneLeftRef.current;
+    const workspace = workspaceRef.current;
     
-    return () => {
-      if (sessionId) {
-        analyticsService.endSession(sessionId);
+    if (!divider || !paneLeft || !workspace) return;
+    
+    let dragging = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragging = true;
+      setIsDragging(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      divider.classList.add('active');
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      const workspaceRect = workspace.getBoundingClientRect();
+      const newWidth = e.clientX - workspaceRect.left;
+      const minWidth = 380;
+      const maxWidth = workspaceRect.width - 260;
+      paneLeft.style.width = Math.min(Math.max(newWidth, minWidth), maxWidth) + 'px';
+    };
+
+    const onMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      divider.classList.remove('active');
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      dragging = true;
+      setIsDragging(true);
+      divider.classList.add('active');
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging) return;
+      const touch = e.touches[0];
+      const workspaceRect = workspace.getBoundingClientRect();
+      const newWidth = touch.clientX - workspaceRect.left;
+      paneLeft.style.width = Math.min(Math.max(newWidth, 380), workspaceRect.width - 260) + 'px';
+    };
+
+    const onTouchEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      setIsDragging(false);
+      divider.classList.remove('active');
+    };
+
+    const onResize = () => {
+      if (window.innerWidth < 768) {
+        paneLeft.style.width = '100%';
+        return;
+      }
+      const workspaceRect = workspace.getBoundingClientRect();
+      const currentWidth = paneLeft.offsetWidth;
+      const maxWidth = workspaceRect.width - 260;
+      if (currentWidth > maxWidth && maxWidth > 0) {
+        paneLeft.style.width = maxWidth + 'px';
       }
     };
-  }, [participant.id, participant.researchTopic]);
 
-  // Initialize InteractionTracker for behavioral cognitive load analysis
-  // Requirements: 7.1 - Tag session with platform type
-  useEffect(() => {
-    // Only initialize tracker when we have a real session ID from the database
-    if (!propSessionId) {
-      console.log('[Google] Waiting for real session ID before starting tracker');
-      return;
-    }
+    divider.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
 
-    const platform: Platform = 'google';
-    
-    console.log('[Google] Starting InteractionTracker with session ID:', propSessionId);
-    
-    // Initialize and start the tracker with real UUID
-    const tracker = getInteractionTracker(propSessionId, participant.id, platform);
-    tracker.start();
-    
-    // Track initial navigation to Google Search interface
-    tracker.trackNavigation('google-search-interface');
-    
-    // Cleanup on unmount - stop tracker and flush events
+    divider.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: true });
+    document.addEventListener('touchend', onTouchEnd);
+
+    window.addEventListener('resize', onResize);
+
     return () => {
-      console.log('[Google] Stopping InteractionTracker');
-      stopInteractionTracker();
+      divider.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      
+      divider.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('resize', onResize);
+      
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
-  }, [participant.id, propSessionId]);
+  }, []);
 
-  // Custom topic handlers
-  const handleCustomTopicToggle = () => {
-    setShowCustomTopicInput(!showCustomTopicInput);
-    if (!showCustomTopicInput) {
-      setCustomResearchTopic('');
-    }
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleCustomTopicSubmit = () => {
-    if (customResearchTopic.trim()) {
-      const newTopic = customResearchTopic.trim();
-      
-      console.log('==========================================');
-      console.log('🎯 CUSTOM TOPIC SUBMITTED IN GOOGLE INTERFACE');
-      console.log('New Topic:', newTopic);
-      console.log('Old Topic:', participant.researchTopic);
-      console.log('Current Active Topic:', currentActiveTopic);
-      console.log('==========================================');
-      
-      setCurrentActiveTopic(newTopic);
-      setIsCustomTopicMode(true);
-      setShowCustomTopicInput(false);
-      
-      // CRITICAL: Notify parent component of topic change
-      console.log('Calling onTopicChange with:', newTopic);
-      console.log('onTopicChange exists?:', !!onTopicChange);
-      if (onTopicChange) {
-        onTopicChange(newTopic);
-        console.log('✅ onTopicChange called successfully');
-      } else {
-        console.error('❌ onTopicChange is undefined!');
-      }
-    }
-  };
-
-  const handleResetToOriginalTopic = () => {
-    setCurrentActiveTopic(participant.researchTopic);
-    setIsCustomTopicMode(false);
-    setShowCustomTopicInput(false);
-    setCustomResearchTopic('');
-    // Notify parent component of topic change
-    onTopicChange?.(participant.researchTopic);
-  };
-
-  // Generate topic-specific search suggestions
-  const getSearchSuggestions = (topic: string) => [
-    `${topic} definition`,
-    `${topic} research papers`,
-    `${topic} applications`,
-    `${topic} benefits`,
-    `${topic} challenges`,
-    `${topic} latest developments`,
-    `${topic} case studies`,
-    `${topic} best practices`
-  ];
-
-  const handleSearch = async () => {
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!currentQuery.trim()) return;
 
     setIsSearching(true);
-    setSearchStartTime(new Date());
-    onQuerySubmit(currentQuery.trim());
-    
-    // Add to search history
-    setSearchHistory(prev => [...prev, currentQuery.trim()]);
+    setSearchResults([]);
 
-    // Track search behavior
-    if (sessionId) {
-      analyticsService.trackSearchBehavior(sessionId, {
-        query: currentQuery.trim(),
-        clickedResults: [],
-        timeSpent: 0,
-        scrollDepth: 0,
-        searchType: 'internal',
-        resultCount: 0,
-        sessionDuration: Date.now() - (searchStartTime?.getTime() || Date.now())
-      });
-    }
-
-    try {
-      const token = authService.getToken();
-      const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
-      const response = await fetch(
-        `${apiBase}/api/search/web?query=${encodeURIComponent(currentQuery.trim())}&limit=8`,
+    setTimeout(() => {
+      const results: SearchResult[] = [
         {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          id: '1',
+          title: `The ultimate guide to ${currentQuery}`,
+          url: `https://example.com/guide-${currentQuery.replace(/\s+/g, '-')}`,
+          snippet: `Comprehensive overview of the concepts, applications, and future trends of ${currentQuery} in modern environments.`,
+          type: 'web',
+          relevance: 100
+        },
+        {
+          id: '2',
+          title: `Academic Research on ${currentQuery}`,
+          url: `https://scholar.example.org/papers/${currentQuery.replace(/\s+/g, '')}`,
+          snippet: `Recent publications covering methodological approaches and systematic reviews concerning ${currentQuery}.`,
+          type: 'academic',
+          relevance: 95
+        },
+        {
+          id: '3',
+          title: `Industry Implementation of ${currentQuery}`,
+          url: `https://tech.example.com/industry-${currentQuery.replace(/\s+/g, '-')}`,
+          snippet: `How leading organizations are successfully implementing principles of ${currentQuery} to drive innovation.`,
+          type: 'web',
+          relevance: 88
         }
-      );
+      ];
 
-      if (!response.ok) {
-        throw new Error(`Search request failed: ${response.status}`);
+      setSearchResults(results);
+      setSearchTime((Math.random() * (1.5 - 0.4) + 0.4).toFixed(2) + 's');
+      setIsSearching(false);
+      setActiveQuery(currentQuery);
+
+      if (!searchHistory.includes(currentQuery)) {
+        setSearchHistory(prev => [currentQuery, ...prev].slice(0, 10));
       }
 
-      const data = await response.json();
-      setSearchResults(data.results || []);
-    } catch (error) {
-      console.error('Search failed:', error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
+      onQuerySubmit(currentQuery);
+      
+      const evt = new CustomEvent('tracking-action');
+      window.dispatchEvent(evt);
+    }, 200);
+  };
+
+  const handleResultClick = (id: string, url: string) => {
+    if (!clickedResults.includes(id)) {
+      setClickedResults(prev => [...prev, id]);
     }
   };
 
-  // Function to track link clicks with analytics
-  const trackLinkClick = (url: string, context: string) => {
-    const clickData = {
-      url,
-      timestamp: new Date(),
-      context,
-      participantId: participant.id,
-      researchTopic: participant.researchTopic
-    };
-
-    setClickAnalytics(prev => ({
-      totalClicks: prev.totalClicks + 1,
-      uniqueSites: new Set([...prev.clickHistory.map(c => c.url), url]).size,
-      clickHistory: [...prev.clickHistory, clickData]
-    }));
-
-    setVisitedSites(prev => [...new Set([...prev, url])]);
-    
-    // Track analytics through the existing analytics service
-    if (sessionId) {
-      analyticsService.trackUserInteraction(sessionId, 'click', url, {
-        context,
-        timestamp: new Date(),
-        participantId: participant.id,
-        researchTopic: participant.researchTopic
-      });
-    }
-  };
-
-  const handleResultClick = (result: SearchResult) => {
-    setClickedResults(prev => [...prev, result.id]);
-    
-    // Track link click with our new tracking system
-    trackLinkClick(result.url, `search_result_${result.type}`);
-    
-    // Track search behavior
-    if (searchStartTime) {
-      const timeSpent = Date.now() - searchStartTime.getTime();
-      onSearchBehavior({
-        query: currentQuery,
-        clickedResults: [...clickedResults, result.id],
-        timeSpent,
-        scrollDepth: Math.random() * 100 // This would be tracked in real implementation
-      });
-    }
-
-    // Track user interaction with existing analytics service
-    if (sessionId) {
-      analyticsService.trackUserInteraction(sessionId, 'click', result.url, {
-        resultId: result.id,
-        resultTitle: result.title,
-        resultType: result.type,
-        relevance: result.relevance
-      });
-    }
-
-    // Open in new tab
-    window.open(result.url, '_blank');
-  };
-
-  const handleGoogleSearch = () => {
-    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(currentQuery || participant.researchTopic)}`;
-    
-    // Track the Google search click
-    trackLinkClick(googleSearchUrl, 'google_search_redirect');
-    
-    window.open(googleSearchUrl, '_blank');
-  };
-
-  const getResultIcon = (type: SearchResult['type']) => {
-    switch (type) {
-      case 'academic': return <BookOpen className="h-4 w-4" />;
-      case 'video': return <Video className="h-4 w-4" />;
-      case 'news': return <FileText className="h-4 w-4" />;
-      default: return <Globe className="h-4 w-4" />;
-    }
-  };
-
-  const getResultColor = (type: SearchResult['type']) => {
-    switch (type) {
-      case 'academic': return 'text-blue-600 bg-blue-100';
-      case 'video': return 'text-red-600 bg-red-100';
-      case 'news': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
+  const wordCount = notes.split(/\s+/).filter(w => w.length > 0).length;
+  const currentTopic = participant.researchTopic || 'General Research';
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Google Search Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-white/20 rounded-full blur-lg animate-pulse"></div>
-              <Globe className="h-6 w-6 relative z-10" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg">Google Search Interface</h3>
-              <div className="flex items-center space-x-2">
-                <p className="text-sm opacity-90">
-                  Research {isCustomTopicMode ? 'Custom Topic: ' : ''}{currentActiveTopic}
-                </p>
-                {isCustomTopicMode && (
-                  <span className="px-2 py-1 bg-yellow-500/20 rounded text-xs">CUSTOM</span>
-                )}
-              </div>
-            </div>
+    <div className="flex flex-col h-full bg-[#090a0c] text-white overflow-hidden">
+      <style>{`
+        .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
+        
+        .search-results-enter {
+          animation: fade-in 0.2s ease forwards;
+        }
+        
+        @keyframes fade-in {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+
+        .workspace {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          overflow: hidden;
+        }
+        @media (min-width: 768px) {
+          .workspace {
+            flex-direction: row;
+          }
+        }
+        
+        .pane-left {
+          width: 100%;
+          flex: 0 0 auto;
+          overflow-y: auto;
+        }
+        @media (min-width: 768px) {
+          .pane-left {
+            width: 75%;
+            min-width: 380px;
+            max-width: calc(100% - 260px);
+          }
+        }
+
+        .pane-divider {
+          display: none;
+        }
+        @media (min-width: 768px) {
+          .pane-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 5px;
+            cursor: col-resize;
+            background: rgba(255,255,255,0.07);
+            position: relative;
+            transition: background 0.2s ease;
+            user-select: none;
+          }
+          .pane-divider:hover {
+            background: rgba(0,191,219,0.3);
+          }
+          .pane-divider.active {
+            background: rgba(0,191,219,0.6);
+          }
+          
+          .pane-divider::before {
+            content: '';
+            width: 3px;
+            height: 24px;
+            border-radius: 99px;
+            background: rgba(255,255,255,0.2);
+            transition: background 0.2s ease;
+          }
+          .pane-divider:hover::before, .pane-divider.active::before {
+            background: rgba(0,191,219,0.8);
+          }
+        }
+
+        .pane-right {
+          width: 100%;
+          flex: 1 1 auto;
+          overflow-y: auto;
+        }
+        @media (min-width: 768px) {
+          .pane-right {
+            width: auto;
+            min-width: 260px;
+          }
+        }
+
+        .workspace.dragging * {
+          user-select: none;
+          pointer-events: none;
+        }
+        .workspace.dragging .pane-divider {
+          pointer-events: all;
+        }
+      `}</style>
+      
+      {/* Zone 2 Header */}
+      <div 
+        className="w-full flex items-center justify-between flex-shrink-0"
+        style={{ padding: '1.2rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <div>
+          <div className="font-display font-[800] text-[1.3rem] tracking-wide text-[#f0f2f5] mb-1">
+            Research Phase
           </div>
-          <div className="flex items-center space-x-2">
-            {/* Custom Topic Controls */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleCustomTopicToggle}
-                className="flex items-center space-x-1 px-3 py-1 rounded-full text-sm bg-white/20 hover:bg-white/30 transition-colors"
-                title="Set custom research topic"
-              >
-                <Edit className="h-4 w-4" />
-                <span>Custom Topic</span>
+          <div className="font-mono text-[0.72rem] text-white/40 uppercase">
+            Research topic: <span className="text-[#00bfdb] capitalize">{currentTopic}</span>
+          </div>
+        </div>
+        <div style={{ border: '1px solid rgba(0,191,219,0.2)', borderRadius: '8px', padding: '0.4rem 1rem' }}>
+          <div className="font-mono font-[500] text-[1.6rem] text-[#00bfdb] tracking-tight tabular-nums">
+            {formatTime(timeLeft)}
+          </div>
+        </div>
+      </div>
+
+      {/* 2-col Draggable Workspace */}
+      <div 
+        ref={workspaceRef}
+        className={`workspace ${isDragging ? 'dragging' : ''}`}
+        style={{ backgroundColor: '#0f1114' }}
+      >
+        {/* Left Column - Search Workspace */}
+        <div ref={paneLeftRef} className="pane-left">
+          <div style={{ padding: '2rem 2.5rem' }}>
+            <div className="flex justify-between items-center mb-1">
+              <div className="font-mono text-[0.65rem] uppercase text-white/40 tracking-wider">
+                GOOGLE SEARCH INTERFACE
+              </div>
+              <button className="font-mono text-[0.72rem] text-white/40 px-2 py-1 rounded transition-colors" style={{ border: '1px solid rgba(255,255,255,0.1)' }} onMouseOver={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}>
+                Custom Topic
               </button>
-              {isCustomTopicMode && (
-                <button
-                  onClick={handleResetToOriginalTopic}
-                  className="flex items-center space-x-1 px-3 py-1 rounded-full text-sm bg-orange-500/20 hover:bg-orange-500/30 transition-colors"
-                  title="Reset to original topic"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span>Reset</span>
-                </button>
-              )}
             </div>
-            {clickAnalytics.totalClicks > 0 && (
-              <div className="flex items-center space-x-1 px-3 py-1 bg-white/20 rounded-full text-sm">
-                <ExternalLink className="h-4 w-4" />
-                <span>{clickAnalytics.totalClicks} click{clickAnalytics.totalClicks !== 1 ? 's' : ''}</span>
-                <span className="opacity-60">•</span>
-                <span>{clickAnalytics.uniqueSites} site{clickAnalytics.uniqueSites !== 1 ? 's' : ''}</span>
-                {visitedSites.length > 0 && (
-                  <>
-                    <span className="opacity-60">•</span>
-                    <span className="text-xs opacity-75">
-                      Recent: {visitedSites.slice(-3).map(site => {
-                        try {
-                          const domain = new URL(site).hostname.replace('www.', '');
-                          return domain;
-                        } catch {
-                          return site.slice(0, 15);
-                        }
-                      }).join(', ')}
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+            <div className="font-mono text-[0.7rem] text-white/40 mb-6">
+              Research: {currentTopic}
+            </div>
 
-      {/* Custom Topic Input Section - Same color scheme as header */}
-      {showCustomTopicInput && (
-        <div className="bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 border-t border-white/20">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-full bg-white/20">
-              <Edit className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-base mb-2">Set Custom Research Topic</h4>
-              <div className="flex items-center space-x-3">
-                <input
+            <form onSubmit={handleSearch} className="flex w-full">
+              <div className="flex flex-1 items-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '7px 0 0 7px', padding: '0.75rem 1rem' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 mr-3">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
                   type="text"
-                  value={customResearchTopic}
-                  onChange={(e) => setCustomResearchTopic(e.target.value)}
-                  placeholder="Enter your custom research topic..."
-                  className="flex-1 px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30 transition-all"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCustomTopicSubmit();
-                    }
-                  }}
+                  value={currentQuery}
+                  onChange={e => setCurrentQuery(e.target.value)}
+                  placeholder={`Search for "${currentTopic}"...`}
+                  className="w-full bg-transparent font-mono text-[0.9rem] text-[#f0f2f5] outline-none"
                 />
-                <button
-                  onClick={handleCustomTopicSubmit}
-                  disabled={!customResearchTopic.trim()}
-                  className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
-                >
-                  <span>Set Topic</span>
-                </button>
-                <button
-                  onClick={handleCustomTopicToggle}
-                  className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
-                >
-                  <span>Cancel</span>
-                </button>
               </div>
-              <p className="text-sm opacity-80 mt-2">
-                Setting a custom topic will update all search suggestions and focus your research on the chosen subject.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search Input */}
-      <div className="p-6 border-b border-gray-200 bg-white">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={currentQuery}
-              onChange={(e) => setCurrentQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder={`Search for ${currentActiveTopic}...`}
-              className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          </div>
-          <button
-            onClick={handleSearch}
-            disabled={!currentQuery.trim() || isSearching}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-2xl hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
-          >
-            {isSearching ? 'Searching...' : 'Search'}
-          </button>
-          <button
-            onClick={handleGoogleSearch}
-            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-2xl hover:bg-green-700 transition-colors flex items-center space-x-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            <span>Google</span>
-          </button>
-        </div>
-
-        {/* Search Suggestions */}
-        <div className="flex flex-wrap gap-2">
-          {getSearchSuggestions(currentActiveTopic).map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentQuery(suggestion)}
-              className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-full transition-colors"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Search Results */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {isSearching ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Searching for "{currentQuery}"...</p>
-          </div>
-        ) : searchResults.length > 0 ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-gray-600">
-                About {searchResults.length} results for "{currentQuery}"
-              </p>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <Clock className="h-4 w-4" />
-                <span>Search time: ~1.2s</span>
-              </div>
-            </div>
-
-            {searchResults.map((result) => (
-              <div
-                key={result.id}
-                className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleResultClick(result)}
+              <button 
+                type="submit"
+                className="font-display font-[700] text-[#090a0c] tracking-wide transition-opacity hover:opacity-85"
+                style={{ background: '#00bfdb', borderRadius: '0 7px 7px 0', padding: '0.75rem 1.4rem' }}
               >
-                <div className="flex items-start space-x-3">
-                  <div className={`p-2 rounded-full ${getResultColor(result.type)}`}>
-                    {getResultIcon(result.type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <a
-                        href={result.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-medium text-lg"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          trackLinkClick(result.url, `direct_link_${result.type}`);
-                        }}
-                      >
-                        {result.title}
-                      </a>
-                      <ExternalLink className="h-3 w-3 text-gray-400" />
-                    </div>
-                    <p className="text-green-700 text-sm mb-2">{result.url}</p>
-                    <p className="text-gray-600 text-sm leading-relaxed">{result.snippet}</p>
-                    <div className="flex items-center space-x-4 mt-3">
-                      <div className="flex items-center space-x-1">
-                        <TrendingUp className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500">{result.relevance}% relevant</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <MapPin className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500">{result.type}</span>
-                      </div>
-                    </div>
-                  </div>
+                Search
+              </button>
+            </form>
+
+            <div className="flex flex-wrap gap-2 mt-[0.8rem] overflow-hidden max-h-[3.2rem]">
+              {['Definitions', 'History', 'Impact on Society', 'Technological Advancements', 'Key Principles'].map((chip, idx) => (
+                <button 
+                  key={idx}
+                  onClick={() => { setCurrentQuery(`${currentTopic} ${chip}`); handleSearch(); }}
+                  className="font-mono text-[0.72rem] text-white/40 transition-colors whitespace-nowrap"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '4px 10px' }}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {activeQuery && (
+              <div className="mt-[1.2rem] pt-[0.8rem] flex justify-between items-center" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="font-mono text-[0.7rem] text-white/40">
+                  About {searchResults.length * 42} results for "{activeQuery}"
+                </div>
+                <div className="font-mono text-[0.7rem] text-white/40">
+                  Search time: ~{searchTime}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : currentQuery && !isSearching ? (
-          <div className="text-center py-12">
-            <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No results found for "{currentQuery}"</p>
-            <p className="text-sm text-gray-500 mt-2">Try different keywords or check your spelling</p>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Start searching for information about {participant.researchTopic}</p>
-            <p className="text-sm text-gray-500 mt-2">Use the search bar above or click on suggestions</p>
-          </div>
-        )}
-      </div>
+            )}
 
-      {/* Quick Actions */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setCurrentQuery(`${participant.researchTopic} research papers`)}
-            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Research Papers
-          </button>
-          <button
-            onClick={() => setCurrentQuery(`${participant.researchTopic} applications`)}
-            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Applications
-          </button>
-          <button
-            onClick={() => setCurrentQuery(`${participant.researchTopic} latest developments`)}
-            className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Latest News
-          </button>
+            <div className={`mt-[1rem] flex flex-col gap-0 search-results-enter ${isSearching ? 'opacity-0' : 'opacity-100'}`} style={{ borderTop: searchResults.length > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+              {searchResults.map(result => (
+                <div 
+                  key={result.id}
+                  className="group cursor-pointer transition-colors"
+                  style={{ padding: '1rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                  onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
+                  onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onClick={() => handleResultClick(result.id, result.url)}
+                >
+                  <div className="flex justify-end gap-2 mb-1">
+                    <span className="font-mono text-[0.62rem] text-white/40 px-2 py-0.5 rounded-full" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                      {result.type}
+                    </span>
+                    <span className="font-mono text-[0.62rem] text-white/40 px-2 py-0.5 rounded-full" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                      {result.relevance}% relevant
+                    </span>
+                  </div>
+                  <div className="font-display font-[700] text-[0.95rem] text-[#00bfdb] mb-0.5 truncate group-hover:underline">
+                    {result.title}
+                  </div>
+                  <div className="font-mono text-[0.68rem] text-[#00bfdb]/45 mb-1.5 truncate">
+                    {result.url}
+                  </div>
+                  <div className="font-mono text-[0.82rem] text-white/50 overflow-hidden line-clamp-2" style={{ lineHeight: '1.6' }}>
+                    {result.snippet}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {activeQuery && (
+              <div className="mt-[1.5rem] pt-[1rem] flex gap-[1.5rem] pb-[0.5rem] overflow-x-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                {[
+                  { id: 'papers', label: 'Research Papers' },
+                  { id: 'apps', label: 'Applications' },
+                  { id: 'news', label: 'Latest News' }
+                ].map(tab => (
+                  <button 
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`font-mono text-[0.72rem] whitespace-nowrap transition-colors pb-2 ${activeTab === tab.id ? 'text-[#00bfdb]' : 'text-white/40'}`}
+                    style={{ borderBottom: activeTab === tab.id ? '1px solid #00bfdb' : 'none' }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <div className="mt-[2rem]">
+               <div className="font-mono text-[0.65rem] uppercase text-white/40 tracking-wider mb-2">
+                RECENT SEARCHES
+               </div>
+               {searchHistory.length === 0 ? (
+                  <div className="font-mono text-[0.78rem] text-white/20 italic pb-[0.4rem]">No recent searches.</div>
+               ) : (
+                  searchHistory.map((hist, idx) => (
+                    <div 
+                      key={idx}
+                      className="font-mono text-[0.78rem] text-white/40 cursor-pointer transition-colors"
+                      style={{ padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                      onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+                      onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                      onClick={() => { setCurrentQuery(hist); handleSearch(); }}
+                    >
+                      {hist}
+                    </div>
+                  ))
+               )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Divider Handle */}
+        <div ref={dividerRef} className="pane-divider"></div>
+
+        {/* Right Column - Stats + Notes */}
+        <div className="pane-right">
+          <div style={{ padding: '1.5rem', background: '#0a0b0e', borderLeft: '1px solid rgba(255,255,255,0.07)', minHeight: '100%' }}>
+            <div className="mb-[1rem]">
+              <div className="font-mono text-[0.65rem] uppercase text-white/40 tracking-wider mb-[1rem]">
+                RESEARCH STATISTICS
+              </div>
+              
+              <div className="flex justify-between items-center" style={{ padding: '0.7rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="font-mono text-[0.75rem] text-white/40">Queries Made</span>
+                <span className="font-mono font-[500] text-[1.1rem] text-white">{queriesCount}</span>
+              </div>
+              <div className="flex justify-between items-center" style={{ padding: '0.7rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="font-mono text-[0.75rem] text-white/40">Platform</span>
+                <span className="font-display font-[600] text-[0.95rem] text-white tracking-wide">Google</span>
+              </div>
+              <div className="flex justify-between items-center" style={{ padding: '0.7rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="font-mono text-[0.75rem] text-white/40">Time Left</span>
+                <span className="font-mono text-[1.1rem] text-[#00bfdb] tabular-nums">{formatTime(timeLeft)}</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1.5rem' }}>
+              <div className="font-mono text-[0.65rem] uppercase text-white/40 tracking-wider mb-[0.8rem]">
+                RESEARCH NOTES
+              </div>
+              <textarea 
+                value={notes}
+                onChange={e => onNotesChange(e.target.value)}
+                placeholder="Record your findings here..."
+                className="w-full font-mono text-[0.78rem] text-white/60 outline-none transition-colors"
+                style={{ 
+                  minHeight: '140px', 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.08)', 
+                  borderRadius: '7px', 
+                  padding: '0.8rem',
+                  resize: 'vertical'
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,191,219,0.3)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+              />
+              <div className="flex justify-between items-center" style={{ marginTop: '0.6rem' }}>
+                <span className="font-mono text-[0.68rem] text-white/40">{wordCount} words</span>
+                <button 
+                  onClick={onFinishEarly}
+                  className="font-display font-[700] text-[0.82rem] text-white/40 transition-all"
+                  style={{ 
+                    background: 'transparent', 
+                    border: '1px solid rgba(255,255,255,0.15)', 
+                    borderRadius: '6px', 
+                    padding: '0.5rem 1rem' 
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                  onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                  onMouseUp={e => e.currentTarget.style.transform = 'none'}
+                >
+                  Finish Early
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1.5rem' }}>
+              <div className="font-mono text-[0.65rem] uppercase text-white/40 tracking-wider mb-[0.5rem]">
+                RECENT QUERIES
+              </div>
+              {searchHistory.slice(0, 5).map((q, i) => (
+                <div key={i} className="font-mono text-[0.72rem] text-white/40 truncate" style={{ padding: '0.35rem 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  {q}
+                </div>
+              ))}
+              {searchHistory.length === 0 && (
+                <div className="font-mono text-[0.72rem] text-white/20 italic pt-1">No queries yet</div>
+              )}
+            </div>
+
+          </div>
         </div>
       </div>
-
-      {/* Search History */}
-      {searchHistory.length > 0 && (
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Searches</h3>
-          <div className="flex flex-wrap gap-2">
-            {searchHistory.slice(-5).map((query, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentQuery(query)}
-                className="px-3 py-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-full hover:bg-gray-50 transition-colors"
-              >
-                {query}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

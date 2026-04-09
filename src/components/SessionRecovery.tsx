@@ -62,34 +62,34 @@ export const SessionRecovery: React.FC<SessionRecoveryProps> = ({ onResume, onSt
   if (!showModal) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <div className="flex items-center mb-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 px-4 backdrop-blur-sm">
+      <div className="cla-surface w-full max-w-lg p-6 sm:p-7">
+        <div className="mb-5 flex items-center">
+          <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-500/20">
             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Resume Previous Session?</h2>
-            <p className="text-sm text-gray-500">Last saved {timeSinceLastSave}</p>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Resume Previous Session?</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Last saved {timeSinceLastSave}</p>
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-md p-4 mb-6">
+        <div className="mb-6 rounded-xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/70">
           <dl className="space-y-2">
             <div className="flex justify-between">
-              <dt className="text-sm font-medium text-gray-600">Phase:</dt>
-              <dd className="text-sm text-gray-900 capitalize">{session.currentPhase}</dd>
+              <dt className="text-sm font-medium text-slate-600 dark:text-slate-300">Phase:</dt>
+              <dd className="text-sm capitalize text-slate-900 dark:text-slate-100">{session.currentPhase}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-sm font-medium text-gray-600">Topic:</dt>
-              <dd className="text-sm text-gray-900 truncate max-w-[200px]">{session.researchTopic || 'Not set'}</dd>
+              <dt className="text-sm font-medium text-slate-600 dark:text-slate-300">Topic:</dt>
+              <dd className="max-w-[200px] truncate text-sm text-slate-900 dark:text-slate-100">{session.researchTopic || 'Not set'}</dd>
             </div>
             {session.platform && (
               <div className="flex justify-between">
-                <dt className="text-sm font-medium text-gray-600">Platform:</dt>
-                <dd className="text-sm text-gray-900 capitalize">{session.platform}</dd>
+                <dt className="text-sm font-medium text-slate-600 dark:text-slate-300">Platform:</dt>
+                <dd className="text-sm capitalize text-slate-900 dark:text-slate-100">{session.platform}</dd>
               </div>
             )}
           </dl>
@@ -98,19 +98,19 @@ export const SessionRecovery: React.FC<SessionRecoveryProps> = ({ onResume, onSt
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleResume}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+            className="cla-btn-primary flex-1 px-4 py-3 text-sm font-semibold"
           >
             Resume Session
           </button>
           <button
             onClick={handleStartFresh}
-            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors"
+            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           >
             Start New Session
           </button>
         </div>
 
-        <p className="mt-4 text-xs text-gray-500 text-center">
+        <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
           Your previous work has been saved and can be resumed.
         </p>
       </div>

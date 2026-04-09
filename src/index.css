@@ -5,17 +5,89 @@
 @layer base {
 	:root {
 		color-scheme: light;
+		--bg: 245 247 252;
+		--fg: 17 24 39;
+		--muted: 100 116 139;
+		--card: 255 255 255;
+		--card-border: 226 232 240;
+		--brand: 37 99 235;
 	}
 
 	:root.dark {
 		color-scheme: dark;
+		--bg: 11 15 25;
+		--fg: 226 232 240;
+		--muted: 148 163 184;
+		--card: 15 23 42;
+		--card-border: 51 65 85;
+		--brand: 96 165 250;
+	}
+
+	html,
+	body,
+	#root {
+		min-height: 100%;
 	}
 
 	body {
-		@apply bg-slate-50 text-slate-900 transition-colors duration-300;
+		background: radial-gradient(1200px circle at 0% 0%, rgba(59, 130, 246, 0.10), transparent 45%),
+			radial-gradient(1000px circle at 100% 100%, rgba(16, 185, 129, 0.08), transparent 50%),
+			rgb(var(--bg));
+		color: rgb(var(--fg));
+		@apply transition-colors duration-300;
 	}
 
 	.dark body {
-		@apply bg-slate-950 text-slate-100;
+		background: radial-gradient(1000px circle at 0% 0%, rgba(56, 189, 248, 0.10), transparent 45%),
+			radial-gradient(900px circle at 100% 100%, rgba(34, 197, 94, 0.06), transparent 50%),
+			rgb(var(--bg));
+	}
+
+	* {
+		scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+		scrollbar-width: thin;
+	}
+}
+
+@layer components {
+	.cla-surface {
+		background-color: rgb(var(--card) / 0.88);
+		border: 1px solid rgb(var(--card-border) / 0.8);
+		backdrop-filter: blur(10px);
+		@apply rounded-2xl shadow-lg;
+	}
+
+	.cla-heading {
+		color: rgb(var(--fg));
+	}
+
+	.cla-muted {
+		color: rgb(var(--muted));
+	}
+
+	.cla-input {
+		background-color: rgb(var(--card) / 0.95);
+		border: 1px solid rgb(var(--card-border));
+		color: rgb(var(--fg));
+		@apply rounded-xl px-4 py-3 outline-none transition-all duration-200;
+	}
+
+	.cla-input:focus {
+		box-shadow: 0 0 0 3px rgb(var(--brand) / 0.25);
+		border-color: rgb(var(--brand));
+	}
+
+	.cla-btn-primary {
+		@apply rounded-xl px-5 py-3 font-semibold text-white shadow-lg transition-all duration-200;
+		background: linear-gradient(135deg, rgb(37 99 235), rgb(79 70 229));
+	}
+
+	.cla-btn-primary:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+	}
+
+	.dark .cla-btn-primary {
+		background: linear-gradient(135deg, rgb(59 130 246), rgb(14 165 233));
 	}
 }

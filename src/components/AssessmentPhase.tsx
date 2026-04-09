@@ -316,7 +316,7 @@ This means:
       setSelectedAnswer('');
       setQuestionStartTime(new Date());
     } else {
-      setIsReadyToSubmit(true);
+      onComplete(newResponses);
     }
   };
 
@@ -335,273 +335,161 @@ This means:
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 flex items-center justify-center p-6">
-        <div className="text-center bg-white rounded-2xl shadow-2xl p-12 max-w-md">
-          <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-purple-600 mx-auto mb-6"></div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-3">Generating Assessment</h2>
-          <div className="mb-4 p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-gray-500 mb-2">Creating questions about:</p>
-            <p className="text-2xl font-bold text-purple-600">{researchTopic || '(No topic found)'}</p>
-            {!researchTopic && (
-              <p className="text-xs text-red-500 mt-2">⚠️ Warning: No topic detected!</p>
-            )}
-          </div>
-          <p className="text-sm text-gray-500">This may take a moment</p>
+      <div className="loading-screen" style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#090a0c', zIndex: 50 }}>
+        <style>{`
+          .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
+          .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
+          @keyframes bar-wave {
+            from { transform: scaleY(0.3); opacity: 0.4; }
+            to   { transform: scaleY(1);   opacity: 1;   }
+          }
+        `}</style>
+        <div style={{ display: 'flex', gap: '4px' }}>
+           {[...Array(5)].map((_, i) => (
+              <div key={i} style={{ width: '3px', borderRadius: '99px', background: '#00bfdb', height: '32px', animation: 'bar-wave 0.8s ease-in-out infinite alternate', animationDelay: `${i * 0.1}s`, transformOrigin: 'center' }} />
+           ))}
+        </div>
+        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+           <h2 className="font-display" style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.03em', color: 'white' }}>Generating Assessment</h2>
+           <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.5rem' }}>Creating questions about:</div>
+           <div className="font-display" style={{ fontWeight: 700, fontSize: '1rem', color: '#00bfdb', border: '1px solid rgba(0,191,219,0.2)', borderRadius: '6px', padding: '4px 14px', background: 'rgba(0,191,219,0.06)', display: 'inline-block', marginTop: '0.4rem', textTransform: 'capitalize' }}>{researchTopic || '(No topic found)'}</div>
+           <div className="font-mono" style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', marginTop: '1.2rem' }}>This may take a moment</div>
         </div>
       </div>
     );
   }
 
-  // Show error state
   if (error || !currentQuestion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 flex items-center justify-center p-6">
-        <div className="max-w-2xl bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-6">
-            <div className="inline-block p-3 bg-red-100 rounded-full mb-4">
-              <AlertCircle className="h-10 w-10 text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Assessment Not Available</h2>
-          </div>
-          
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-            <p className="font-bold text-gray-700">Debug Information:</p>
-            <p><strong>Participant ID:</strong> {participant?.id || 'undefined'}</p>
-            <p><strong>Participant Name:</strong> {participant?.name || 'undefined'}</p>
-            <p><strong>Research Topic:</strong> <span className="text-purple-600 font-bold">{participant?.researchTopic || '(empty)'}</span></p>
-            <p><strong>Extracted Topic:</strong> <span className="text-purple-600 font-bold">{researchTopic || '(empty)'}</span></p>
-          </div>
-          
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
-            <p className="text-red-700 font-medium">{error || 'Unable to generate assessment questions.'}</p>
-          </div>
-          
-          <div className="text-center">
-            <button
-              onClick={() => {
-                questionsLoadedRef.current = false;
-                window.location.reload();
-              }}
-              className="px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Reload and Try Again
-            </button>
-          </div>
+      <div className="flex flex-col h-screen overflow-hidden text-white" style={{ background: '#090a0c', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="text-center">
+           <AlertCircle style={{ width: '3rem', height: '3rem', color: 'rgba(255,255,255,0.3)', margin: '0 auto 1.5rem' }} />
+           <h2 style={{ fontFamily: "'Cabinet Grotesk', system-ui", fontWeight: 700, fontSize: '1.3rem' }}>Assessment Error</h2>
+           <p style={{ fontFamily: "'Geist Mono', monospace", color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', maxWidth: '300px' }}>{error || 'Unable to generate questions.'}</p>
+           <button onClick={() => window.location.reload()} style={{ marginTop: '2rem', background: '#00bfdb', color: '#090a0c', border: 'none', borderRadius: '6px', padding: '0.6rem 1.4rem', fontFamily: "'Cabinet Grotesk', system-ui", fontWeight: 700, fontSize: '0.88rem' }}>Reload App</button>
         </div>
       </div>
     );
   }
 
-  if (isReadyToSubmit) {
-    const totalCorrect = responses.filter(r => r.isCorrect).length;
-    const totalPoints = responses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0);
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 p-6">
-        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-3xl font-black text-gray-800 mb-6">Assessment Ready to Submit</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-purple-50 rounded-xl p-4">
-              <p className="text-sm text-gray-600">Questions Answered</p>
-              <p className="text-2xl font-bold text-purple-700">{responses.length}</p>
-            </div>
-            <div className="bg-green-50 rounded-xl p-4">
-              <p className="text-sm text-gray-600">Correct Answers</p>
-              <p className="text-2xl font-bold text-green-700">{totalCorrect}</p>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-sm text-gray-600">Total Points</p>
-              <p className="text-2xl font-bold text-blue-700">{totalPoints}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end">
-            <button
-              onClick={() => onComplete(responses)}
-              className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg"
-            >
-              <span>Submit Assessment</span>
-              <Send className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const currentQ = currentQuestionIndex + 1;
+  const totalQ = questions.length;
+  const progressWidth = totalQ > 0 ? (currentQ / totalQ) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
-                <FileText className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-black text-gray-800">Assessment Phase</h1>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-gray-600">Topic:</span>
-                  <span className="font-bold text-purple-600 text-lg">{researchTopic}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-center">
-                <div className="flex items-center space-x-2 text-gray-700">
-                  <Clock className="h-5 w-5" />
-                  <span className="text-2xl font-bold">{formatTime(timeElapsed)}</span>
-                </div>
-                <p className="text-sm text-gray-500">Question Time</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-medium text-purple-600">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-purple-500 to-pink-600 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Question Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-          {/* Question Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3 flex-wrap">
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                currentQuestion.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                currentQuestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                {currentQuestion.difficulty.toUpperCase()}
-              </div>
-              <div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-                {currentQuestion.cognitiveLevel.toUpperCase()}
-              </div>
-              <div className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
-                📚 {currentQuestion.topic}
-              </div>
-            </div>
-            <div className="text-sm text-gray-500 flex items-center space-x-2">
-              <Clock className="h-4 w-4" />
-              <span>{formatTime(timeElapsed)}</span>
-            </div>
-          </div>
-
-          {/* Warning if taking too long */}
-          {showWarning && (
-            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-yellow-700">
-                    You're taking longer than expected on this question. Consider moving on if you're unsure.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Question */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">
-              {currentQuestion.question}
-            </h2>
-
-            {/* Answer Options - Multiple Choice */}
-            <div className="space-y-3">
-              {currentQuestion.options.map((option, idx) => (
-                <label
-                  key={idx}
-                  className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    selectedAnswer === option
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="answer"
-                    value={option}
-                    checked={selectedAnswer === option}
-                    onChange={(e) => setSelectedAnswer(e.target.value)}
-                    className="mr-3 h-5 w-5 text-purple-600"
-                  />
-                  <span className="text-gray-700 font-medium">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-              className="px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              ← Previous
-            </button>
-            
-            <button
-              onClick={handleSubmitAnswer}
-              disabled={!selectedAnswer.trim()}
-              className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg"
-            >
-              <span>{currentQuestionIndex === questions.length - 1 ? 'Complete Assessment' : 'Submit & Next'}</span>
-              <Send className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Responses Summary */}
-        {totalResponses > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="font-bold text-gray-800 mb-4">Completed Questions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700 font-medium">Answered</span>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <p className="text-3xl font-bold text-green-600 mt-2">{totalResponses}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700 font-medium">Avg Time</span>
-                  <Clock className="h-5 w-5 text-blue-600" />
-                </div>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {formatTime(
-                    Math.floor(responses.reduce((sum, r) => sum + r.timeTaken, 0) / totalResponses)
-                  )}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700 font-medium">Remaining</span>
-                  <FileText className="h-5 w-5 text-purple-600" />
-                </div>
-                <p className="text-3xl font-bold text-purple-600 mt-2">
-                  {questions.length - totalResponses}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="flex flex-col w-full" style={{ background: '#090a0c', color: 'white', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+          .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
+          .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
+      `}</style>
+      
+      {/* Zone 2  Phase Header Strip */}
+      <div style={{ width: '100%', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '1.2rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#090a0c', flexShrink: 0 }}>
+         <div>
+            <div className="font-display" style={{ fontWeight: 800, fontSize: '1.3rem', color: 'white', marginBottom: '0.1rem' }}>Assessment Phase</div>
+            <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Topic: <span style={{ color: '#00bfdb', textTransform: 'capitalize' }}>{researchTopic}</span></div>
+         </div>
+         <div style={{ border: '1px solid rgba(0,191,219,0.2)', borderRadius: '8px', padding: '0.4rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="font-mono" style={{ fontWeight: 500, fontSize: '1.5rem', color: '#00bfdb' }}>{formatTime(timeElapsed)}</div>
+            <div className="font-mono" style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>Question Time</div>
+         </div>
       </div>
+
+      {/* Zone 3 � Progress Bar */}
+      <div style={{ width: '100%', padding: '0.8rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#090a0c', display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
+         <div className="font-mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>PROGRESS</div>
+         <div style={{ flex: 1, height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '99px' }}>
+            <div style={{ background: '#00bfdb', borderRadius: '99px', width: `${progressWidth}%`, height: '100%', transition: 'width 0.4s cubic-bezier(0.16,1,0.3,1)' }} />
+         </div>
+         <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Question {currentQ} of {totalQ}</div>
+      </div>
+
+      {/* Zone 4 � Question Area */}
+      <div className="question-area" style={{ flex: 1, padding: '2rem 2.5rem', width: '100%', boxSizing: 'border-box', overflowY: 'auto' }}>
+      <div className="question-inner" style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '0.4rem' }}>
+               <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '3px 8px', color: 'rgba(255,255,255,0.45)' }}>{currentQuestion.difficulty}</div>
+               <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '3px 8px', color: 'rgba(255,255,255,0.45)' }}>{currentQuestion.cognitiveLevel || 'understanding'}</div>
+               <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'capitalize', border: '1px solid rgba(0,191,219,0.2)', background: 'rgba(0,191,219,0.06)', borderRadius: '4px', padding: '3px 8px', color: '#00bfdb' }}>{currentQuestion.topic || researchTopic}</div>
+            </div>
+            <div className="font-mono" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>{formatTime(timeElapsed)}</div>
+         </div>
+
+         <div className="font-display" style={{ fontWeight: 700, fontSize: '1.15rem', lineHeight: 1.6, color: 'white', marginTop: '0.4rem', maxWidth: '72ch' }}>
+            {currentQuestion.question}
+         </div>
+
+         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '1rem' }}>
+            {currentQuestion.options.map((option, idx) => {
+               const isSelected = selectedAnswer === option;
+               return (
+                  <div
+                     key={idx}
+                     onClick={() => setSelectedAnswer(option)}
+                     style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.9rem', padding: '0.9rem 1rem',
+                        border: `1px solid ${isSelected ? 'rgba(0,191,219,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                        borderRadius: '7px',
+                        background: isSelected ? 'rgba(0,191,219,0.06)' : 'rgba(255,255,255,0.02)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                     }}
+                     onMouseOver={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; } }}
+                     onMouseOut={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; } }}
+                  >
+                     <div style={{
+                        width: '18px', height: '18px', borderRadius: '50%', border: `1px solid ${isSelected ? '#00bfdb' : 'rgba(255,255,255,0.2)'}`,
+                        flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                     }}>
+                        {isSelected && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00bfdb' }} />}
+                     </div>
+                     <div style={{ fontSize: '0.9rem', color: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{option}</div>
+                  </div>
+               );
+            })}
+         </div>
+
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <button
+               onClick={handlePreviousQuestion}
+               disabled={currentQuestionIndex === 0}
+               className="font-display"
+               style={{
+                  fontWeight: 600, fontSize: '0.85rem', background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.6rem 1.2rem',
+                  color: 'rgba(255,255,255,0.4)', opacity: currentQuestionIndex === 0 ? 0.25 : 1,
+                  cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'border 0.2s ease'
+               }}
+               onMouseOver={e => { if (currentQuestionIndex > 0) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+               onMouseOut={e => { if (currentQuestionIndex > 0) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+            >
+               Previous
+            </button>
+
+            <button
+               onClick={handleSubmitAnswer}
+               disabled={!selectedAnswer.trim()}
+               className="font-display flex items-center gap-[0.4rem] transition-all"
+               style={{
+                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '6px', padding: '0.6rem 1.4rem', border: 'none',
+                  background: selectedAnswer.trim() ? '#00bfdb' : 'rgba(255,255,255,0.08)',
+                  color: selectedAnswer.trim() ? '#090a0c' : 'rgba(255,255,255,0.3)',
+                  cursor: selectedAnswer.trim() ? 'pointer' : 'not-allowed'
+               }}
+               onMouseOver={e => { if (selectedAnswer.trim()) e.currentTarget.style.opacity = '0.85'; }}
+               onMouseOut={e => { if (selectedAnswer.trim()) e.currentTarget.style.opacity = '1'; }}
+               onMouseDown={e => { if (selectedAnswer.trim()) e.currentTarget.style.transform = 'scale(0.98)'; }}
+               onMouseUp={e => { if (selectedAnswer.trim()) e.currentTarget.style.transform = 'none'; }}
+            >
+               <span>Submit & Next</span>
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: selectedAnswer.trim() ? '#090a0c' : 'rgba(255,255,255,0.3)' }}><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+         </div>
+      </div>
+
+            </div>
     </div>
   );
-};
+}

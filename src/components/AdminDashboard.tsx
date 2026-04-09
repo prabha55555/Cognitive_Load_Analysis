@@ -61,10 +61,10 @@ export const AdminDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
+          <p className="text-slate-600 dark:text-slate-300">Loading admin dashboard...</p>
         </div>
       </div>
     );
@@ -72,14 +72,14 @@ export const AdminDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="cla-surface max-w-md p-8">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Error Loading Dashboard</h2>
-          <p className="text-gray-600 text-center mb-4">{error}</p>
+          <h2 className="mb-2 text-center text-xl font-bold text-slate-900 dark:text-slate-100">Error Loading Dashboard</h2>
+          <p className="mb-4 text-center text-slate-600 dark:text-slate-300">{error}</p>
           <button
             onClick={fetchData}
-            className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            className="cla-btn-primary w-full"
           >
             Retry
           </button>
@@ -104,23 +104,23 @@ export const AdminDashboard: React.FC = () => {
   })) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
                 <Brain className="h-7 w-7 text-indigo-600" />
                 Admin Dashboard
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Cognitive Load Analysis Platform - Administrator Panel
               </p>
             </div>
             <button
               onClick={fetchData}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="cla-btn-primary flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -131,7 +131,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-6 mt-6">
-        <div className="flex gap-2 border-b border-gray-200">
+        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800">
           {['overview', 'participants', 'sessions', 'behavioral'].map((view) => (
             <button
               key={view}
@@ -139,7 +139,7 @@ export const AdminDashboard: React.FC = () => {
               className={`px-6 py-3 font-medium transition-colors capitalize flex items-center gap-2 ${
                 activeView === view
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               {view === 'behavioral' && <Activity className="h-4 w-4" />}
@@ -155,11 +155,11 @@ export const AdminDashboard: React.FC = () => {
           <div className="space-y-6">
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="cla-surface p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Total Participants</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                      <p className="text-sm text-slate-600 dark:text-slate-300">Total Participants</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {analytics.overview.totalParticipants}
                     </p>
                   </div>
@@ -167,26 +167,26 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="cla-surface p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Total Sessions</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Total Sessions</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {analytics.overview.totalSessions}
                     </p>
                     <p className="text-xs text-green-600 mt-1">
-                      {analytics.overview.completedSessions} completedreadme
+                      {analytics.overview.completedSessions} completed
                     </p>
                   </div>
                   <TrendingUp className="h-12 w-12 text-green-500 opacity-80" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="cla-surface p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Active Sessions</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Active Sessions</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {analytics.overview.activeSessions}
                     </p>
                   </div>
@@ -194,11 +194,11 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="cla-surface p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Avg Cognitive Load</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Avg Cognitive Load</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {analytics.overview.avgCognitiveLoad}
                     </p>
                   </div>
@@ -210,8 +210,8 @@ export const AdminDashboard: React.FC = () => {
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Cognitive Load Distribution */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="cla-surface p-6">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Cognitive Load Distribution
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -236,8 +236,8 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Platform Comparison */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="cla-surface p-6">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Platform Comparison
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -255,42 +255,42 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Platform Stats Table */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Platform Statistics</h3>
+            <div className="cla-surface p-6">
+              <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Platform Statistics</h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                   <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Platform
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Total Sessions
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Completed
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Completion Rate
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Avg Duration
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
                     {platformData.map((platform) => (
                       <tr key={platform.platform}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
                           {platform.platform}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                           {platform.sessions}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                           {platform.completed}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             platform.completionRate >= 80 ? 'bg-green-100 text-green-800' :
                             platform.completionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
@@ -299,7 +299,7 @@ export const AdminDashboard: React.FC = () => {
                             {platform.completionRate}%
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                           {platform.avgDuration} min
                         </td>
                       </tr>
@@ -312,42 +312,42 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         {activeView === 'participants' && (
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">All Participants</h3>
-              <p className="text-sm text-gray-500 mt-1">Total: {participants.length}</p>
+          <div className="cla-surface">
+            <div className="border-b border-slate-200 p-6 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Participants</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Total: {participants.length}</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50/80 dark:bg-slate-800/70">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Sessions
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Joined
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/40">
                   {participants.map((participant) => (
                     <tr key={participant.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
                         {participant.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {participant.email}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           participant.role === 'admin' ? 'bg-purple-100 text-purple-800' :
                           'bg-blue-100 text-blue-800'
@@ -355,10 +355,10 @@ export const AdminDashboard: React.FC = () => {
                           {participant.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {participant.sessions?.[0]?.count || 0}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {new Date(participant.created_at).toLocaleDateString()}
                       </td>
                     </tr>
@@ -370,48 +370,48 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         {activeView === 'sessions' && (
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">All Sessions</h3>
-              <p className="text-sm text-gray-500 mt-1">Total: {sessions.length}</p>
+          <div className="cla-surface">
+            <div className="border-b border-slate-200 p-6 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Sessions</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Total: {sessions.length}</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50/80 dark:bg-slate-800/70">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Participant
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Topic
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Platform
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Phase
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Cognitive Load
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Created
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/40">
                   {sessions.map((session) => (
                     <tr key={session.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
                         {session.participants?.name || 'Unknown'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      <td className="max-w-xs truncate px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {session.topic}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         <span className="uppercase font-medium">{session.platform}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           session.current_phase === 'completed' ? 'bg-green-100 text-green-800' :
                           session.current_phase === 'research' ? 'bg-blue-100 text-blue-800' :
@@ -420,7 +420,7 @@ export const AdminDashboard: React.FC = () => {
                           {session.current_phase}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {session.cognitive_load_metrics?.[0] ? (
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             session.cognitive_load_metrics[0].category === 'low' ? 'bg-green-100 text-green-800' :
@@ -431,10 +431,10 @@ export const AdminDashboard: React.FC = () => {
                             {session.cognitive_load_metrics[0].overall_score} ({session.cognitive_load_metrics[0].category})
                           </span>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-slate-400">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {new Date(session.created_at).toLocaleDateString()}
                       </td>
                     </tr>
@@ -449,16 +449,16 @@ export const AdminDashboard: React.FC = () => {
         {activeView === 'behavioral' && (
           <div className="space-y-6">
             {/* Filters */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+            <div className="cla-surface p-6">
+              <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Filters</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Platform Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Platform</label>
                   <select
                     value={selectedPlatform}
                     onChange={(e) => setSelectedPlatform(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="cla-input w-full"
                   >
                     <option value="all">All Platforms</option>
                     <option value="chatgpt">ChatGPT</option>
@@ -468,23 +468,23 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Start Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Start Date</label>
                   <input
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="cla-input w-full"
                   />
                 </div>
 
                 {/* End Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">End Date</label>
                   <input
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="cla-input w-full"
                   />
                 </div>
               </div>
@@ -492,8 +492,8 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Timeline Chart */}
             {behavioralTimeline.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Cognitive Load Timeline</h3>
+              <div className="cla-surface p-6">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Cognitive Load Timeline</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={behavioralTimeline}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -523,12 +523,12 @@ export const AdminDashboard: React.FC = () => {
                   const percentage = behavioralTimeline.reduce((sum, day: any) => sum + (day[category.key] || 0), 0) / 
                                    behavioralTimeline.reduce((sum, day: any) => sum + (day.total || 0), 0) * 100;
                   return (
-                    <div key={category.key} className="bg-white rounded-lg shadow-md p-6">
+                    <div key={category.key} className="cla-surface p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600">{category.label}</p>
-                          <p className="text-2xl font-bold text-gray-900 mt-2">{total}</p>
-                          <p className="text-xs text-gray-500 mt-1">{percentage.toFixed(1)}%</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300">{category.label}</p>
+                          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">{total}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{percentage.toFixed(1)}%</p>
                         </div>
                         <div className="w-12 h-12 rounded-full" style={{ backgroundColor: category.color, opacity: 0.2 }}></div>
                       </div>
@@ -540,30 +540,30 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Predictions Table */}
             {behavioralPredictions.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Predictions</h3>
+              <div className="cla-surface p-6">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Predictions</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
+                    <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/70">
                       <tr>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Participant</th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Session</th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Platform</th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Prediction</th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Confidence</th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-900">Timestamp</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Participant</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Session</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Platform</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Prediction</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Confidence</th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900 dark:text-slate-100">Timestamp</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/40">
                       {behavioralPredictions.slice(0, 20).map((pred, idx) => (
                         <tr key={idx}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
                             {pred.sessions?.participants?.name || 'Unknown'}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          <td className="max-w-xs truncate px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                             {pred.sessions?.topic || 'N/A'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                             <span className="uppercase font-medium text-xs">
                               {pred.sessions?.platform || 'N/A'}
                             </span>
@@ -578,10 +578,10 @@ export const AdminDashboard: React.FC = () => {
                               {pred.predicted_load_category}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                             {(pred.confidence_score * 100).toFixed(1)}%
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                             {new Date(pred.prediction_timestamp).toLocaleString()}
                           </td>
                         </tr>
@@ -593,9 +593,9 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {behavioralPredictions.length === 0 && (
-              <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No behavioral predictions available for the selected filters</p>
+              <div className="cla-surface p-12 text-center">
+                <Activity className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+                <p className="text-slate-600 dark:text-slate-300">No behavioral predictions available for the selected filters</p>
               </div>
             )}
           </div>

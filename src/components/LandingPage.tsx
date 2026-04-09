@@ -1,349 +1,300 @@
-import { ArrowRight, BarChart3, Brain, Clock, MessageSquare, Search, Target, TestTube, Users, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 interface LandingPageProps {
   onJoinStudy: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onJoinStudy }) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [pulseEffect, setPulseEffect] = useState(false);
-
-  // Animate pulse effect periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPulseEffect(true);
-      setTimeout(() => setPulseEffect(false), 1000);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const steps = [
-    {
-      icon: <Users className="h-8 w-8" />,
-      title: 'Join Study',
-      description: 'Sign up and get assigned to ChatGPT or Google Search',
-      color: 'text-blue-600 bg-blue-100 border-blue-200',
-      gradient: 'from-blue-400 to-blue-600'
-    },
-    {
-      icon: <Brain className="h-8 w-8" />,
-      title: 'Behavioral Setup',
-      description: 'Initialize interaction tracking for cognitive load monitoring',
-      color: 'text-purple-600 bg-purple-100 border-purple-200',
-      gradient: 'from-purple-400 to-purple-600'
-    },
-    {
-      icon: <Search className="h-8 w-8" />,
-      title: 'Research Task',
-      description: 'Complete information retrieval using your assigned platform',
-      color: 'text-emerald-600 bg-emerald-100 border-emerald-200',
-      gradient: 'from-emerald-400 to-emerald-600'
-    },
-    {
-      icon: <TestTube className="h-8 w-8" />,
-      title: 'Creativity Test',
-      description: 'Take creative thinking assessments',
-      color: 'text-orange-600 bg-orange-100 border-orange-200',
-      gradient: 'from-orange-400 to-orange-600'
-    },
-    {
-      icon: <BarChart3 className="h-8 w-8" />,
-      title: 'Results',
-      description: 'View your cognitive load and creativity scores',
-      color: 'text-indigo-600 bg-indigo-100 border-indigo-200',
-      gradient: 'from-indigo-400 to-indigo-600'
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-gradient-to-br from-emerald-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-gradient-to-br from-purple-400/5 to-pink-400/5 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute top-2/3 right-1/3 w-72 h-72 bg-gradient-to-br from-indigo-400/8 to-blue-400/8 rounded-full blur-3xl animate-pulse delay-1500"></div>
-      </div>
+    <div className="min-h-screen bg-[#090a0c] text-[#ececf1] selection:bg-[#00bfdb] selection:text-[#090a0c] overflow-x-hidden">
+      <style>{`
+        .font-display {
+          font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
+        }
+        .font-mono-data {
+          font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+        }
+        .track-h1 { letter-spacing: -0.04em; }
+        .track-h2 { letter-spacing: -0.03em; }
 
-      {/* Enhanced Header */}
-      <header className="relative z-10 bg-white/80 dark:bg-slate-900/85 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-800 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-40 ${pulseEffect ? 'animate-ping' : 'animate-pulse'}`}></div>
-                  <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-2xl shadow-lg">
-                    <Brain className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-wide">
-                    Cognitive Load Research
-                  </h1>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Cognitive Load vs Creativity Study</p>
-                </div>
-              </div>
+        @keyframes wave-loop {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-wave {
+          animation: wave-loop 8s linear infinite;
+        }
+
+        @keyframes stagger-grow {
+          0% { transform: scaleX(0); opacity: 0; }
+          10% { opacity: 1; }
+          100% { transform: scaleX(1); opacity: 1; }
+        }
+        .participant-bar {
+          transform-origin: left;
+          transform: scaleX(0);
+          opacity: 0;
+          animation: stagger-grow 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Sticky nav */}
+      <header className="sticky top-0 z-50 border-b border-[#1f2128] bg-[#090a0c]/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-6">
+          <div className="flex items-center gap-3 cursor-pointer">
+            <div className="relative flex h-2.5 w-2.5 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00bfdb] opacity-60"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00bfdb]"></span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-emerald-50/80 backdrop-blur-sm px-4 py-2 rounded-full border border-emerald-200/60">
-                <div className={`w-3 h-3 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full ${pulseEffect ? 'animate-ping' : 'animate-pulse'} shadow-lg`}></div>
-                <span className="text-sm font-semibold text-emerald-700">Live Study</span>
-              </div>
-            </div>
+            <span className="font-display font-extrabold tracking-tight text-white mb-[2px]">Cognitive Load Lab</span>
+          </div>
+          <div className="flex items-center gap-8">
+            <nav className="hidden space-x-6 text-sm font-medium text-[#8a8f98] md:block">
+              <a href="#pipeline" className="hover:text-white transition-colors">Pipeline</a>
+              <a href="#platforms" className="hover:text-white transition-colors">Platforms</a>
+              <a href="#about" className="hover:text-white transition-colors">Protocol & IRB</a>
+            </nav>
+            <button 
+              onClick={onJoinStudy} 
+              className="bg-[#00bfdb] px-5 py-2 text-sm font-bold text-[#090a0c] transition-transform hover:-translate-y-[1px]"
+            >
+              Join Cohort
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Enhanced Hero Section */}
-      <section className="relative z-10 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <div className="flex justify-center mb-12">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-                <div className="relative bg-gradient-to-br from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-800 p-12 rounded-full shadow-2xl border border-slate-200/60 dark:border-slate-700 backdrop-blur-sm">
-                  <div className="relative">
-                    <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-xl opacity-30 ${pulseEffect ? 'animate-ping' : 'animate-pulse'}`}></div>
-                    <Brain className="h-20 w-20 text-blue-600 relative z-10" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-8 leading-tight">
-              Understanding
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent font-extrabold">
-                {' '}Cognitive Load
-              </span>
-              <br />
-              <span className="text-4xl md:text-5xl font-semibold dark:text-slate-200">in the AI Era</span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-12 max-w-4xl mx-auto leading-relaxed font-normal">
-              Join our groundbreaking research study comparing how <span className="font-semibold text-slate-800 dark:text-slate-100">ChatGPT</span> and <span className="font-semibold text-slate-800 dark:text-slate-100">Google Search</span> 
-              affect cognitive load and creativity during information retrieval tasks.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-              <button
-                onClick={onJoinStudy}
-                className="group relative px-10 py-5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-semibold rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative flex items-center justify-center space-x-3">
-                  <Zap className="h-6 w-6" />
-                  <span className="text-lg">Join the Study</span>
-                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                </div>
-              </button>
-              <button className="px-10 py-5 border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-2xl hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 backdrop-blur-sm">
-                Learn More
-              </button>
-            </div>
+      {/* Hero */}
+      <section className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1400px] grid-cols-1 border-x border-[#1f2128] lg:grid-cols-[1.1fr_1fr]">
+        <div className="flex flex-col justify-center p-8 md:p-16 lg:p-20">
+          <p className="font-mono-data text-xs uppercase tracking-widest text-[#8a8f98]">IRB-Approved Behavioral Study</p>
+          <h1 className="mt-8 font-display font-[900] text-[clamp(2.6rem,5vw,4.2rem)] leading-[1.05] track-h1 text-white">
+            Quantifying the cognitive cost of conversational AI.
+          </h1>
+          <p className="mt-8 max-w-lg text-[1rem] leading-[1.7] text-[#8b949e]">
+            An empirical comparison of ChatGPT versus traditional search architecture, recording cognitive load (CLI) and divergent thinking metrics across controlled information retrieval operations.
+          </p>
+          <div className="mt-12 flex flex-col sm:flex-row gap-4">
+            <button 
+              onClick={onJoinStudy} 
+              className="bg-[#00bfdb] px-8 py-4 text-sm font-bold text-[#090a0c] transition-transform hover:-translate-y-[1px]"
+            >
+              Initialize Session
+            </button>
+            <a 
+              href="#pipeline" 
+              className="border border-[#1f2128] flex justify-center items-center px-8 py-4 text-sm font-bold text-white transition-colors hover:border-[#30363d] hover:bg-[#1f2128]/20"
+            >
+              View Methodology
+            </a>
+          </div>
+        </div>
 
-            {/* Enhanced Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
-                <div className="flex items-center justify-center mb-4">
-                  <Clock className="h-8 w-8 text-blue-600" />
+        {/* Hero Right - Telemetry Animation */}
+        <div className="relative border-t md:border-t-0 lg:border-l border-[#1f2128] bg-[#0c0d10] p-8 md:p-12 overflow-hidden flex flex-col">
+          <div className="flex justify-between items-center border-b border-[#1f2128] pb-6">
+            <div className="font-mono-data text-[10px] tracking-widest text-[#00bfdb] flex items-center gap-2">
+              <span className="h-1.5 w-1.5 bg-[#00bfdb] rounded-full animate-pulse" />
+              LIVE TELEMETRY
+            </div>
+            <div className="flex bg-[#090a0c] border border-[#1f2128] p-1 font-mono-data">
+              <div className="bg-[#1f2128] px-3 py-1 text-[11px] text-white">ChatGPT</div>
+              <div className="px-3 py-1 text-[11px] text-[#8a8f98]">Google</div>
+            </div>
+          </div>
+          
+          <div className="flex-1 mt-12 z-10 space-y-5">
+            {[ 
+              { id: 1042, val: 47, user: 'R. Anand' },
+              { id: 1043, val: 82, user: 'M. Kessler' },
+              { id: 1044, val: 35, user: 'J. Chen' },
+              { id: 1045, val: 68, user: 'A. Patel' },
+              { id: 1046, val: 21, user: 'S. Weber' }
+            ].map((usr, i) => (
+              <div key={usr.id} className="flex items-center gap-4">
+                <div className="w-24 font-mono-data text-[11px] text-[#8a8f98]">Sub-{usr.id}</div>
+                <div className="h-[2px] flex-1 bg-[#1f2128] relative">
+                  <div 
+                    className="absolute top-0 bottom-0 left-0 bg-[#00bfdb] participant-bar"
+                    style={{ width: `${usr.val}%`, animationDelay: `${i * 150 + 300}ms` }}
+                  />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">30-45 Min</h3>
-                <p className="text-slate-600 dark:text-slate-300 font-medium">Complete in one session</p>
+                <div className="w-8 text-right font-mono-data text-[11px] text-white">{usr.val}</div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
-                <div className="flex items-center justify-center mb-4">
-                  <Brain className="h-8 w-8 text-purple-600" />
-                </div>
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Behavioral Analysis</h3>
-                <p className="text-slate-600 dark:text-slate-300 font-medium">Live cognitive load monitoring</p>
-              </div>
-              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-xl">
-                <div className="flex items-center justify-center mb-4">
-                  <Target className="h-8 w-8 text-emerald-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Creativity Tests</h3>
-                <p className="text-slate-600 dark:text-slate-300 font-medium">Assess creative thinking</p>
-              </div>
+            ))}
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 h-48 opacity-20 pointer-events-none">
+            <div className="absolute inset-0 w-[200%] h-full flex items-end">
+              <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="h-2/3 w-full stroke-[#00bfdb] fill-none stroke-[2] animate-wave">
+                <path d="M0,50 L40,50 L45,30 L55,80 L65,20 L75,60 L80,50 L150,50 L155,40 L165,70 L170,50 L250,50 L255,10 L265,90 L275,30 L280,50 L350,50 L360,20 L370,80 L380,50 L450,50 L460,40 L470,60 L480,50 L500,50 L540,50 L545,30 L555,80 L565,20 L575,60 L580,50 L650,50 L655,40 L665,70 L670,50 L750,50 L755,10 L765,90 L775,30 L780,50 L850,50 L860,20 L870,80 L880,50 L950,50 L960,40 L970,60 L980,50 L1000,50" />
+              </svg>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Study Overview */}
-      <section className="relative z-10 py-20 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-wide">Study Overview</h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-normal">
-              We're investigating how different information retrieval platforms affect your brain activity 
-              and creative thinking processes in real-time.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/80 border border-blue-200/60 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
-                <Clock className="h-12 w-12 text-blue-600 relative z-10 mx-auto" />
+      {/* Data strip */}
+      <section className="border-y border-[#1f2128] bg-[#090a0c]">
+        <div className="mx-auto max-w-[1400px] border-x border-[#1f2128]">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#1f2128]">
+            {[
+              { label: 'Session Duration', value: '30–45m' },
+              { label: 'Test Conditions', value: '2 Platforms' },
+              { label: 'Data Collection', value: 'Live Telemetry' },
+              { label: 'Protocol Status', value: 'IRB Approved' }
+            ].map(stat => (
+              <div key={stat.label} className="p-6 md:p-8 flex flex-col justify-between md:items-start items-center text-center md:text-left min-h-[120px]">
+                <p className="font-mono-data text-[#8a8f98] text-[10px] uppercase tracking-widest mb-4">{stat.label}</p>
+                <p className="font-mono-data text-white text-xl">{stat.value}</p>
               </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-3">30-45 Minutes</h3>
-              <p className="text-slate-600 font-medium">Complete the study in one focused session</p>
-            </div>
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/80 border border-purple-200/60 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
-                <Brain className="h-12 w-12 text-purple-600 relative z-10 mx-auto" />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-3">Behavioral Analysis</h3>
-              <p className="text-slate-600 font-medium">Live cognitive load monitoring</p>
-            </div>
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-emerald-100/80 border border-emerald-200/60 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
-                <TestTube className="h-12 w-12 text-emerald-600 relative z-10 mx-auto" />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-3">Creativity Tests</h3>
-              <p className="text-slate-600 font-medium">Assess your creative thinking</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Enhanced Progress Timeline */}
-      <section className="relative z-10 py-20 bg-gradient-to-br from-slate-50/80 to-blue-50/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-wide">Study Process</h2>
-            <p className="text-xl text-slate-600 font-normal">Follow these simple steps to complete the study</p>
-          </div>
+      {/* Study Pipeline */}
+      <section id="pipeline" className="py-32 px-6 max-w-[1400px] mx-auto border-x border-[#1f2128]">
+        <h2 className="font-display font-[800] text-3xl track-h2 text-white mb-20 text-center md:text-left">
+          Study Pipeline
+        </h2>
+        
+        <div className="relative">
+          {/* Connector Line */}
+          <div className="hidden md:block absolute top-[20px] left-[20px] right-[20px] h-px bg-[#1f2128]" />
           
-          <div className="relative">
-            {/* Enhanced Timeline Line */}
-            <div className="absolute left-1/2 transform -translate-x-px h-full w-1 bg-gradient-to-b from-blue-400 via-purple-400 to-pink-400 rounded-full"></div>
-            
-            <div className="space-y-12">
-              {steps.map((step, index) => (
-                <div key={index} className={`relative flex items-center ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}>
-                  {/* Enhanced Step Circle */}
-                  <div className={`absolute left-1/2 transform -translate-x-1/2 w-20 h-20 rounded-full bg-gradient-to-r ${step.gradient} flex items-center justify-center shadow-2xl border-4 border-white`}>
-                    <div className="relative">
-                      <div className={`absolute inset-0 bg-gradient-to-r ${step.gradient} rounded-full blur-lg opacity-50 animate-pulse`}></div>
-                      <div className="relative z-10 text-white">
-                        {step.icon}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Enhanced Content */}
-                  <div className={`w-5/12 ${index % 2 === 0 ? 'pr-12 text-right' : 'pl-12 text-left'}`}>
-                    <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-slate-200/60 hover:shadow-3xl transition-all duration-300 hover:scale-105">
-                      <h3 className="text-2xl font-bold text-slate-800 mb-3">{step.title}</h3>
-                      <p className="text-slate-600 font-medium leading-relaxed">{step.description}</p>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+            {[
+              { t: 'Join', d: 'Cohort assignment and platform selection.' },
+              { t: 'Baseline', d: 'Telemetry initialization and calibration.' },
+              { t: 'Task', d: 'Information retrieval across constraints.' },
+              { t: 'Creativity', d: 'Standardized AUT and RAT measurements.' },
+              { t: 'Results', d: 'CLI scoring and phase comparison.' }
+            ].map((step, i) => (
+              <div key={i} className="relative z-10 flex flex-row md:flex-col items-start gap-6 group">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#090a0c] border border-[#1f2128] text-[#8a8f98] font-mono-data text-xs transition-colors group-hover:border-[#00bfdb] group-hover:text-[#00bfdb]">
+                  0{i + 1}
                 </div>
-              ))}
-            </div>
+                <div>
+                  <h3 className="text-white font-bold mb-2 text-sm">{step.t}</h3>
+                  <p className="text-[#8a8f98] text-sm leading-[1.7]">{step.d}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Enhanced Platform Comparison */}
-      <section className="relative z-10 py-20 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-wide">Platforms You'll Use</h2>
-            <p className="text-xl text-slate-600 font-normal">You'll be randomly assigned to one of these platforms</p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="bg-gradient-to-br from-emerald-50/80 to-emerald-100/80 p-10 rounded-3xl border-2 border-emerald-200/60 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center mb-6">
-                <div className="relative mr-6">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-2xl blur-xl opacity-40 animate-pulse"></div>
-                  <div className="relative w-16 h-16 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <MessageSquare className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-3xl font-bold text-slate-800">ChatGPT</h3>
-              </div>
-              <p className="text-slate-600 mb-6 text-lg leading-relaxed font-normal">
-                AI-powered conversational search with contextual responses and creative assistance.
+      {/* Platforms */}
+      <section id="platforms" className="py-32 px-6 max-w-[1400px] mx-auto border-t border-x border-[#1f2128]">
+        <h2 className="font-display font-[800] text-3xl track-h2 text-white mb-20">
+          Target Paradigms
+        </h2>
+
+        {/* ChatGPT */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 items-stretch border border-[#1f2128] mb-12">
+          <div className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-[#1f2128] relative overflow-hidden group">
+            <div className="absolute inset-0 border border-[#00bfdb] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="p-10 md:p-14 relative z-10 h-full flex flex-col justify-center">
+              <div className="font-mono-data text-[10px] text-[#00bfdb] tracking-widest mb-8 uppercase">Primary Condition (A)</div>
+              <h3 className="font-display font-[900] text-4xl text-white mb-6">ChatGPT</h3>
+              <p className="text-[#8b949e] leading-[1.7] mb-8 max-w-xl text-[1rem]">
+                Measuring cognitive reliance and analytical delegation in conversational interfaces during complex reasoning scenarios.
               </p>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                  <span>Conversational interface</span>
-                </li>
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                  <span>Contextual responses</span>
-                </li>
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                  <span>Creative assistance</span>
-                </li>
+              <ul className="space-y-4 font-mono-data text-xs text-[#8a8f98] mt-auto">
+                <li className="flex items-center gap-4"><span className="text-[#00bfdb] text-base leading-none">]</span> Context retention tracking</li>
+                <li className="flex items-center gap-4"><span className="text-[#00bfdb] text-base leading-none">]</span> Query refinement latency</li>
+                <li className="flex items-center gap-4"><span className="text-[#00bfdb] text-base leading-none">]</span> Output verification effort</li>
               </ul>
             </div>
-            
-            <div className="bg-gradient-to-br from-blue-50/80 to-cyan-50/80 p-10 rounded-3xl border-2 border-blue-200/60 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center mb-6">
-                <div className="relative mr-6">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-2xl blur-xl opacity-40 animate-pulse"></div>
-                  <div className="relative w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Search className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-3xl font-bold text-slate-800">Google Search</h3>
-              </div>
-              <p className="text-slate-600 mb-6 text-lg leading-relaxed font-normal">
-                Traditional keyword-based search with multiple result sources and manual filtering.
+            {/* Ambient glow */}
+            <div className="absolute -top-[50%] -right-[20%] w-[80%] h-[150%] bg-[#00bfdb]/[0.02] transform rotate-12 pointer-events-none" />
+          </div>
+          <div className="lg:col-span-2 bg-[#0c0d10] p-10 md:p-14 flex flex-col justify-center">
+            <div className="font-mono-data text-[10px] text-[#8a8f98] mb-6 tracking-widest uppercase">Target Metric</div>
+            <div className="text-5xl text-white font-mono-data mb-4">47.3%</div>
+            <p className="text-[#8b949e] leading-[1.7] text-sm">
+              Expected variance in active formulation time versus control architecture.
+            </p>
+          </div>
+        </div>
+
+        {/* Google Search */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 items-stretch border border-[#1f2128]">
+          <div className="lg:col-span-2 bg-[#0c0d10] p-10 md:p-14 order-2 lg:order-1 flex flex-col justify-center border-t lg:border-t-0 lg:border-r border-[#1f2128]">
+            <div className="font-mono-data text-[10px] text-[#8a8f98] mb-6 tracking-widest uppercase">Target Metric</div>
+            <div className="text-5xl text-white font-mono-data mb-4">2.1&times;</div>
+            <p className="text-[#8b949e] leading-[1.7] text-sm">
+              Hypothesized increase in source cross-referencing actions.
+            </p>
+          </div>
+          <div className="lg:col-span-3 relative overflow-hidden group order-1 lg:order-2">
+            <div className="absolute inset-0 border border-[#30363d] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="p-10 md:p-14 relative z-10 h-full flex flex-col justify-center">
+              <div className="font-mono-data text-[10px] text-[#8a8f98] tracking-widest mb-8 uppercase">Control Condition (B)</div>
+              <h3 className="font-display font-[900] text-4xl text-white mb-6">Google Search</h3>
+              <p className="text-[#8b949e] leading-[1.7] mb-8 max-w-xl text-[1rem]">
+                Evaluating the baseline traditional information architecture. Quantifying navigational burden and memory allocation across SERP layers.
               </p>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>Keyword-based search</span>
-                </li>
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>Multiple sources</span>
-                </li>
-                <li className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>Manual filtering</span>
-                </li>
+              <ul className="space-y-4 font-mono-data text-xs text-[#8a8f98] mt-auto">
+                <li className="flex items-center gap-4"><span className="text-[#30363d] text-base leading-none">/</span> Tab management overhead</li>
+                <li className="flex items-center gap-4"><span className="text-[#30363d] text-base leading-none">/</span> Depth-first scanning patterns</li>
+                <li className="flex items-center gap-4"><span className="text-[#30363d] text-base leading-none">/</span> Direct synthesis cognitive friction</li>
               </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Footer */}
-      <footer className="relative z-10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-6">
-              <div className="relative mr-4">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-40 animate-pulse"></div>
-                <Brain className="h-10 w-10 text-blue-400 relative z-10" />
-              </div>
-              <span className="text-2xl font-bold">Cognitive Load Research</span>
-            </div>
-            <p className="text-slate-300 mb-6 text-lg max-w-2xl mx-auto leading-relaxed font-normal">
-              Advancing our understanding of cognitive load and creativity in the digital age through 
-              behavioral analysis technology and innovative research methodologies.
+      {/* About / Mission */}
+      <section id="about" className="py-32 px-6 max-w-[1400px] mx-auto border-t border-x border-[#1f2128] bg-[#0c0d10]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24">
+          <div className="md:px-8">
+            <h2 className="font-display font-[800] text-3xl track-h2 text-white mb-8">
+              Research Mission
+            </h2>
+            <p className="text-[#8b949e] leading-[1.7] mb-10 text-[1rem]">
+              The Cognitive Load Lab investigates the intersection of semantic retrieval and human cognition. By employing standardized psychometric measures—such as the Alternative Uses Test (AUT) and Remote Associates Test (RAT)—we quantify how differing information paradigms impact divergent thinking capabilities and cognitive exhaustion.
             </p>
-            <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/60 max-w-2xl mx-auto">
-              <p className="text-sm text-slate-400 leading-relaxed font-normal">
-                This study has been approved by the Institutional Review Board. 
-                Your participation is voluntary and data will be anonymized for research purposes.
+            <div className="flex items-start gap-4 border border-[#1f2128] bg-[#090a0c] p-6">
+              <div className="text-[#00bfdb] font-mono-data text-sm mt-0.5">*</div>
+              <p className="text-xs text-[#8a8f98] leading-[1.6]">
+                <strong className="text-white font-medium mr-1">Ethics & Privacy:</strong> 
+                This platform operates strictly under approved IRB protocols. Telemetry capture is restricted to generic interactions and anonymized via secure hashes. No personally identifiable search data is retained beyond the consented demographic linkage.
               </p>
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#1f2128] border-y lg:border-l lg:border-y-0 border-[#1f2128]">
+            <div className="bg-[#0c0d10] p-10 flex flex-col justify-center">
+              <div className="font-mono-data text-4xl text-white mb-3 tracking-tight">n=284</div>
+              <div className="font-mono-data text-[10px] text-[#8a8f98] uppercase tracking-widest">Active Datapoints</div>
+            </div>
+            <div className="bg-[#0c0d10] p-10 flex flex-col justify-center">
+              <div className="font-mono-data text-4xl text-[#00bfdb] mb-3 tracking-tight">47.3</div>
+              <div className="font-mono-data text-[10px] text-[#8a8f98] uppercase tracking-widest">Mean Dataset CLI</div>
+            </div>
+            <div className="bg-[#0c0d10] p-10 flex flex-col justify-center sm:col-span-2">
+              <div className="font-mono-data text-xl text-white mb-3">M. Kessler, et al.</div>
+              <div className="font-mono-data text-[10px] text-[#8a8f98] uppercase tracking-widest">Principal Investigators</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-y border-[#1f2128] bg-[#090a0c] py-12 px-6">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+            <span className="font-display font-[800] text-white tracking-tight">Cognitive Load Lab</span>
+            <span className="w-1 h-1 bg-[#1f2128] rounded-full" />
+            <span className="font-mono-data text-[10px] text-[#8a8f98] tracking-widest">EST. 2026</span>
+          </div>
+          <div className="text-[10px] text-[#8a8f98] font-mono-data tracking-widest">
+            IRB PROTOCOL #492-B. ALL RIGHTS RESERVED.
           </div>
         </div>
       </footer>
     </div>
   );
-}; 
+};
+ 

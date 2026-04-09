@@ -188,21 +188,21 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
 
   const getTestTypeBg = (type: string) => {
     switch (type) {
-      case 'fluency': return 'bg-blue-50/80 border-blue-200/60';
-      case 'originality': return 'bg-purple-50/80 border-purple-200/60';
-      case 'divergent': return 'bg-emerald-50/80 border-emerald-200/60';
-      default: return 'bg-slate-50/80 border-slate-200/60';
+      case 'fluency': return 'bg-blue-50/80 border-blue-200/60 dark:bg-blue-500/10 dark:border-blue-500/30';
+      case 'originality': return 'bg-purple-50/80 border-purple-200/60 dark:bg-purple-500/10 dark:border-purple-500/30';
+      case 'divergent': return 'bg-emerald-50/80 border-emerald-200/60 dark:bg-emerald-500/10 dark:border-emerald-500/30';
+      default: return 'bg-slate-50/80 border-slate-200/60 dark:bg-slate-800/70 dark:border-slate-700';
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-        <div className="text-center bg-white rounded-2xl shadow-2xl p-12 max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="cla-surface max-w-md p-12 text-center">
           <Brain className="h-16 w-16 text-purple-600 animate-pulse mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Generating Creativity Questions</h2>
-          <p className="text-gray-600">Using AI to create personalized questions about <span className="font-bold text-purple-600">{topic}</span>...</p>
-          <div className="mt-4 text-sm text-gray-500">This may take a moment</div>
+          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Generating Creativity Questions</h2>
+          <p className="text-slate-600 dark:text-slate-300">Using AI to create personalized questions about <span className="font-bold text-purple-600">{topic}</span>...</p>
+          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">This may take a moment</div>
         </div>
       </div>
     );
@@ -210,16 +210,16 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
 
   if (isCompleted) {
     return (
-      <div className="max-w-4xl mx-auto p-8">
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-3xl p-12 text-center shadow-2xl">
+      <div className="mx-auto max-w-4xl p-8">
+        <div className="cla-surface border-emerald-300/70 bg-emerald-500/10 p-12 text-center dark:border-emerald-500/30">
           <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
-          <h2 className="text-4xl font-black text-emerald-800 mb-4">Creativity Assessment Complete!</h2>
-          <p className="text-emerald-700 text-lg mb-8">
+          <h2 className="mb-4 text-4xl font-black text-emerald-800 dark:text-emerald-300">Creativity Assessment Complete!</h2>
+          <p className="mb-8 text-lg text-emerald-700 dark:text-emerald-300">
             Your responses have been evaluated by AI. Analyzing cognitive load patterns...
           </p>
-          <div className="bg-white/80 p-6 rounded-2xl">
+          <div className="rounded-2xl border border-emerald-200/70 bg-white/80 p-6 dark:border-emerald-500/30 dark:bg-slate-900/70">
             <Sparkles className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-            <p className="text-emerald-700 font-semibold">Processing results...</p>
+            <p className="font-semibold text-emerald-700 dark:text-emerald-300">Processing results...</p>
           </div>
         </div>
       </div>
@@ -229,15 +229,15 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   if (questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-xl text-center bg-white rounded-2xl shadow-xl p-8">
+        <div className="cla-surface max-w-xl p-8 text-center">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Unable to Generate Questions</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Unable to Generate Questions</h2>
+          <p className="mb-6 text-slate-600 dark:text-slate-300">
             Please make sure you've completed the reading phase with sufficient notes about the topic.
           </p>
           <button
             onClick={generateQuestions}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            className="cla-btn-primary px-6 py-3"
           >
             Try Again
           </button>
@@ -252,15 +252,15 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   const uniqueWords = new Set(response.toLowerCase().split(/\s+/)).size;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4">
+    <div className="min-h-screen px-4 py-8">
       <div className="max-w-4xl mx-auto">
         {/* Progress Bar */}
-        <div className="mb-6 bg-white rounded-2xl p-4 shadow-lg">
+        <div className="cla-surface mb-6 p-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-bold text-gray-700">Question {currentQuestionIndex + 1} of {questions.length}</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span className="text-sm font-bold text-purple-600">{Math.round(progress)}% Complete</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div 
               className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
@@ -269,9 +269,9 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
         </div>
 
         {/* Main Question Card */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/60 overflow-hidden">
+        <div className="cla-surface overflow-hidden">
           {/* Header */}
-          <div className="p-8 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-white/80">
+          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-white/80 p-8 dark:border-slate-700 dark:from-slate-900/80 dark:to-slate-900/40">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="relative">
@@ -281,7 +281,7 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-slate-800">Creativity Assessment</h2>
+                  <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100">Creativity Assessment</h2>
                   <span className={`text-lg font-bold ${getTestTypeColor(currentQuestion.type)}`}>
                     {currentQuestion.type.charAt(0).toUpperCase() + currentQuestion.type.slice(1)} Test
                   </span>
@@ -290,8 +290,8 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
               <div className="flex items-center space-x-4">
                 <div className={`flex items-center space-x-3 px-4 py-2 rounded-2xl border-2 ${
                   timeLeft < 60 
-                    ? 'bg-red-50/80 border-red-200/60 text-red-700' 
-                    : 'bg-blue-50/80 border-blue-200/60 text-blue-700'
+                    ? 'bg-red-50/80 border-red-200/60 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-300' 
+                    : 'bg-blue-50/80 border-blue-200/60 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300'
                 } backdrop-blur-sm`}>
                   <Timer className={`h-5 w-5 ${timeLeft < 60 ? 'text-red-500' : 'text-blue-500'}`} />
                   <span className={`text-xl font-black ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
@@ -310,15 +310,15 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
                   <Lightbulb className="h-6 w-6 text-yellow-600" />
                   <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Question</span>
                 </div>
-                <label className="block text-2xl font-bold text-slate-800 leading-relaxed">
+                <label className="block text-2xl font-bold leading-relaxed text-slate-800 dark:text-slate-100">
                   {currentQuestion.question}
                 </label>
               </div>
               
               {timeLeft < 60 && (
-                <div className="flex items-center space-x-3 mb-6 p-4 bg-gradient-to-br from-amber-50/80 to-orange-50/80 rounded-2xl border-2 border-amber-200/60 backdrop-blur-sm">
+                <div className="mb-6 flex items-center space-x-3 rounded-2xl border-2 border-amber-200/60 bg-gradient-to-br from-amber-50/80 to-orange-50/80 p-4 backdrop-blur-sm dark:border-amber-500/40 dark:from-amber-500/10 dark:to-orange-500/10">
                   <AlertCircle className="h-6 w-6 text-amber-600" />
-                  <span className="text-amber-800 font-semibold">Less than 1 minute remaining!</span>
+                  <span className="font-semibold text-amber-800 dark:text-amber-300">Less than 1 minute remaining!</span>
                 </div>
               )}
             </div>
@@ -333,7 +333,7 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
                 placeholder="Type your creative response here... Be as detailed and original as possible!"
-                className="w-full h-80 p-6 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-lg leading-relaxed bg-white/80 backdrop-blur-sm transition-all duration-300"
+                className="cla-input h-80 w-full resize-none p-6 text-lg leading-relaxed"
                 disabled={isEvaluating}
               />
             </div>
@@ -341,15 +341,15 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
             {/* Word Count and Submit */}
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 bg-slate-50/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-200/60">
+                <div className="flex items-center space-x-2 rounded-xl border border-slate-200/60 bg-slate-50/80 px-4 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/70">
                   <Zap className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                     {wordCount} words
                   </span>
                 </div>
-                <div className="flex items-center space-x-2 bg-slate-50/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-200/60">
+                <div className="flex items-center space-x-2 rounded-xl border border-slate-200/60 bg-slate-50/80 px-4 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/70">
                   <Sparkles className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                     {uniqueWords} unique
                   </span>
                 </div>
@@ -358,7 +358,7 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={!response.trim() || isEvaluating}
-                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 via-purple-600 to-pink-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-3xl disabled:bg-slate-300 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 overflow-hidden"
+                className="cla-btn-primary group relative overflow-hidden px-8 py-4 font-bold disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 {isEvaluating ? (
                   <div className="flex items-center space-x-3">
@@ -377,8 +377,8 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
           </div>
 
           {/* Instructions */}
-          <div className="p-8 bg-gradient-to-br from-slate-50/80 to-slate-100/80 border-t border-slate-200/60 backdrop-blur-sm">
-            <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center">
+          <div className="border-t border-slate-200/60 bg-gradient-to-br from-slate-50/80 to-slate-100/80 p-8 backdrop-blur-sm dark:border-slate-700 dark:from-slate-900/80 dark:to-slate-800/80">
+            <h3 className="mb-4 flex items-center text-lg font-black text-slate-900 dark:text-slate-100">
               <Brain className="h-5 w-5 mr-3 text-purple-600" />
               Instructions
             </h3>
@@ -386,21 +386,21 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700">Be as creative and original as possible</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Be as creative and original as possible</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700">Provide detailed and thoughtful responses</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Provide detailed and thoughtful responses</span>
                 </div>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700">Think deeply about the topic</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Think deeply about the topic</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700">Your response will be evaluated by AI</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Your response will be evaluated by AI</span>
                 </div>
               </div>
             </div>

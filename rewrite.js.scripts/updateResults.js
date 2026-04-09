@@ -1,202 +1,8 @@
-import { Award, Brain, CheckCircle, Clock, Lightbulb, Sparkles, Target, TrendingDown, TrendingUp, Zap, BarChart3 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { cognitiveLoadService } from '../services/cognitiveLoadService';
-import { behavioralClassificationService, BehavioralClassificationResult, BehavioralFeatures, PlatformComparisonResult } from '../services/behavioralClassificationService';
-import { AssessmentResponse, CognitiveLoadMetrics } from '../types';
-import { CreativityEvaluation } from '../services/geminiService';
+import fs from 'fs';
 
-interface CognitiveLoadResultsProps {
-  assessmentResponses: AssessmentResponse[];
-  creativityEvaluations?: CreativityEvaluation[];
-  onComplete: (cognitiveLoadScore: number) => void;
-  topic?: string;
-  participantId?: string;
-  sessionId?: string; // Session ID for behavioral classification
-  platform?: 'chatgpt' | 'google'; // Platform used during the session
-}
+let content = fs.readFileSync('src/components/CognitiveLoadResults.tsx', 'utf-8');
 
-export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
-  assessmentResponses,
-  creativityEvaluations = [],
-  onComplete,
-  topic = '',
-  participantId = '',
-  sessionId = '',
-  platform
-}) => {
-  // State for behavioral classification results
-  const [behavioralResult, setBehavioralResult] = useState<BehavioralClassificationResult | null>(null);
-  const [platformComparison] = useState<PlatformComparisonResult | null>(null);
-  const [isLoadingBehavioral, setIsLoadingBehavioral] = useState(false);
-  const [behavioralServiceAvailable, setBehavioralServiceAvailable] = useState(false);
-
-  // Fetch behavioral classification on mount
-  useEffect(() => {
-    const fetchBehavioralData = async () => {
-      setIsLoadingBehavioral(true);
-      
-      // Check if service is available
-      const isAvailable = await behavioralClassificationService.checkHealth();
-      setBehavioralServiceAvailable(isAvailable);
-      
-      if (isAvailable && sessionId) {
-        // Fetch predictions for this session (returns array)
-        const predictions = await behavioralClassificationService.getSessionPredictions(sessionId);
-        
-        // Aggregate ALL predictions instead of just showing the last one
-        if (predictions && predictions.length > 0) {
-          console.log(`[BEHAVIORAL] Aggregating ${predictions.length} predictions for session ${sessionId}`);
-          
-          // Aggregate features from all predictions - only use fields that exist in BehavioralFeatures
-          const aggregatedFeatures: Partial<BehavioralFeatures> = predictions.reduce((acc, pred) => {
-            if (!pred.features) return acc;
-            
-            return {
-              mean_response_time: (acc.mean_response_time || 0) + pred.features.mean_response_time,
-              median_response_time: (acc.median_response_time || 0) + pred.features.median_response_time,
-              std_response_time: (acc.std_response_time || 0) + pred.features.std_response_time,
-              total_clicks: (acc.total_clicks || 0) + pred.features.total_clicks,
-              rage_click_count: (acc.rage_click_count || 0) + pred.features.rage_click_count,
-              click_rate: (acc.click_rate || 0) + pred.features.click_rate,
-              mean_cursor_speed: (acc.mean_cursor_speed || 0) + pred.features.mean_cursor_speed,
-              trajectory_deviation: (acc.trajectory_deviation || 0) + pred.features.trajectory_deviation,
-              total_idle_time: (acc.total_idle_time || 0) + pred.features.total_idle_time,
-              revisit_ratio: (acc.revisit_ratio || 0) + pred.features.revisit_ratio,
-              path_linearity: (acc.path_linearity || 0) + pred.features.path_linearity,
-              sections_visited: Math.max(acc.sections_visited || 0, pred.features.sections_visited),
-              total_session_time: (acc.total_session_time || 0) + pred.features.total_session_time,
-              active_time_ratio: (acc.active_time_ratio || 0) + pred.features.active_time_ratio,
-              scroll_depth: Math.max(acc.scroll_depth || 0, pred.features.scroll_depth)
-            };
-          }, {} as Partial<BehavioralFeatures>);
-          
-          // Average out the additive metrics
-          const count = predictions.length;
-          if (aggregatedFeatures.mean_response_time !== undefined) aggregatedFeatures.mean_response_time /= count;
-          if (aggregatedFeatures.median_response_time !== undefined) aggregatedFeatures.median_response_time /= count;
-          if (aggregatedFeatures.std_response_time !== undefined) aggregatedFeatures.std_response_time /= count;
-          if (aggregatedFeatures.click_rate !== undefined) aggregatedFeatures.click_rate /= count;
-          if (aggregatedFeatures.mean_cursor_speed !== undefined) aggregatedFeatures.mean_cursor_speed /= count;
-          if (aggregatedFeatures.trajectory_deviation !== undefined) aggregatedFeatures.trajectory_deviation /= count;
-          if (aggregatedFeatures.revisit_ratio !== undefined) aggregatedFeatures.revisit_ratio /= count;
-          if (aggregatedFeatures.path_linearity !== undefined) aggregatedFeatures.path_linearity /= count;
-          if (aggregatedFeatures.active_time_ratio !== undefined) aggregatedFeatures.active_time_ratio /= count;
-          
-          // Determine overall cognitive load level from all predictions
-          const loadLevels = predictions.map(p => p.cognitive_load_level);
-          const highCount = loadLevels.filter(l => l === 'High' || l === 'Very High').length;
-          const moderateCount = loadLevels.filter(l => l === 'Moderate').length;
-          const lowCount = loadLevels.filter(l => l === 'Low').length;
-          
-          let overallLevel: 'Low' | 'Moderate' | 'High' | 'Very High';
-          if (highCount > moderateCount && highCount > lowCount) {
-            overallLevel = 'High';
-          } else if (moderateCount >= highCount && moderateCount > lowCount) {
-            overallLevel = 'Moderate';
-          } else {
-            overallLevel = 'Low';
-          }
-          
-          // Use latest prediction as base but with aggregated features
-          const latestPrediction = predictions[predictions.length - 1];
-          const aggregatedResult: BehavioralClassificationResult = {
-            ...latestPrediction,
-            features: aggregatedFeatures as BehavioralFeatures,
-            cognitive_load_level: overallLevel,
-            confidence: predictions.reduce((sum, p) => sum + p.confidence, 0) / count
-          };
-          
-          console.log('[BEHAVIORAL] Aggregated result:', {
-            totalPredictions: count,
-            totalClicks: aggregatedFeatures.total_clicks,
-            overallLevel,
-            avgConfidence: aggregatedResult.confidence
-          });
-          
-          setBehavioralResult(aggregatedResult);
-        }
-        
-        // Note: Platform comparison endpoint not yet implemented in Phase 4
-        // Will be added in Phase 4.3 Admin Dashboard Enhancement
-      }
-      
-      setIsLoadingBehavioral(false);
-    };
-    
-    fetchBehavioralData();
-  }, [sessionId]);
-  // Guard: Check if assessmentResponses is empty
-  if (!assessmentResponses || assessmentResponses.length === 0) {
-    console.error('==========================================');
-    console.error('❌ COGNITIVE LOAD RESULTS - NO ASSESSMENT DATA');
-    console.error('assessmentResponses:', assessmentResponses);
-    console.error('Is undefined?:', assessmentResponses === undefined);
-    console.error('Is empty array?:', assessmentResponses?.length === 0);
-    console.error('THIS WILL CALL onComplete(0) AND RESET COGNITIVE LOAD SCORE!');
-    console.error('==========================================');
-    
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="cla-surface max-w-xl p-8 text-center">
-          <div className="mb-4 inline-block rounded-full bg-slate-100 p-3 dark:bg-slate-800">
-            <Brain className="h-10 w-10 text-slate-500 dark:text-slate-300" />
-          </div>
-          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">No Assessment Results</h2>
-          <p className="mb-6 text-slate-600 dark:text-slate-300">
-            Please complete the reading and note-taking phase first to generate assessment questions.
-          </p>
-          <button
-            onClick={() => {
-              console.error('🔴 GO BACK BUTTON CLICKED - Calling onComplete(0)');
-              onComplete(0);
-            }}
-            className="cla-btn-primary px-6 py-3"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Extract participant info from the first assessment response if not provided
-  const actualParticipantId = participantId || assessmentResponses[0]?.participantId || '';
-  
-  // Get timestamps from assessment responses (use startTime from responses)
-  const timestamps = assessmentResponses
-    .map(r => r.startTime)
-    .filter(t => t instanceof Date);
-
-  // Create minimal learning data since we're skipping the learning phase
-  const metrics: CognitiveLoadMetrics = cognitiveLoadService.calculateCognitiveLoad(
-    {
-      participantId: actualParticipantId,
-      topic: topic,
-      startTime: timestamps.length > 0 ? new Date(Math.min(...timestamps.map(t => t.getTime()))) : new Date(),
-      totalLearningTime: 0,
-      chatbotInteractions: 0,
-      questionsViewed: [],
-      clarificationsAsked: [],
-      interactionTimestamps: timestamps
-    },
-    assessmentResponses
-  );
-
-  console.log('==========================================');
-  console.log('📊 COGNITIVE LOAD RESULTS - METRICS CALCULATED');
-  console.log('Overall Cognitive Load:', metrics.overallCognitiveLoad);
-  console.log('Full metrics:', metrics);
-  console.log('==========================================');
-
-  const recommendations = cognitiveLoadService.getRecommendations(metrics);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
-  };
-
-
+const replacement = `
   const getCategoryTheme = (category: string) => {
     switch (category) {
       case 'Low': return { text: 'LOW LOAD', border: 'rgba(0,191,219,0.3)', bg: 'rgba(0,191,219,0.06)', color: 'rgba(0,191,219,0.8)', dot: 'rgba(0,191,219,0.9)' };
@@ -210,13 +16,39 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
   const theme = getCategoryTheme(metrics.cognitiveLoadCategory);
 
   return (
-    <div className="flex flex-col w-full text-white" style={{ background: '#090a0c' }}>
-      <style>{`
+    <div className="flex flex-col h-screen overflow-hidden text-white" style={{ background: '#090a0c', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <style>{\`
           .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
           .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
-      `}</style>
+      \`}</style>
 
-      {/* Zone 2 — Page Title Strip */}
+      {/* Zone 1 — Header Bar */}
+      <div style={{ background: 'rgba(9,10,12,0.92)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '0.85rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+         <div className="flex items-center gap-[0.7rem]">
+            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(0,191,219,0.15)', border: '1px solid rgba(0,191,219,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00bfdb', fontSize: '0.75rem', fontWeight: 600 }}>
+              KB
+            </div>
+            <div className="flex flex-col">
+                <div className="font-display" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>Kishore Balaji</div>
+                <div className="font-mono" style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>bkishore368@gmail.com</div>
+            </div>
+         </div>
+         <div className="flex items-center gap-[1.5rem]">
+            <div className="flex items-center gap-[0.4rem] font-mono text-[0.62rem] text-white/50 uppercase">
+               <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#00bfdb', animation: 'pulse-opacity 1.8s ease-in-out infinite' }} />
+               0 min
+            </div>
+            <div className="flex gap-[0.5rem]">
+               <div className="font-mono text-[0.65rem] uppercase" style={{ border: '1px solid rgba(0,191,219,0.3)', background: 'rgba(0,191,219,0.08)', color: '#00bfdb', padding: '3px 10px', borderRadius: '4px' }}>RESULTS</div>
+               <div className="font-mono text-[0.65rem] uppercase" style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', padding: '3px 10px', borderRadius: '4px' }}>{platform === 'chatgpt' ? 'CHATGPT' : 'GOOGLE'}</div>
+            </div>
+            <button className="font-mono text-[0.65rem] uppercase text-white/40 hover:text-white transition-colors" style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+         </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+      
+        {/* Zone 2 — Page Title Strip */}
         <div style={{ width: '100%', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '2rem 2.5rem 1.5rem', background: '#090a0c' }}>
             <div style={{ maxWidth: '960px', margin: '0 auto' }}>
                 <div className="font-mono" style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
@@ -233,7 +65,7 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
 
         {/* Zone 3 — Score Hero */}
         <div style={{ width: '100%', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '2rem 2.5rem', background: '#090a0c' }}>
-            <div style={{ maxWidth: '960px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'start' }}>
+            <div style={{ maxWidth: '960px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
                 
                 <div>
                     <div className="font-mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '0.8rem' }}>
@@ -247,12 +79,12 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
                             / 100
                         </div>
                     </div>
-                    <div className="font-mono" style={{ fontSize: '0.78rem', textTransform: 'uppercase', border: `1px solid ${theme.border}`, background: theme.bg, color: theme.color, borderRadius: '4px', padding: '3px 10px', display: 'inline-block' }}>
+                    <div className="font-mono" style={{ fontSize: '0.78rem', textTransform: 'uppercase', border: \`1px solid \${theme.border}\`, background: theme.bg, color: theme.color, borderRadius: '4px', padding: '3px 10px', display: 'inline-block' }}>
                         {theme.text}
                     </div>
                     <div style={{ marginTop: '1.2rem', height: '3px', width: '100%', background: 'rgba(255,255,255,0.07)', borderRadius: '99px', position: 'relative' }}>
-                        <div style={{ width: `${Math.round(metrics.overallCognitiveLoad)}%`, height: '100%', background: 'linear-gradient(to right, rgba(0,191,219,0.6), rgba(224,80,80,0.8))', borderRadius: '99px' }} />
-                        <div style={{ position: 'absolute', top: '50%', left: `${Math.round(metrics.overallCognitiveLoad)}%`, transform: 'translate(-50%, -50%)', width: '8px', height: '8px', borderRadius: '50%', background: theme.dot }} />
+                        <div style={{ width: \`\${Math.round(metrics.overallCognitiveLoad)}%\`, height: '100%', background: 'linear-gradient(to right, rgba(0,191,219,0.6), rgba(224,80,80,0.8))', borderRadius: '99px' }} />
+                        <div style={{ position: 'absolute', top: '50%', left: \`\${Math.round(metrics.overallCognitiveLoad)}%\`, transform: 'translate(-50%, -50%)', width: '8px', height: '8px', borderRadius: '50%', background: theme.dot }} />
                     </div>
                 </div>
 
@@ -290,9 +122,9 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
                 </div>
 
                 {!behavioralResult ? (
-                    <div style={{ marginTop: '1.5rem', padding: '2rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', textAlign: 'center' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,0.12)' }}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        <div className="font-mono" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)' }}>No behavioral telemetry recorded for this session</div>
+                    <div style={{ marginTop: '1.5rem', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', background: 'rgba(255,255,255,0.01)', textAlign: 'center' }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,0.15)', margin: '0 auto 0.5rem' }}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        <div className="font-mono" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.2rem' }}>No behavioral telemetry recorded for this session</div>
                         <div className="font-mono" style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.2)' }}>Tracking requires active interaction during the research phase</div>
                     </div>
                 ) : (
@@ -311,14 +143,14 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
                             <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Scroll Depth Coverage</div>
                             <div className="font-mono" style={{ fontWeight: 500, color: 'white' }}>{Math.round(behavioralResult.features.scroll_depth * 100)}%</div>
                             <div style={{ position: 'absolute', bottom: 0, left: 0, height: '1px', background: 'rgba(255,255,255,0.05)', width: '100%' }}>
-                                <div style={{ height: '1px', background: '#00bfdb', width: `${Math.round(behavioralResult.features.scroll_depth * 100)}%` }} />
+                                <div style={{ height: '1px', background: '#00bfdb', width: \`\${Math.round(behavioralResult.features.scroll_depth * 100)}%\` }} />
                             </div>
                        </div>
                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.7rem 0', position: 'relative' }}>
                             <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Active Tracking Time</div>
                             <div className="font-mono" style={{ fontWeight: 500, color: 'white' }}>{Math.round(behavioralResult.features.active_time_ratio * 100)}%</div>
                             <div style={{ position: 'absolute', bottom: 0, left: 0, height: '1px', background: 'rgba(255,255,255,0.05)', width: '100%' }}>
-                               <div style={{ height: '1px', background: '#00bfdb', width: `${Math.round(behavioralResult.features.active_time_ratio * 100)}%` }} />
+                               <div style={{ height: '1px', background: '#00bfdb', width: \`\${Math.round(behavioralResult.features.active_time_ratio * 100)}%\` }} />
                             </div>
                        </div>
                     </div>
@@ -427,6 +259,42 @@ export const CognitiveLoadResults: React.FC<CognitiveLoadResultsProps> = ({
                 </div>
             </div>
         </div>
+
+      </div>
+
+      {/* Zone 8 — Footer Strip */}
+      <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '0.85rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#090a0c', flexShrink: 0 }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span className="font-mono" style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>BEHAVIORAL TRACKING</span>
+            <div style={{ display: 'flex', gap: '0.8rem' }}>
+               {['Click Events', 'Mouse Movement', 'Scroll Behavior', 'Navigation'].map(label => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                     <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#00bfdb' }} />
+                     <span className="font-mono" style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.3)' }}>{label}</span>
+                  </div>
+               ))}
+            </div>
+         </div>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', opacity: 0.35, color: 'white', padding: '3px 9px', borderRadius: '4px' }}>RESEARCH</div>
+            <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', opacity: 0.35, color: 'white', padding: '3px 9px', borderRadius: '4px' }}>ASSESSMENT</div>
+            <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', opacity: 0.35, color: 'white', padding: '3px 9px', borderRadius: '4px' }}>CREATIVITY TEST</div>
+            <div className="font-mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', border: '1px solid rgba(0,191,219,0.4)', background: 'rgba(0,191,219,0.08)', color: '#00bfdb', padding: '3px 9px', borderRadius: '4px' }}>RESULTS</div>
+         </div>
+      </div>
+
     </div>
   );
 };
+`;
+
+const startIndex = content.indexOf('  const getCategoryColor = (category: string) => {');
+const endIndex = content.lastIndexOf('};');
+
+if (startIndex !== -1 && endIndex !== -1) {
+  content = content.substring(0, startIndex) + replacement;
+}
+
+fs.writeFileSync('src/components/CognitiveLoadResults.tsx', content);
+
+console.log('Update generated.');

@@ -1,66 +1,50 @@
 import { Brain, CheckCircle, Clock, PauseCircle, PlayCircle, Target, User, Activity } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
-import { AssessmentResponse, Participant, TestResponse } from '../types';
+import { AssessmentResponse, Participant, TestResponse } from '../types';       
 import AssessmentPhase from './AssessmentPhase';
 import { CognitiveLoadResults } from './CognitiveLoadResults';
 import { CreativityTest } from './CreativityTest';
 import { ResearchInterface } from './ResearchInterface';
 import { CreativityEvaluation } from '../services/geminiService';
 import { isTrackerActive } from '../services/interactionTracker';
+import { PlatformSelection } from './PlatformSelection';
 
 interface ParticipantDashboardProps {
   participant: Participant;
   onPhaseComplete: (phase: string) => void;
+  onLogout?: () => void;
 }
 
 export const ParticipantDashboard = ({
   participant: initialParticipant,
-  onPhaseComplete
+  onPhaseComplete,
+  onLogout
 }: ParticipantDashboardProps) => {
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
-  // Use local state to manage participant data including topic changes
   const [participant, setParticipant] = useState<Participant>(initialParticipant);
-  
-  // Use refs to store scores that won't be lost during async state updates
   const cognitiveLoadScoreRef = useRef<number>(initialParticipant.cognitiveLoadScore ?? 0);
   const creativityScoreRef = useRef<number>(initialParticipant.creativityScore ?? 0);
-  
-  // Sync with parent participant updates but preserve locally calculated scores
+
   useEffect(() => {
-    console.log('[SYNC] initialParticipant changed, syncing state...');
-    console.log('[SYNC] Previous participant:', participant);
-    console.log('[SYNC] New initialParticipant:', initialParticipant);
-    console.log('[SYNC] Ref cognitiveLoadScore:', cognitiveLoadScoreRef.current);
-    console.log('[SYNC] Ref creativityScore:', creativityScoreRef.current);
-    
     setParticipant(prev => {
-      // Use the ref values as the source of truth for scores
-      const preservedCognitiveLoad = cognitiveLoadScoreRef.current > 0 
-        ? cognitiveLoadScoreRef.current 
+      const preservedCognitiveLoad = cognitiveLoadScoreRef.current > 0
+        ? cognitiveLoadScoreRef.current
         : (prev.cognitiveLoadScore ?? initialParticipant.cognitiveLoadScore ?? 0);
-      const preservedCreativity = creativityScoreRef.current > 0 
-        ? creativityScoreRef.current 
-        : (prev.creativityScore ?? initialParticipant.creativityScore ?? 0);
-      
-      const synced = {
+      const preservedCreativity = creativityScoreRef.current > 0
+        ? creativityScoreRef.current
+        : (prev.creativityScore ?? initialParticipant.creativityScore ?? 0);    
+
+      return {
         ...initialParticipant,
         cognitiveLoadScore: preservedCognitiveLoad,
         creativityScore: preservedCreativity
       };
-      
-      console.log('[SYNC] Synced participant:', synced);
-      console.log('[SYNC] Preserved cognitiveLoadScore:', synced.cognitiveLoadScore);
-      console.log('[SYNC] Preserved creativityScore:', synced.creativityScore);
-      
-      return synced;
     });
   }, [initialParticipant]);
-  
-  // Track behavioral interaction status
+
   const [isTrackingActive, setIsTrackingActive] = useState(false);
-  
-  // Check tracker status periodically
+
   useEffect(() => {
     const checkTracker = () => {
       setIsTrackingActive(isTrackerActive());
@@ -69,7 +53,7 @@ export const ParticipantDashboard = ({
     const interval = setInterval(checkTracker, 1000);
     return () => clearInterval(interval);
   }, []);
-  
+
   const [assessmentResponses, setAssessmentResponses] = useState<AssessmentResponse[] | undefined>(participant.assessmentResponses);
   const [creativityEvaluations, setCreativityEvaluations] = useState<CreativityEvaluation[]>([]);
   const [readingContent, setReadingContent] = useState<string>('');
@@ -77,245 +61,99 @@ export const ParticipantDashboard = ({
   const [behavioralSessionId, setBehavioralSessionId] = useState<string | undefined>(undefined);
   const [selectedPlatform, setSelectedPlatform] = useState<'chatgpt' | 'google' | undefined>(undefined);
 
-  // Log when scores change
-  useEffect(() => {
-    console.log('📊 SCORES UPDATED:');
-    console.log('Cognitive Load Score:', participant.cognitiveLoadScore);
-    console.log('Creativity Score:', participant.creativityScore);
-  }, [participant.cognitiveLoadScore, participant.creativityScore]);
-
-  const getPhaseColor = (phase: string) => {
-    switch (phase) {
-      case 'research': return 'text-blue-600 bg-blue-100 border-blue-200';
-      case 'assessment': return 'text-orange-600 bg-orange-100 border-orange-200';
-      case 'results': return 'text-green-600 bg-green-100 border-green-200';
-      case 'creativity_test': return 'text-pink-600 bg-pink-100 border-pink-200';
-      case 'completed': return 'text-emerald-600 bg-emerald-100 border-emerald-200';
-      default: return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
-  const getPlatformColor = (platform: string) => {
-    switch (platform) {
-      case 'chatgpt':
-        return 'text-green-600 bg-green-100 border-green-200';
-      case 'google':
-        return 'text-blue-600 bg-blue-100 border-blue-200';
-      default:
-        return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
-  };
-
-  const getPhaseIcon = (phase: string) => {
-    switch (phase) {
-      case 'research': return <PlayCircle className="h-4 w-4" />;
-      case 'assessment': return <Target className="h-4 w-4" />;
-      case 'results': return <CheckCircle className="h-4 w-4" />;
-      case 'creativity_test': return <Brain className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      default: return <PauseCircle className="h-4 w-4" />;
-    }
-  };
-
-  const sessionDuration = Math.floor((Date.now() - participant.sessionStart.getTime()) / 60000);
-
-  const handleCreativityComplete = async (responses: TestResponse[], evaluations: CreativityEvaluation[]) => {
-    console.log('==========================================');
-    console.log('🎨 CREATIVITY TEST COMPLETE');
-    console.log('Responses received:', responses.length);
-    console.log('Evaluations received:', evaluations.length);
-    console.log('Current participant state BEFORE update:', participant);
-    
-    // Calculate creativity score from evaluations
-    const creativityScore = evaluations.length > 0 
-      ? Math.round(evaluations.reduce((sum, e) => sum + e.score, 0) / evaluations.length)
-      : 0;
-    
-    console.log('==========================================');
-    console.log('📊 CREATIVITY SCORE CALCULATION');
-    console.log('Number of evaluations:', evaluations.length);
-    console.log('Individual scores:', evaluations.map(e => e.score));
-    console.log('Sum of scores:', evaluations.reduce((sum, e) => sum + e.score, 0));
-    console.log('Calculated average:', creativityScore);
-    console.log('==========================================');
-    
-    // CRITICAL: Store in ref FIRST - this survives async state updates
+  const handleCreativityComplete = async (responses: TestResponse[], totalScore: number) => {
+    const creativityScore = responses.reduce((sum, current) => sum + (current.score || 0), 0);
     creativityScoreRef.current = creativityScore;
-    console.log('📌 Stored creativity score in ref:', creativityScoreRef.current);
     
-    // Save evaluations first
-    setCreativityEvaluations(evaluations);
-    
-    // Update local state
     setParticipant(prev => ({
       ...prev,
       creativityScore: creativityScore
     }));
-    
-    console.log('✅ Creativity score set to:', creativityScore);
-    
-    // Save to database
+
     try {
-      console.log('💾 Saving creativity score to database...');
       const token = localStorage.getItem('auth_token');
-      console.log('🔑 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NULL');
-      
-      if (!token) {
-        console.error('❌ No authentication token found in localStorage');
-        console.log('⚠️ Skipping database save - user authenticated with mock auth');
-        // Continue without throwing error for mock auth users
-      } else {
-        const response = await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
+      if (token) {
+        await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             creativityScore,
-            sessionId: behavioralSessionId 
+            sessionId: behavioralSessionId
           })
         });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to save score: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('✅ Creativity score saved to database:', data.participant);
       }
     } catch (error) {
-      console.error('❌ Failed to save creativity score to database:', error);
+      console.error('Failed to save creativity score to database:', error);  
     }
-    
-    console.log('⏳ Waiting 500ms before phase transition to ensure state update...');
-    
-    // Use setTimeout OUTSIDE setState to ensure state updates complete before phase change
+
     setTimeout(() => {
-      console.log('==========================================');
-      console.log('🚀 TRANSITIONING TO COMPLETED PHASE');
-      console.log('Creativity Score after state update:', creativityScore);
-      console.log('==========================================');
       onPhaseComplete('completed');
     }, 500);
   };
 
   const handleAssessmentComplete = (responses: AssessmentResponse[]) => {
-    console.log('==========================================');
-    console.log('📝 ASSESSMENT COMPLETE');
-    console.log('Responses count:', responses.length);
-    console.log('Responses:', responses);
-    console.log('==========================================');
-    
     setAssessmentResponses(responses);
     onPhaseComplete('results');
   };
-  
+
   const handleResultsComplete = async (cognitiveLoadScore: number) => {
-    console.log('==========================================');
-    console.log('🧠 COGNITIVE LOAD RESULTS COMPLETE');
-    console.log('Received cognitive load score:', cognitiveLoadScore);
-    console.log('Type of score:', typeof cognitiveLoadScore);
-    console.log('Is valid number?:', !isNaN(cognitiveLoadScore));
-    console.log('Current participant state BEFORE update:', participant);
-    
     const rounded = Math.round(cognitiveLoadScore);
-    
-    // CRITICAL: Store in ref FIRST - this survives async state updates
     cognitiveLoadScoreRef.current = rounded;
-    console.log('📌 Stored cognitive load score in ref:', cognitiveLoadScoreRef.current);
-    
-    // Update local state
-    setParticipant(prev => {
-      const updated = {
-        ...prev,
-        cognitiveLoadScore: rounded
-      };
-      console.log('Updated participant state AFTER update:', updated);
-      console.log('Previous cognitive load score:', prev.cognitiveLoadScore);
-      console.log('New cognitive load score:', updated.cognitiveLoadScore);
-      console.log('Cognitive load score saved to state:', rounded);
-      return updated;
-    });
-    
-    // Save to database
+
+    setParticipant(prev => ({
+      ...prev,
+      cognitiveLoadScore: rounded
+    }));
+
     try {
-      console.log('💾 Saving cognitive load score to database...');
       const token = localStorage.getItem('auth_token');
-      console.log('🔑 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NULL');
-      
-      if (!token) {
-        console.error('❌ No authentication token found in localStorage');
-        console.log('⚠️ Skipping database save - user authenticated with mock auth');
-        // Continue without throwing error for mock auth users
-      } else {
-        const response = await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
+      if (token) {
+        await fetch(`${apiBaseUrl}/api/auth/participant/scores`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             cognitiveLoadScore: rounded,
-            sessionId: behavioralSessionId 
+            sessionId: behavioralSessionId
           })
         });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to save score: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('✅ Cognitive load score saved to database:', data.participant);
       }
     } catch (error) {
-      console.error('❌ Failed to save cognitive load score to database:', error);
+      console.error('Failed to save cognitive load score to database:', error);
     }
     
-    console.log('⏳ Waiting 300ms before phase transition to ensure state update...');
-    console.log('==========================================');
-    
-    // Use setTimeout to ensure state updates complete before phase change
     setTimeout(() => {
-      console.log('🚀 Transitioning to creativity_test phase...');
       onPhaseComplete('creativity_test');
     }, 300);
   };
 
-  // CRITICAL: Handle topic changes from research interfaces
   const handleTopicChange = (newTopic: string) => {
-    console.log('==========================================');
-    console.log('🔄 TOPIC CHANGE DETECTED IN PARTICIPANT DASHBOARD');
-    console.log('Previous Topic:', participant.researchTopic);
-    console.log('New Topic:', newTopic);
-    console.log('Participant ID:', participant.id);
-    console.log('==========================================');
-    
-    // CRITICAL: Force re-render by creating completely new object
-    setParticipant(prev => {
-      const updated = {
-        ...prev,
-        researchTopic: newTopic.trim(),
-        // Add timestamp to force React to detect the change
-        _topicUpdatedAt: Date.now()
-      };
-      
-      console.log('📝 Created new participant object');
-      console.log('Previous researchTopic:', prev.researchTopic);
-      console.log('New researchTopic:', updated.researchTopic);
-      console.log('Timestamp added:', updated._topicUpdatedAt);
-      
-      return updated;
-    });
-    
-    console.log('✅ Participant state update queued');
-    console.log('React will re-render with new topic:', newTopic);
-    console.log('==========================================');
+    setParticipant(prev => ({
+      ...prev,
+      researchTopic: newTopic.trim(),
+      _topicUpdatedAt: Date.now()
+    }));
   };
 
   const renderCurrentPhase = () => {
     switch (participant.currentPhase) {
       case 'research':
+        // Let ResearchInterface handle its own platform selection directly,
+        // or just render ResearchInterface block
         return (
           <ResearchInterface
             participant={participant}
@@ -327,6 +165,7 @@ export const ParticipantDashboard = ({
               onPhaseComplete('assessment');
             }}
             onTopicChange={handleTopicChange}
+            onActivePlatformChange={setSelectedPlatform}
           />
         );
       case 'assessment':
@@ -367,24 +206,8 @@ export const ParticipantDashboard = ({
           />
         );
       case 'completed':
-        console.log('==========================================');
-        console.log('🎉 RENDERING COMPLETED PHASE');
-        console.log('Participant object:', participant);
-        console.log('Cognitive Load Score from participant:', participant.cognitiveLoadScore);
-        console.log('Creativity Score from participant:', participant.creativityScore);
-        console.log('Type of Cognitive Load Score:', typeof participant.cognitiveLoadScore);
-        console.log('Type of Creativity Score:', typeof participant.creativityScore);
-        console.log('Is Cognitive Load Score defined?:', participant.cognitiveLoadScore !== undefined);
-        console.log('Is Creativity Score defined?:', participant.creativityScore !== undefined);
-        
-        // Add null checks and defaults
         const finalCognitiveScore = participant.cognitiveLoadScore ?? 0;
         const finalCreativityScore = participant.creativityScore ?? 0;
-        
-        console.log('Final scores to display:');
-        console.log('- Cognitive Load:', finalCognitiveScore);
-        console.log('- Creativity:', finalCreativityScore);
-        console.log('==========================================');
         
         return (
           <div className="max-w-4xl mx-auto p-6">
@@ -410,7 +233,7 @@ export const ParticipantDashboard = ({
                   </p>
                   <p className="text-sm text-gray-500 mt-2">Average cognitive load during session</p>
                   {finalCognitiveScore === 0 && (
-                    <p className="text-xs text-amber-600 mt-2">⚠️ Score not calculated</p>
+                    <p className="text-xs text-amber-600 mt-2">?? Score not calculated</p>
                   )}
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200">
@@ -423,34 +246,8 @@ export const ParticipantDashboard = ({
                   </p>
                   <p className="text-sm text-gray-500 mt-2">Overall creativity assessment</p>
                   {finalCreativityScore === 0 && (
-                    <p className="text-xs text-amber-600 mt-2">⚠️ Score not calculated</p>
+                    <p className="text-xs text-amber-600 mt-2">?? Score not calculated</p>
                   )}
-                </div>
-              </div>
-              <div className="mt-8 p-6 bg-white rounded-xl shadow-lg border border-green-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Study Summary</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-gray-800">{sessionDuration}</p>
-                    <p className="text-sm text-gray-500">Minutes</p>
-                  </div>
-                  <div>
-                    <p className="text-l font-bold text-gray-800">
-                      {/* {participant.assignedPlatform === 'chatgpt' ? 'ChatGPT' : 
-                       participant.assignedPlatform === 'google' ? 'Google' : 
-                       'Research'} */}
-                       Cognitive Load
-                    </p>
-                    <p className="text-sm text-gray-500">Platform Used</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-800">{creativityEvaluations.length}</p>
-                    <p className="text-sm text-gray-500">Tests Completed</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-800">100%</p>
-                    <p className="text-sm text-gray-500">Data Quality</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -461,214 +258,115 @@ export const ParticipantDashboard = ({
     }
   };
 
+  // derived state
+  const isAssigned = participant.assignedPlatform !== undefined && participant.assignedPlatform !== null && participant.assignedPlatform !== '';
+  const isSelectingPlatform = participant.currentPhase === 'research' && !selectedPlatform && !isAssigned;
+  const badgeLabel = isAssigned || selectedPlatform ? (selectedPlatform || participant.assignedPlatform)?.toUpperCase() : '� UNASSIGNED �';
+  const badgeClass = (isAssigned || selectedPlatform)
+    ? 'border-[#00bfdb] bg-[#00bfdb]/[0.08] text-[#00bfdb]' 
+    : 'border-white/[0.1] text-white/40';
+
+  const phaseOrder = ['research', 'assessment', 'creativity_test', 'results'];
+  const isEdgeToEdge = participant.currentPhase === 'research' && (selectedPlatform === 'google' || selectedPlatform === 'chatgpt');
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Enhanced Header */}
-      <div className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-lg opacity-30 animate-pulse"></div>
-                  <User className="h-8 w-8 text-blue-600 relative z-10" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-800">{participant.name}</h1>
-                  <p className="text-sm text-gray-500">{participant.email}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">{sessionDuration} min</span>
-              </div>
-              
-              <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getPlatformColor(participant.assignedPlatform)}`}>
-                <div className="flex items-center space-x-2">
-                  {participant.assignedPlatform === 'chatgpt' ? (
-                    <>
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Cognitive Load</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>Cognitive Load</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getPhaseColor(participant.currentPhase)}`}>
-                <div className="flex items-center space-x-2">
-                  {getPhaseIcon(participant.currentPhase)}
-                  <span>{participant.currentPhase.replace('_', ' ').toUpperCase()}</span>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-[100dvh] grid grid-rows-[auto_1fr_auto] bg-[#090a0c] text-white selection:bg-[#00bfdb] selection:text-[#090a0c]">
+      <style>{`
+        .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
+        
+        .pulse-dot {
+          animation: pulse-opacity 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse-opacity {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 1; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <header 
+        className="sticky top-0 z-50 px-[2.5rem] py-4 flex justify-between items-center border-b border-white/[0.07]"
+        style={{ background: 'rgba(9,10,12,0.92)', backdropFilter: 'blur(14px)' }}
+      >
+        <div className="flex items-center gap-4">
+          <div className="h-[38px] w-[38px] rounded-full bg-[#00bfdb]/10 border border-[#00bfdb]/25 flex items-center justify-center font-mono text-[#00bfdb] text-sm">
+            {getInitials(participant.name)}
+          </div>
+          <div>
+            <div className="font-display font-[600] text-[0.95rem] tracking-wide text-[#f0f2f5]">{participant.name}</div>
+            <div className="font-mono text-[0.72rem] text-white/40">{participant.email || 'Participant Account'}</div>
           </div>
         </div>
-      </div>
+
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 font-mono text-[0.75rem]">
+            <div className={`h-1.5 w-1.5 rounded-full ${isTrackingActive ? 'bg-[#00bfdb]/60 pulse-dot' : 'bg-white/20'}`} />
+            <span className="text-white/40">0 min</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="font-mono text-[0.65rem] uppercase px-2.5 py-1 border border-white/20 text-white/40 rounded-full">
+              {participant.currentPhase.replace('_', ' ')}
+            </div>
+            <div className={`font-mono text-[0.65rem] uppercase px-2.5 py-1 border rounded-full transition-colors duration-400 ${badgeClass}`}>
+              {badgeLabel}
+            </div>
+          </div>
+          {onLogout && (
+            <button 
+              onClick={onLogout}
+              className="font-mono text-[0.78rem] text-white/30 hover:text-white/70 transition-colors ml-2 bg-transparent border-none"
+            >
+              Logout
+            </button>
+          )}
+        </div>
+      </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
-          {/* Main Task Area */}
-          <div className="xl:col-span-3">
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              {renderCurrentPhase()}
+      <main className={`w-full ${isEdgeToEdge ? 'h-full flex flex-col' : 'max-w-[1200px] mx-auto px-[2.5rem] py-12'}`}>
+        {renderCurrentPhase()}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-white/[0.07] px-[2.5rem] py-4 flex justify-between items-center mt-auto">
+        <div className="flex items-center gap-[1.5rem]">
+          <div className="font-mono text-[0.65rem] uppercase text-white/40">BEHAVIORAL TRACKING</div>
+          {['Click Events', 'Mouse Movement', 'Scroll Behavior', 'Navigation'].map(tracker => (
+            <div key={tracker} className="flex items-center gap-1.5 transition-all duration-400">
+              <div 
+                className={`h-[5px] w-[5px] rounded-full transition-colors duration-400 ${
+                  isTrackingActive ? 'bg-[#00bfdb] pulse-dot' : 'bg-white/[0.15]'
+                }`} 
+              />
+              <span className="font-mono text-[0.72rem] text-white/40 transition-colors duration-400">
+                {tracker}
+              </span>
             </div>
-          </div>
-
-          {/* Behavioral Tracking Sidebar */}
-          <div className="xl:col-span-2">
-            <div className="sticky top-8 space-y-8">
-              {/* Behavioral Tracking Status */}
-              <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      <div className={`absolute inset-0 rounded-full blur-lg opacity-30 animate-pulse ${
-                        isTrackingActive ? 'bg-green-400' : 'bg-gray-400'
-                      }`}></div>
-                      <Activity className={`h-6 w-6 relative z-10 ${
-                        isTrackingActive ? 'text-green-600' : 'text-gray-400'
-                      }`} />
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-800">Behavioral Tracking</h3>
-                  </div>
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
-                    isTrackingActive 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full ${
-                      isTrackingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                    }`}></div>
-                    <span>{isTrackingActive ? 'Active' : 'Inactive'}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Click Events</span>
-                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
-                      {isTrackingActive ? 'Tracking' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Mouse Movement</span>
-                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
-                      {isTrackingActive ? 'Tracking' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Scroll Behavior</span>
-                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
-                      {isTrackingActive ? 'Tracking' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Navigation</span>
-                    <span className={`text-sm font-medium ${isTrackingActive ? 'text-green-600' : 'text-gray-400'}`}>
-                      {isTrackingActive ? 'Tracking' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                
-                <p className="text-xs text-gray-500 mt-4 text-center">
-                  {isTrackingActive 
-                    ? 'Interaction data is being collected for cognitive load analysis' 
-                    : 'Tracking stopped - data collection complete'}
-                </p>
-              </div>
-              
-              {/* Topic Information */}
-              <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full blur-lg opacity-30 animate-pulse"></div>
-                    <Brain className="h-8 w-8 text-indigo-600 relative z-10" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800">Research Topic</h3>
-                </div>
-                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200 mb-6">
-                  <p className="text-2xl font-bold text-indigo-600">{participant.researchTopic}</p>
-                </div>
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
-                    <p className="text-sm text-gray-600 mb-2">Current Score</p>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {(() => {
-                        // Calculate assessment score if responses exist
-                        if (assessmentResponses && assessmentResponses.length > 0) {
-                          const totalPoints = assessmentResponses.reduce((sum, r) => sum + (r.earnedPoints || 0), 0);
-                          const maxPoints = assessmentResponses.reduce((sum, r) => sum + (r.points || 20), 0);
-                          return Math.round((totalPoints / maxPoints) * 100);
-                        }
-                        return participant.cognitiveLoadScore;
-                      })()}%
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
-                    <p className="text-sm text-gray-600 mb-2">Test Progress</p>
-                    <p className="text-3xl font-bold text-purple-600">
-                      {participant.currentPhase === 'creativity_test' ? '3 Questions' : 
-                       participant.currentPhase === 'completed' ? 'Done' : 'Starting'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Indicator */}
-              <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Study Progress</h3>
-                <div className="space-y-4">
-                  {['research', 'assessment', 'results', 'creativity_test', 'completed'].map((phase) => {
-                    const phaseOrder = ['research', 'assessment', 'results', 'creativity_test', 'completed'];
-                    const currentIndex = phaseOrder.indexOf(participant.currentPhase);
-                    const thisIndex = phaseOrder.indexOf(phase);
-                    const isCompleted = thisIndex < currentIndex;
-                    const isCurrent = thisIndex === currentIndex;
-
-                    return (
-                      <div key={phase} className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isCurrent 
-                            ? 'bg-blue-600 text-white' 
-                            : isCompleted
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-200 text-gray-500'
-                        }`}>
-                          {isCurrent ? (
-                            <PlayCircle className="h-5 w-5" />
-                          ) : isCompleted ? (
-                            <CheckCircle className="h-5 w-5" />
-                          ) : (
-                            <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                          )}
-                        </div>
-                        <span className={`text-base font-medium ${
-                          isCurrent 
-                            ? 'text-blue-600' 
-                            : isCompleted
-                            ? 'text-green-600'
-                            : 'text-gray-500'
-                        }`}>
-                          {phase.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-      </div>
+
+        <div className="flex items-center gap-2">
+          {phaseOrder.map((phase, idx) => {
+            const isActive = participant.currentPhase === phase || 
+                             (phase === 'research' && isSelectingPlatform);
+            return (
+              <div key={phase} className="flex items-center gap-2">
+                <div className={`font-mono text-[0.65rem] uppercase px-[10px] py-[3px] border rounded-[4px] ${
+                  isActive 
+                    ? 'border-[#00bfdb] bg-[#00bfdb]/[0.08] text-[#00bfdb]' 
+                    : 'border-white/[0.07] text-white/40 opacity-40'
+                }`}>
+                  {phase.replace('_', ' ')}
+                </div>
+                {idx < phaseOrder.length - 1 && (
+                  <div className="font-mono text-[0.7rem] text-white/40 px-1">�</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </footer>
     </div>
   );
 };
