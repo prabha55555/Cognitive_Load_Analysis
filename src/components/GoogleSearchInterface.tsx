@@ -235,6 +235,7 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
           display: flex;
           flex-direction: column;
           flex: 1;
+          min-height: 0;
           overflow: hidden;
         }
         @media (min-width: 768px) {
@@ -246,7 +247,9 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
         .pane-left {
           width: 100%;
           flex: 0 0 auto;
+          min-height: 0;
           overflow-y: auto;
+          overscroll-behavior: contain;
         }
         @media (min-width: 768px) {
           .pane-left {
@@ -294,7 +297,9 @@ export const GoogleSearchInterface: React.FC<GoogleSearchInterfaceProps> = ({
         .pane-right {
           width: 100%;
           flex: 1 1 auto;
+          min-height: 0;
           overflow-y: auto;
+          overscroll-behavior: contain;
         }
         @media (min-width: 768px) {
           .pane-right {

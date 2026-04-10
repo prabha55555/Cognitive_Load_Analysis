@@ -1,5 +1,6 @@
 import { Clock } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { getInteractionTracker, stopInteractionTracker } from '../services/interactionTracker';
 import { Participant } from '../types';
 import { ChatGPTInterface } from './ChatGPTInterface';
 import { GoogleSearchInterface } from './GoogleSearchInterface';
@@ -27,19 +28,69 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
   const [behavioralSessionId, setBehavioralSessionId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!selectedPlatform || !behavioralSessionId || !participant.id) {
+      return;
+    }
+
+    const tracker = getInteractionTracker(
+      behavioralSessionId,
+      participant.id,
+      selectedPlatform,
+    );
+
+    tracker.start();
+    tracker.trackNavigation('research');
+
+    return () => {
+      stopInteractionTracker().catch((error) => {
+        console.error('Failed to stop interaction tracker during cleanup:', error);
+      });
+    };
+  }, [selectedPlatform, behavioralSessionId, participant.id]);
+
+  const stopTrackerSafely = useCallback(async () => {
+    try {
+      await Promise.race([
+        stopInteractionTracker(),
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => resolve(), 3000);
+        }),
+      ]);
+    } catch (error) {
+      console.error('Failed to stop interaction tracker:', error);
+    }
+  }, []);
+
+  const finalizeResearch = useCallback(async (platformOverride?: 'chatgpt' | 'google') => {
+    await stopTrackerSafely();
+    const readingContent = queries.join(' | ');
+    onComplete(
+      readingContent,
+      notes,
+      behavioralSessionId || undefined,
+      platformOverride || selectedPlatform || undefined,
+    );
+  }, [behavioralSessionId, notes, onComplete, queries, selectedPlatform, stopTrackerSafely]);
+
+  useEffect(() => {
     if (timeLeft > 0 && isActive && selectedPlatform) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0) {
-      handleTimeUp();
     }
-  }, [timeLeft, isActive, selectedPlatform]);
+
+    if (timeLeft === 0 && isActive) {
+      setIsActive(false);
+      setTimeout(() => {
+        void finalizeResearch();
+      }, 2000);
+    }
+  }, [finalizeResearch, timeLeft, isActive, selectedPlatform]);
 
   const handleQuerySubmit = (query: string) => {
     setQueries(prev => [...prev, query]);
   };
 
-  const handleSearchBehavior = (behavior: any) => {
+  const handleSearchBehavior = (behavior: unknown) => {
     console.log('Search behavior tracked:', behavior);
   };
 
@@ -75,18 +126,10 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
         const sessionId = `session_${participant.id}_${Date.now()}`;
         setBehavioralSessionId(sessionId);
       }
-    } catch (error) {
+    } catch {
       const sessionId = `session_${participant.id}_${Date.now()}`;
       setBehavioralSessionId(sessionId);
     }
-  };
-
-  const handleTimeUp = () => {
-    setIsActive(false);
-    setTimeout(() => {
-      const readingContent = queries.join(' | ');
-      onComplete(readingContent, notes, behavioralSessionId || undefined, selectedPlatform || undefined);
-    }, 2000);
   };
 
   if (!selectedPlatform) {
@@ -121,8 +164,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
         notes={notes}
         onNotesChange={setNotes}
         onFinishEarly={() => {
-          const readingContent = queries.join(' | ');
-          onComplete(readingContent, notes, behavioralSessionId || undefined, 'google');
+          void finalizeResearch('google');
         }}
       />
     );
@@ -139,8 +181,7 @@ export const ResearchInterface: React.FC<ResearchInterfaceProps> = ({
       notes={notes}
       onNotesChange={setNotes}
       onFinishEarly={() => {
-        const readingContent = queries.join(' | ');
-        onComplete(readingContent, notes, behavioralSessionId || undefined, 'chatgpt');
+        void finalizeResearch('chatgpt');
       }}
     />
   );

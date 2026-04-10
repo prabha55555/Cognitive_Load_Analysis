@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Clock, FileText, Send } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { geminiService, AssessmentQuestion as GeminiAssessmentQuestion } from '../services/geminiService';
 import { AssessmentResponse, Participant } from '../types';
@@ -73,7 +73,6 @@ export default function AssessmentPhase({
   const [showWarning, setShowWarning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [isReadyToSubmit, setIsReadyToSubmit] = useState(false);
 
   // Load assessment questions - Watch for topic changes
   useEffect(() => {
@@ -329,8 +328,6 @@ This means:
   };
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  const totalResponses = responses.length;
 
   // Show loading state
   if (isLoading) {
@@ -395,7 +392,7 @@ This means:
          </div>
       </div>
 
-      {/* Zone 3 � Progress Bar */}
+      {/* Zone 3 | Progress Bar */}
       <div style={{ width: '100%', padding: '0.8rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#090a0c', display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
          <div className="font-mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>PROGRESS</div>
          <div style={{ flex: 1, height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '99px' }}>
@@ -404,7 +401,7 @@ This means:
          <div className="font-mono" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Question {currentQ} of {totalQ}</div>
       </div>
 
-      {/* Zone 4 � Question Area */}
+      {/* Zone 4 | Question Area */}
       <div className="question-area" style={{ flex: 1, padding: '2rem 2.5rem', width: '100%', boxSizing: 'border-box', overflowY: 'auto' }}>
       <div className="question-inner" style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -419,6 +416,12 @@ This means:
          <div className="font-display" style={{ fontWeight: 700, fontSize: '1.15rem', lineHeight: 1.6, color: 'white', marginTop: '0.4rem', maxWidth: '72ch' }}>
             {currentQuestion.question}
          </div>
+
+        {showWarning && (
+          <div className="font-mono" style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.2rem' }}>
+            You have spent more than 3 minutes on this question.
+          </div>
+        )}
 
          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '1rem' }}>
             {currentQuestion.options.map((option, idx) => {

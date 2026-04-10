@@ -25,8 +25,6 @@ interface ChatGPTInterfaceProps {
 export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
   participant,
   onQuerySubmit,
-  onTopicChange,
-  sessionId,
   timeLeft,
   queriesCount,
   notes,
@@ -72,7 +70,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
     
     let dragging = false;
 
-    const onMouseDown = (e: MouseEvent) => {
+    const onMouseDown = () => {
       dragging = true;
       setIsDragging(true);
       document.body.style.cursor = 'col-resize';
@@ -98,7 +96,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
       divider.classList.remove('active');
     };
 
-    const onTouchStart = (e: TouchEvent) => {
+    const onTouchStart = () => {
       dragging = true;
       setIsDragging(true);
       divider.classList.add('active');
@@ -194,7 +192,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
 
     try {
       const conversationHistory: ChatMessage[] = messages.slice(-6).map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
+        role: msg.role === 'user' ? 'user' : 'assistant',
         content: msg.content
       }));
 
@@ -260,10 +258,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
   };
 
   const renderContent = (content: string) => {
-    const topicPattern = /\[TOPIC\]/g;
-    const boldPattern = /\*\*(.*?)\*\*/g;
-    
-    let rendered = content.split('\n\n').map((para, i) => (
+    const rendered = content.split('\n\n').map((para, i) => (
       <p key={i} className={i > 0 ? "mt-3" : ""}>
         {para.split(/(?=\[TOPIC\]|\*\*.*\*\*)/g).map((segment, j) => {
           if (segment.startsWith('[TOPIC]')) {
@@ -301,10 +296,10 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
         .font-display { font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
         .font-mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; }
         
-        .workspace { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        .workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
         @media (min-width: 768px) { .workspace { flex-direction: row; } }
         
-        .pane-left { width: 100%; flex: 0 0 auto; overflow: hidden; display: flex; flex-direction: column; background: #0a0b0e; }
+        .pane-left { width: 100%; flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: #0a0b0e; overscroll-behavior: contain; }
         @media (min-width: 768px) { .pane-left { width: 72%; min-width: 420px; max-width: calc(100% - 280px); } }
 
         .pane-divider { display: none; }
@@ -323,7 +318,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
           .pane-divider:hover::before, .pane-divider.active::before { background: rgba(0,191,219,0.8); }
         }
 
-        .pane-right { width: 100%; flex: 1 1 auto; overflow-y: auto; background: #0a0b0e; border-left: 1px solid rgba(255,255,255,0.07); }
+        .pane-right { width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: #0a0b0e; border-left: 1px solid rgba(255,255,255,0.07); }
         @media (min-width: 768px) { .pane-right { width: auto; min-width: 280px; } }
 
         .workspace.dragging * { user-select: none; pointer-events: none; }
@@ -377,7 +372,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
           <div className="flex justify-between items-center flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '1rem 1.5rem' }}>
             <div>
               <div className="font-display font-[700] text-[1rem] text-white">Chat Assistant</div>
-              <div className="font-mono text-[0.7rem] text-white/40">Powered by OpenAI � {initialTopic}</div>
+              <div className="font-mono text-[0.7rem] text-white/40">Powered by OpenAI | {initialTopic}</div>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2" style={{ border: '1px solid rgba(0,191,219,0.2)', borderRadius: '4px', padding: '3px 10px' }}>
@@ -391,7 +386,7 @@ export const ChatGPTInterface: React.FC<ChatGPTInterfaceProps> = ({
           </div>
 
           {/* Message Thread */}
-          <div className="flex-1 overflow-y-auto flex flex-col gap-[1.2rem]" style={{ padding: '1.5rem' }}>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-[1.2rem]" style={{ padding: '1.5rem', overscrollBehavior: 'contain' }}>
             {messages.map((msg, idx) => (
               <div key={idx} className={msg.role === 'user' ? "flex flex-col self-end" : "flex gap-[0.8rem] items-start w-full relative"}>
                 

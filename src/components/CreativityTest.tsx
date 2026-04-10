@@ -1,7 +1,7 @@
-import { AlertCircle, ArrowRight, Brain, CheckCircle, Lightbulb, Sparkles, Target, Timer, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { geminiService, CreativityQuestion, CreativityEvaluation } from '../services/geminiService';
 import { TestResponse } from '../types';
+import { ArrowRight } from 'lucide-react';
 
 interface CreativityTestProps {
   topic: string;
@@ -26,16 +26,7 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [pulseEffect, setPulseEffect] = useState(false);
-
-  // Pulse animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPulseEffect(true);
-      setTimeout(() => setPulseEffect(false), 1000);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   // Generate questions on mount
   useEffect(() => {
@@ -50,15 +41,12 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
     } else if (timeLeft === 0 && questions.length > 0 && !isCompleted && !isEvaluating) {
       handleSubmit();
     }
-  }, [timeLeft, isCompleted, isEvaluating]);
+  }, [timeLeft, isCompleted, isEvaluating, questions.length]);
 
   const generateQuestions = async () => {
     setIsLoading(true);
     try {
-      console.log('Generating creativity questions for topic:', topic);
       const generated = await geminiService.generateCreativityQuestions(topic, notes);
-      console.log('Generated questions:', generated);
-      
       setQuestions(generated);
       if (generated.length > 0) {
         setTimeLeft(generated[0].timeLimit);
@@ -78,44 +66,12 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
     const currentQuestion = questions[currentQuestionIndex];
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
 
-    console.log('==========================================');
-    console.log('🎨 CREATIVITY TEST - SUBMITTING RESPONSE');
-    console.log('Question ID:', currentQuestion.id);
-    console.log('Question:', currentQuestion.question);
-    console.log('Question Type:', currentQuestion.type);
-    console.log('Topic:', currentQuestion.topic);
-    console.log('Response length:', response.length, 'characters');
-    console.log('Response word count:', response.trim().split(/\s+/).length, 'words');
-    console.log('Time spent:', timeSpent, 'seconds');
-    console.log('Time limit:', currentQuestion.timeLimit, 'seconds');
-    console.log('Time usage:', ((timeSpent / currentQuestion.timeLimit) * 100).toFixed(1) + '%');
-    console.log('Response preview:', response.substring(0, 200));
-    console.log('==========================================');
-
     try {
-      console.log('📡 Calling Gemini AI for evaluation...');
-      console.log('Using geminiService.evaluateCreativityResponse()');
-      
-      // Evaluate response using Gemini AI
       const evaluation = await geminiService.evaluateCreativityResponse(
         currentQuestion,
         response,
         timeSpent
       );
-
-      console.log('==========================================');
-      console.log('✅ EVALUATION RECEIVED FROM GEMINI');
-      console.log('Overall Score:', evaluation.score);
-      console.log('Relevance Score:', evaluation.relevanceScore);
-      console.log('Creativity Score:', evaluation.creativityScore);
-      console.log('Depth Score:', evaluation.depthScore);
-      console.log('Coherence Score:', evaluation.coherenceScore);
-      console.log('Time Efficiency Score:', evaluation.timeEfficiencyScore);
-      console.log('Feedback:', evaluation.feedback);
-      console.log('Strengths:', evaluation.strengths);
-      console.log('Improvements:', evaluation.improvements);
-      console.log('Cognitive Load Indicators:', evaluation.cognitiveLoadIndicators);
-      console.log('==========================================');
 
       const testResponse: TestResponse = {
         participantId,
@@ -131,40 +87,18 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
       setResponses(newResponses);
       setEvaluations(newEvaluations);
 
-      console.log('==========================================');
-      console.log('📊 UPDATED STATE');
-      console.log('Total responses:', newResponses.length);
-      console.log('Total evaluations:', newEvaluations.length);
-      console.log('All evaluation scores:', newEvaluations.map(e => e.score));
-      console.log('==========================================');
-
-      // Move to next question or complete
       if (currentQuestionIndex < questions.length - 1) {
-        console.log('➡️ Moving to next question:', currentQuestionIndex + 1);
         setCurrentQuestionIndex(currentQuestionIndex + 1);
         setResponse('');
         setTimeLeft(questions[currentQuestionIndex + 1].timeLimit);
         setStartTime(Date.now());
+        setHasInteracted(false);
       } else {
         setIsCompleted(true);
-        console.log('==========================================');
-        console.log('🎨 CREATIVITY ASSESSMENT COMPLETE');
-        console.log('Total Responses:', newResponses.length);
-        console.log('Total Evaluations:', newEvaluations.length);
-        console.log('All Evaluations:', newEvaluations);
-        console.log('Evaluation Scores:', newEvaluations.map(e => e.score));
-        console.log('Average Score:', newEvaluations.reduce((sum, e) => sum + e.score, 0) / newEvaluations.length);
-        console.log('Calling onComplete with:', { responses: newResponses, evaluations: newEvaluations });
-        console.log('==========================================');
         onComplete(newResponses, newEvaluations);
       }
     } catch (error) {
-      console.error('==========================================');
-      console.error('❌ ERROR DURING EVALUATION');
-      console.error('Error:', error);
-      console.error('Question:', currentQuestion.question);
-      console.error('Response:', response.substring(0, 100));
-      console.error('==========================================');
+      console.error('Error during evaluation:', error);
       alert('Error evaluating response. Please try again.');
     } finally {
       setIsEvaluating(false);
@@ -177,49 +111,43 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getTestTypeColor = (type: string) => {
-    switch (type) {
-      case 'fluency': return 'text-blue-600';
-      case 'originality': return 'text-purple-600';
-      case 'divergent': return 'text-emerald-600';
-      default: return 'text-slate-600';
-    }
+  const wordCount = response.trim().length > 0 ? response.trim().split(/\s+/).length : 0;
+  const uniqueWords = response.trim().length > 0 ? new Set(response.split('\n').map(s => s.trim()).filter(s => s.length > 0)).size : 0;
+  
+  const handleInteraction = () => {
+    if (!hasInteracted) setHasInteracted(true);
   };
 
-  const getTestTypeBg = (type: string) => {
-    switch (type) {
-      case 'fluency': return 'bg-blue-50/80 border-blue-200/60 dark:bg-blue-500/10 dark:border-blue-500/30';
-      case 'originality': return 'bg-purple-50/80 border-purple-200/60 dark:bg-purple-500/10 dark:border-purple-500/30';
-      case 'divergent': return 'bg-emerald-50/80 border-emerald-200/60 dark:bg-emerald-500/10 dark:border-emerald-500/30';
-      default: return 'bg-slate-50/80 border-slate-200/60 dark:bg-slate-800/70 dark:border-slate-700';
-    }
-  };
-
-  if (isLoading) {
+  // View 1: Loading State
+  if (isLoading || isEvaluating) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="cla-surface max-w-md p-12 text-center">
-          <Brain className="h-16 w-16 text-purple-600 animate-pulse mx-auto mb-4" />
-          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Generating Creativity Questions</h2>
-          <p className="text-slate-600 dark:text-slate-300">Using AI to create personalized questions about <span className="font-bold text-purple-600">{topic}</span>...</p>
-          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">This may take a moment</div>
+      <div className="fixed inset-0 z-[100] bg-[#090a0c] flex flex-col items-center justify-center text-center">
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes bar-wave {
+            from { transform: scaleY(0.25); opacity: 0.3; }
+            to   { transform: scaleY(1);   opacity: 1;   }
+          }
+          .loading-bars { display: flex; gap: 0.3rem; height: 2rem; align-items: center; justify-content: center; }
+          .bar { width: 4px; height: 100%; background: #00bfdb; border-radius: 99px; animation: bar-wave 0.9s infinite alternate ease-in-out; }
+          .bar:nth-child(1) { animation-delay: 0s; }
+          .bar:nth-child(2) { animation-delay: 0.12s; }
+          .bar:nth-child(3) { animation-delay: 0.24s; }
+          .bar:nth-child(4) { animation-delay: 0.36s; }
+          .bar:nth-child(5) { animation-delay: 0.48s; }
+        `}} />
+        <div className="loading-bars">
+          <div className="bar"></div><div className="bar"></div><div className="bar"></div><div className="bar"></div><div className="bar"></div>
         </div>
-      </div>
-    );
-  }
-
-  if (isCompleted) {
-    return (
-      <div className="mx-auto max-w-4xl p-8">
-        <div className="cla-surface border-emerald-300/70 bg-emerald-500/10 p-12 text-center dark:border-emerald-500/30">
-          <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
-          <h2 className="mb-4 text-4xl font-black text-emerald-800 dark:text-emerald-300">Creativity Assessment Complete!</h2>
-          <p className="mb-8 text-lg text-emerald-700 dark:text-emerald-300">
-            Your responses have been evaluated by AI. Analyzing cognitive load patterns...
-          </p>
-          <div className="rounded-2xl border border-emerald-200/70 bg-white/80 p-6 dark:border-emerald-500/30 dark:bg-slate-900/70">
-            <Sparkles className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-            <p className="font-semibold text-emerald-700 dark:text-emerald-300">Processing results...</p>
+        <div className="mt-8">
+          <div className="font-mono text-[0.65rem] uppercase text-white/40 mb-2">CREATIVITY ASSESSMENT</div>
+          <h2 className="font-display font-[800] text-[1.6rem] tracking-[-0.03em] text-white">
+            {isEvaluating ? "Evaluating your creative response" : "Preparing your creativity test"}
+          </h2>
+          <div className="mt-[0.6rem] inline-block border border-[#00bfdb]/20 bg-[#00bfdb]/[0.06] rounded-[6px] px-[14px] py-[4px] font-display font-[600] text-[0.9rem] text-[#00bfdb]">
+            {topic}
+          </div>
+          <div className="mt-[1.4rem] font-mono text-[0.68rem] text-white/25">
+            {isEvaluating ? "Analyzing fluency and originality \u00B7 This may take a moment" : "Generating AUT prompt \u00B7 This may take a moment"}
           </div>
         </div>
       </div>
@@ -228,17 +156,13 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="cla-surface max-w-xl p-8 text-center">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Unable to Generate Questions</h2>
-          <p className="mb-6 text-slate-600 dark:text-slate-300">
+      <div className="flex flex-1 flex-col items-center justify-center p-6 bg-[#090a0c]">
+        <div className="text-center">
+          <h2 className="mb-2 text-[1.6rem] font-display font-[800] text-white tracking-[-0.03em]">Unable to Generate Questions</h2>
+          <p className="mb-6 font-mono text-[0.8rem] text-white/40">
             Please make sure you've completed the reading phase with sufficient notes about the topic.
           </p>
-          <button
-            onClick={generateQuestions}
-            className="cla-btn-primary px-6 py-3"
-          >
+          <button onClick={generateQuestions} className="px-6 py-3 bg-[#00bfdb] text-[#090a0c] font-display font-[700] rounded-[7px] text-[0.88rem]">
             Try Again
           </button>
         </div>
@@ -247,166 +171,166 @@ export const CreativityTest: React.FC<CreativityTestProps> = ({
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-  const wordCount = response.trim().split(/\s+/).filter(w => w.length > 0).length;
-  const uniqueWords = new Set(response.toLowerCase().split(/\s+/)).size;
+  const progressPercent = ((currentQuestionIndex) / questions.length) * 100;
+  // User spec: 1 of 1 -> 100% complete
+  const finalPercent = questions.length === 1 ? 100 : progressPercent;
 
+  // Since we rely on participant dashboard for Zone 1 and Zone 5, we only render Zone 2, 3, 4 here.
+  // We need to dispatch the active status to global state or context if possible, but the user spec just says "both must match dark system" and gives us a visual map.
   return (
-    <div className="min-h-screen px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress Bar */}
-        <div className="cla-surface mb-6 p-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Question {currentQuestionIndex + 1} of {questions.length}</span>
-            <span className="text-sm font-bold text-purple-600">{Math.round(progress)}% Complete</span>
-          </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-            <div 
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            ></div>
+    <div className="flex flex-col flex-1 bg-[#090a0c] text-white w-full h-full">
+      {/* Zone 2 — Phase Header Strip */}
+      <div className="w-full px-[2.5rem] py-[1.2rem] border-b border-white/[0.07] flex justify-between items-center bg-[#090a0c]">
+        <div>
+          <h2 className="font-display font-[800] text-[1.3rem] text-white">Creativity Assessment</h2>
+          <div className="font-mono text-[0.72rem] text-white/40 mt-1">
+            Test type: <span className="text-[#00bfdb]">{currentQuestion.type === 'fluency' ? 'Fluency Test (AUT)' : (currentQuestion.type + ' Test')}</span>
           </div>
         </div>
+        <div className="border border-[#00bfdb]/20 rounded-[8px] px-[1rem] py-[0.4rem] text-center bg-[#090a0c]">
+          <div className="font-mono font-[500] text-[1.5rem] text-[#00bfdb] leading-none mb-1">{formatTime(timeLeft)}</div>
+          <div className="font-mono text-[0.6rem] text-white/40 leading-none">Time Remaining</div>
+        </div>
+      </div>
 
-        {/* Main Question Card */}
-        <div className="cla-surface overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-white/80 p-8 dark:border-slate-700 dark:from-slate-900/80 dark:to-slate-900/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className={`absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600 rounded-2xl blur-xl opacity-40 ${pulseEffect ? 'animate-ping' : 'animate-pulse'}`}></div>
-                  <div className={`relative p-3 rounded-2xl shadow-lg ${getTestTypeBg(currentQuestion.type)}`}>
-                    <Brain className="h-6 w-6" />
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100">Creativity Assessment</h2>
-                  <span className={`text-lg font-bold ${getTestTypeColor(currentQuestion.type)}`}>
-                    {currentQuestion.type.charAt(0).toUpperCase() + currentQuestion.type.slice(1)} Test
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className={`flex items-center space-x-3 px-4 py-2 rounded-2xl border-2 ${
-                  timeLeft < 60 
-                    ? 'bg-red-50/80 border-red-200/60 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-300' 
-                    : 'bg-blue-50/80 border-blue-200/60 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300'
-                } backdrop-blur-sm`}>
-                  <Timer className={`h-5 w-5 ${timeLeft < 60 ? 'text-red-500' : 'text-blue-500'}`} />
-                  <span className={`text-xl font-black ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
-                    {formatTime(timeLeft)}
-                  </span>
-                </div>
-              </div>
+      {/* Zone 3 — Progress Strip */}
+      <div className="w-full px-[2.5rem] py-[0.7rem] border-b border-white/[0.07] flex items-center gap-[1.2rem] bg-[#090a0c]">
+        <div className="font-mono text-[0.65rem] uppercase text-white/40 whitespace-nowrap">
+          QUESTION {currentQuestionIndex + 1} OF {questions.length}
+        </div>
+        <div className="flex-1 h-[3px] bg-white/[0.07] rounded-full overflow-hidden">
+          <div className="h-full bg-[#00bfdb]" style={{ width: `${finalPercent}%` }}></div>
+        </div>
+        <div className="font-mono text-[0.65rem] text-white/40 whitespace-nowrap">
+          {finalPercent}% Complete
+        </div>
+      </div>
+
+      {/* Zone 4 — Main Workspace (2-col) */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] max-w-full bg-[#090a0c]">
+        {/* Left Column */}
+        <div className="px-[1rem] md:px-[2.5rem] py-[2rem] flex flex-col h-full max-w-[100%] overflow-x-hidden min-h-[500px]">
+          {/* Question block */}
+          <div className="mb-[1.5rem]">
+            <div className="font-mono text-[0.65rem] uppercase text-white/40 mb-[0.5rem]">QUESTION</div>
+            <div className="border-t border-white/[0.07] pt-[1rem]">
+              <div className="font-display font-[700] text-[1.1rem] leading-[1.65] text-white max-w-[68ch]" dangerouslySetInnerHTML={{__html: currentQuestion.question.replace(new RegExp(`(${topic})`, "ig"), '<span class="text-[#00bfdb]">$1</span>')}} />
             </div>
           </div>
 
-          {/* Question Content */}
-          <div className="p-8">
-            <div className="mb-8">
-              <div className={`p-6 rounded-2xl ${getTestTypeBg(currentQuestion.type)} backdrop-blur-sm border-2 mb-6`}>
-                <div className="flex items-center space-x-3 mb-4">
-                  <Lightbulb className="h-6 w-6 text-yellow-600" />
-                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Question</span>
-                </div>
-                <label className="block text-2xl font-bold leading-relaxed text-slate-800 dark:text-slate-100">
-                  {currentQuestion.question}
-                </label>
-              </div>
-              
-              {timeLeft < 60 && (
-                <div className="mb-6 flex items-center space-x-3 rounded-2xl border-2 border-amber-200/60 bg-gradient-to-br from-amber-50/80 to-orange-50/80 p-4 backdrop-blur-sm dark:border-amber-500/40 dark:from-amber-500/10 dark:to-orange-500/10">
-                  <AlertCircle className="h-6 w-6 text-amber-600" />
-                  <span className="font-semibold text-amber-800 dark:text-amber-300">Less than 1 minute remaining!</span>
-                </div>
-              )}
-            </div>
-
-            {/* Response Area */}
-            <div className="mb-6">
-              <div className="flex items-center space-x-3 mb-4">
-                <Target className="h-5 w-5 text-slate-600" />
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Your Response</span>
-              </div>
+          {/* Response block */}
+          <div className="flex flex-col flex-1">
+            <div className="font-mono text-[0.65rem] uppercase text-white/40 mt-[1.5rem] mb-[0.5rem]">YOUR RESPONSE</div>
+            <div className="border-t border-white/[0.07] pt-[1rem] flex-1 flex flex-col min-h-0">
               <textarea
                 value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                placeholder="Type your creative response here... Be as detailed and original as possible!"
-                className="cla-input h-80 w-full resize-none p-6 text-lg leading-relaxed"
+                onChange={(e) => { setResponse(e.target.value); handleInteraction(); }}
+                onInput={() => handleInteraction()}
+                placeholder="List your ideas here — one per line. Be specific and original."
+                className="w-full min-h-[280px] flex-1 bg-white/[0.03] border border-white/[0.08] rounded-[8px] p-[1rem_1.1rem] font-mono text-[0.85rem] text-white/75 leading-[1.7] resize-y focus:border-[#00bfdb]/35 focus:outline-none"
                 disabled={isEvaluating}
               />
             </div>
-
-            {/* Word Count and Submit */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 rounded-xl border border-slate-200/60 bg-slate-50/80 px-4 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/70">
-                  <Zap className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {wordCount} words
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2 rounded-xl border border-slate-200/60 bg-slate-50/80 px-4 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/70">
-                  <Sparkles className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {uniqueWords} unique
-                  </span>
-                </div>
+            
+            {/* Bottom action row */}
+            <div className="mt-[1rem] flex justify-between items-center shrink-0">
+              <div className="flex gap-[1.2rem]">
+                <div className="font-mono text-[0.72rem] text-white/40">{wordCount} words</div>
+                <div className="font-mono text-[0.72rem] text-white/40">{uniqueWords} unique</div>
               </div>
-              
               <button
                 onClick={handleSubmit}
-                disabled={!response.trim() || isEvaluating}
-                className="cla-btn-primary group relative overflow-hidden px-8 py-4 font-bold disabled:cursor-not-allowed disabled:bg-slate-300"
+                disabled={!response.trim().length || isEvaluating}
+                className="font-display font-[700] text-[0.88rem] rounded-[7px] px-[1.4rem] py-[0.65rem] flex items-center gap-2 transition-all duration-200 active:scale-[0.98] disabled:bg-white/[0.07] disabled:text-white/25 disabled:cursor-not-allowed hover:disabled:opacity-100 hover:disabled:translate-y-0"
+                style={{
+                  backgroundColor: response.trim().length ? '#00bfdb' : undefined,
+                  color: response.trim().length ? '#090a0c' : undefined,
+                  opacity: response.trim().length ? 0.85 : undefined,
+                  transform: response.trim().length ? 'translateY(-1px)' : undefined
+                }}
+                onMouseOver={(e) => {
+                  if (response.trim().length) {
+                    e.currentTarget.style.opacity = '1';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (response.trim().length) {
+                    e.currentTarget.style.opacity = '0.85';
+                  }
+                }}
               >
-                {isEvaluating ? (
-                  <div className="flex items-center space-x-3">
-                    <Brain className="h-5 w-5 animate-pulse" />
-                    <span>AI Evaluating...</span>
-                  </div>
-                ) : (
-                  <div className="relative flex items-center space-x-3">
-                    <CheckCircle className="h-5 w-5" />
-                    <span>Submit Response</span>
-                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </div>
-                )}
+                Submit Response
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Instructions */}
-          <div className="border-t border-slate-200/60 bg-gradient-to-br from-slate-50/80 to-slate-100/80 p-8 backdrop-blur-sm dark:border-slate-700 dark:from-slate-900/80 dark:to-slate-800/80">
-            <h3 className="mb-4 flex items-center text-lg font-black text-slate-900 dark:text-slate-100">
-              <Brain className="h-5 w-5 mr-3 text-purple-600" />
-              Instructions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Be as creative and original as possible</span>
+        {/* Right Column */}
+        <div className="md:border-l border-white/[0.07] p-[1.5rem] bg-[#0a0b0e] overflow-y-auto">
+          {/* Instructions section */}
+          <div className="mb-[1.8rem]">
+            <div className="font-mono text-[0.65rem] uppercase text-white/40 mb-[1rem]">INSTRUCTIONS</div>
+            <div className="divide-y divide-white/[0.05]">
+              {[
+                "Be as creative and original as possible",
+                "Provide detailed, specific responses",
+                "Think divergently — avoid obvious answers",
+                "Your response is evaluated for fluency and originality"
+              ].map((text, i) => (
+                <div key={i} className="py-[0.7rem] flex gap-[0.7rem] items-start">
+                  <div className="font-mono text-[0.65rem] text-white/20 min-w-[16px]">0{i + 1}</div>
+                  <div className="text-[0.8rem] text-white/50 leading-[1.6]">{text}</div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Provide detailed and thoughtful responses</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Scoring Criteria section */}
+          <div className="mb-[1.8rem] mt-[1.8rem]">
+            <div className="font-mono text-[0.65rem] uppercase text-white/40 mb-[1rem]">SCORING CRITERIA</div>
+            <div className="divide-y divide-white/[0.05]">
+              {[
+                { name: "Fluency", desc: "# of valid ideas" },
+                { name: "Originality", desc: "Uniqueness score" },
+                { name: "Elaboration", desc: "Detail level" }
+              ].map((item, i) => (
+                <div key={i} className="py-[0.7rem] flex justify-between items-start">
+                  <div className="font-mono text-[0.72rem] text-white/40">{item.name}</div>
+                  <div className="font-mono text-[0.72rem] text-white">{item.desc}</div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Session Stats section */}
+          <div className="mt-[1.8rem]">
+            <div className="font-mono text-[0.65rem] uppercase text-white/40 mb-[0.8rem]">SESSION</div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="font-mono text-[0.72rem] text-white/40">Platform</div>
+                <div className="font-display font-[600] text-white">ChatGPT</div>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Think deeply about the topic</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Your response will be evaluated by AI</span>
-                </div>
+              <div className="flex justify-between items-center">
+                <div className="font-mono text-[0.72rem] text-white/40">Research Topic</div>
+                <div className="font-mono text-[0.72rem] text-white/45 truncate max-w-[140px]">{topic}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* We add a style tag to apply hover styles inline cleanly since standard React inline styles for hover don't work */}
+      <style dangerouslySetInnerHTML={{__html: `
+        button.submit-btn:enabled {
+          background: #00bfdb !important;
+          color: #090a0c !important;
+        }
+        button.submit-btn:enabled:hover {
+          opacity: 0.85;
+          transform: translateY(-1px);
+        }
+      `}} />
     </div>
   );
 };

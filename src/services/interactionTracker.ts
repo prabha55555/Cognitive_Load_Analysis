@@ -256,6 +256,17 @@ export class InteractionTracker {
     return this.isTracking;
   }
 
+  /**
+   * Get tracker context for lifecycle management.
+   */
+  getContext(): { sessionId: string; participantId: string; platform: Platform } {
+    return {
+      sessionId: this.sessionId,
+      participantId: this.participantId,
+      platform: this.platform,
+    };
+  }
+
   // ==========================================================================
   // Event Handlers
   // ==========================================================================
@@ -331,9 +342,14 @@ export class InteractionTracker {
    * Handle scroll events
    * Requirements: 1.4
    */
-  private handleScroll(_e: Event): void {
+  private handleScroll(e: Event): void {
     const now = Date.now();
-    const currentPosition = window.scrollY;
+    const target = e.target as EventTarget | null;
+    let currentPosition = window.scrollY || document.documentElement.scrollTop || 0;
+
+    if (target instanceof HTMLElement) {
+      currentPosition = target.scrollTop;
+    }
 
     // Calculate direction and velocity
     const direction: 'up' | 'down' = currentPosition > this.lastScrollPosition ? 'down' : 'up';
@@ -363,7 +379,7 @@ export class InteractionTracker {
    * Handle keydown events (privacy-preserving - no key values)
    * Requirements: 1.3
    */
-  private handleKeyDown(_e: KeyboardEvent): void {
+  private handleKeyDown(): void {
     this.lastKeyDownTime = Date.now();
   }
 
@@ -371,7 +387,7 @@ export class InteractionTracker {
    * Handle keyup events (privacy-preserving - no key values)
    * Requirements: 1.3
    */
-  private handleKeyUp(_e: KeyboardEvent): void {
+  private handleKeyUp(): void {
     const now = Date.now();
     const keyUpTime = now;
     const keyDownTime = this.lastKeyDownTime;
@@ -498,6 +514,7 @@ export class InteractionTracker {
     document.addEventListener('click', this.boundHandlers.click, { passive: true });
     document.addEventListener('mousemove', this.boundHandlers.mousemove, { passive: true });
     window.addEventListener('scroll', this.boundHandlers.scroll, { passive: true });
+    document.addEventListener('scroll', this.boundHandlers.scroll, { passive: true, capture: true });
     document.addEventListener('keydown', this.boundHandlers.keydown, { passive: true });
     document.addEventListener('keyup', this.boundHandlers.keyup, { passive: true });
     
@@ -513,6 +530,7 @@ export class InteractionTracker {
     document.removeEventListener('click', this.boundHandlers.click);
     document.removeEventListener('mousemove', this.boundHandlers.mousemove);
     window.removeEventListener('scroll', this.boundHandlers.scroll);
+    document.removeEventListener('scroll', this.boundHandlers.scroll, true);
     document.removeEventListener('keydown', this.boundHandlers.keydown);
     document.removeEventListener('keyup', this.boundHandlers.keyup);
   }
@@ -594,7 +612,19 @@ export function getInteractionTracker(
   platform: Platform,
   config?: Partial<InteractionTrackerConfig>
 ): InteractionTracker {
-  if (!trackerInstance) {
+  const existingContext = trackerInstance?.getContext();
+  const hasContextMismatch =
+    !!existingContext &&
+    (existingContext.sessionId !== sessionId ||
+      existingContext.participantId !== participantId ||
+      existingContext.platform !== platform);
+
+  if (!trackerInstance || hasContextMismatch) {
+    if (trackerInstance?.isActive()) {
+      trackerInstance.stop().catch((error) => {
+        logger.warn('Failed to stop existing tracker before creating a new one', error);
+      });
+    }
     trackerInstance = new InteractionTracker(sessionId, participantId, platform, config);
   }
   return trackerInstance;
