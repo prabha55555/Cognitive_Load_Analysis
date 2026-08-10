@@ -2,6 +2,8 @@
 
 A research platform for studying cognitive load differences between AI chatbots and traditional Google Search, with integrated creativity assessment.
 
+https://github.com/user-attachments/assets/28ce1209-7e78-4db1-811f-4909b55c05a1
+
 ## 🎯 Overview
 
 This platform enables researchers to conduct studies comparing how users learn and retain information when using AI chatbots (like ChatGPT) versus Google Search. It measures cognitive load through **behavioral interaction analysis** - capturing user interaction patterns (clicks, mouse movements, keystrokes, navigation) and using machine learning classification to infer cognitive load levels.
